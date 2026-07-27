@@ -52,7 +52,7 @@
             <div id="app">
                 <div class="main-wrapper main-wrapper-1">
                 <Menu:Menu/>
-                <div class="main-content" style="min-height: 694px;">
+                <div class="main-content op-container" style="min-height: 694px;">
                     <Proyecto:Proyectos/>
                 </div>
             </div>
@@ -82,7 +82,9 @@
 
         <script>
             $(document).ready(function () {
-                var limit = 3; // Límite predeterminado
+                // Leer límite desde sessionStorage o usar 25 por defecto
+                var savedLimit = sessionStorage.getItem('op_proyectos_limit');
+                var limit = savedLimit ? parseInt(savedLimit, 10) : 25;
                 var currentPage = 1;
                 var pageRange = 4; // Número máximo de botones de página a mostrar en el rango central
 

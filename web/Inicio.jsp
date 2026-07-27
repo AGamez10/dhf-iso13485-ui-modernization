@@ -51,7 +51,7 @@
 
         <jsp:include page="Contenedor_head.jsp"></jsp:include>
         <Menu:Menu/>
-        <div class="main-content" style="min-height: 694px;">
+        <div class="main-content op-container" style="min-height: 694px;">
             <Inicio:Inicio/>
         </div>
         <Alertas:Alertas/>
