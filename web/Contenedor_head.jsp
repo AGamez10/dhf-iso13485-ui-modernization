@@ -759,6 +759,118 @@
                 })();
             </script>
             <% } %>
+    <!-- ═══════════════════════════════════════════════════════════════
+         SPRINT 4: PERSISTENCIA DE CONTEXTO DE TRABAJO
+         Elimina la pérdida de scroll, tab activo y acordeones
+         después de cada guardado/recarga del Servlet.
+         ═══════════════════════════════════════════════════════════════ -->
+    <script>
+        (function () {
+            'use strict';
+
+            var STORAGE_PREFIX = 'op_ctx_';
+            var currentPage = window.location.pathname + window.location.search.split('&TempM=')[0];
+
+            // --- RESTAURAR CONTEXTO AL CARGAR ---
+            function restoreContext() {
+                var savedPage = sessionStorage.getItem(STORAGE_PREFIX + 'page');
+                if (savedPage !== currentPage) return; // Solo restaurar si es la misma vista
+
+                // 1. Restaurar scroll vertical
+                var savedScroll = sessionStorage.getItem(STORAGE_PREFIX + 'scrollY');
+                if (savedScroll) {
+                    window.scrollTo(0, parseInt(savedScroll, 10));
+                }
+
+                // 2. Restaurar tab activo (#myTab5)
+                var savedTab = sessionStorage.getItem(STORAGE_PREFIX + 'activeTab');
+                if (savedTab && typeof $ !== 'undefined') {
+                    try {
+                        var tabLink = document.querySelector('a[href="' + savedTab + '"]');
+                        if (tabLink) {
+                            $(tabLink).tab('show');
+                        }
+                    } catch (e) { /* Bootstrap tab no disponible */ }
+                }
+
+                // 3. Restaurar collapses expandidos
+                var savedCollapses = sessionStorage.getItem(STORAGE_PREFIX + 'collapses');
+                if (savedCollapses && typeof $ !== 'undefined') {
+                    try {
+                        var ids = JSON.parse(savedCollapses);
+                        for (var i = 0; i < ids.length; i++) {
+                            var el = document.getElementById(ids[i]);
+                            if (el) {
+                                $(el).collapse('show');
+                            }
+                        }
+                    } catch (e) { /* JSON parse error */ }
+                }
+
+                // Limpiar después de restaurar (single-use)
+                sessionStorage.removeItem(STORAGE_PREFIX + 'scrollY');
+                sessionStorage.removeItem(STORAGE_PREFIX + 'activeTab');
+                sessionStorage.removeItem(STORAGE_PREFIX + 'collapses');
+            }
+
+            // --- GUARDAR CONTEXTO ANTES DE NAVEGAR ---
+            function saveContext() {
+                sessionStorage.setItem(STORAGE_PREFIX + 'page', currentPage);
+
+                // 1. Guardar scroll vertical
+                sessionStorage.setItem(STORAGE_PREFIX + 'scrollY', window.scrollY || window.pageYOffset || 0);
+
+                // 2. Guardar tab activo
+                var activeTab = document.querySelector('#myTab5 .nav-link.active, .nav-tabs .nav-link.active');
+                if (activeTab && activeTab.getAttribute('href')) {
+                    sessionStorage.setItem(STORAGE_PREFIX + 'activeTab', activeTab.getAttribute('href'));
+                }
+
+                // 3. Guardar collapses expandidos
+                var openCollapses = document.querySelectorAll('.collapse.show');
+                var collapseIds = [];
+                for (var i = 0; i < openCollapses.length; i++) {
+                    if (openCollapses[i].id) {
+                        collapseIds.push(openCollapses[i].id);
+                    }
+                }
+                if (collapseIds.length > 0) {
+                    sessionStorage.setItem(STORAGE_PREFIX + 'collapses', JSON.stringify(collapseIds));
+                }
+            }
+
+            // Guardar antes de cualquier submit de formulario
+            document.addEventListener('submit', saveContext, true);
+
+            // Guardar antes de navegación por links (href a Servlets)
+            document.addEventListener('click', function (e) {
+                var link = e.target.closest ? e.target.closest('a[href*="Proyecto?"]') : null;
+                if (!link) {
+                    // Fallback para IE/legacy
+                    var el = e.target;
+                    while (el && el.tagName !== 'A') { el = el.parentElement; }
+                    if (el && el.href && el.href.indexOf('Proyecto?') !== -1) {
+                        link = el;
+                    }
+                }
+                if (link) {
+                    saveContext();
+                }
+            }, true);
+
+            // Guardar antes de unload (cubre redirects)
+            window.addEventListener('beforeunload', saveContext);
+
+            // Restaurar cuando el DOM esté listo
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    setTimeout(restoreContext, 100);
+                });
+            } else {
+                setTimeout(restoreContext, 100);
+            }
+        })();
+    </script>
     </body>
 
     </html>
