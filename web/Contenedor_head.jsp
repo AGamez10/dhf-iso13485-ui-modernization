@@ -160,6 +160,45 @@
                 letter-spacing: 0.01em !important;
             }
 
+            /* ═══════════════════════════════════════════════════════════════
+               SPRINT 5: SMART COLLAPSE (ACTIVIDADES FINALIZADAS)
+               ═══════════════════════════════════════════════════════════════ */
+            .main-content table.table-bordered.op-activity-collapsed {
+                opacity: 0.88;
+                border-left: 4px solid var(--op-status-finalizado-dot) !important;
+                transition: opacity 0.2s ease, box-shadow 0.2s ease;
+            }
+
+            .main-content table.table-bordered.op-activity-collapsed:hover {
+                opacity: 1;
+                box-shadow: var(--op-shadow-2) !important;
+            }
+
+            .main-content table.table-bordered.op-activity-collapsed tbody tr:nth-child(n+4) {
+                display: none !important;
+            }
+
+            .op-collapse-toggle-btn {
+                background: #f1f5f9;
+                color: #0369a1;
+                border: 1px solid #cbd5e1;
+                border-radius: var(--op-radius-sm);
+                padding: 2px 8px;
+                font-size: 11px;
+                font-weight: 600;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                margin-left: 8px;
+                transition: all 0.15s ease;
+            }
+
+            .op-collapse-toggle-btn:hover {
+                background: #e2e8f0;
+                color: #0284c7;
+            }
+
             /* Container 3-Column Grid Layout */
             .main-content {
                 padding-top: 75px !important;
@@ -886,13 +925,52 @@
             // Guardar antes de unload (cubre redirects)
             window.addEventListener('beforeunload', saveContext);
 
+            // --- SPRINT 5: SMART COLLAPSE PARA ACTIVIDADES FINALIZADAS ---
+            function opInitSmartCollapse() {
+                var tables = document.querySelectorAll('.main-content table.table-bordered');
+                for (var i = 0; i < tables.length; i++) {
+                    var table = tables[i];
+                    var statusBadge = table.querySelector('b.text-success');
+                    if (statusBadge && (statusBadge.textContent.indexOf('FINALIZADO') !== -1 || statusBadge.innerText.indexOf('FINALIZADO') !== -1)) {
+                        table.classList.add('op-activity-collapsed');
+
+                        // Insertar botón toggle de forma segura si no existe ya
+                        if (!table.querySelector('.op-collapse-toggle-btn')) {
+                            var statusTd = statusBadge.parentElement;
+                            if (statusTd) {
+                                var btn = document.createElement('button');
+                                btn.type = 'button';
+                                btn.className = 'op-collapse-toggle-btn';
+                                btn.innerHTML = '<i class="fas fa-chevron-down"></i> Mostrar detalle';
+                                btn.setAttribute('title', 'Alternar visibilidad del detalle de la actividad');
+                                btn.addEventListener('click', (function (tbl, toggleBtn) {
+                                    return function (e) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        var isCollapsed = tbl.classList.toggle('op-activity-collapsed');
+                                        if (isCollapsed) {
+                                            toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Mostrar detalle';
+                                        } else {
+                                            toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Ocultar detalle';
+                                        }
+                                    };
+                                })(table, btn));
+                                statusTd.appendChild(btn);
+                            }
+                        }
+                    }
+                }
+            }
+
             // Restaurar cuando el DOM esté listo
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function () {
                     setTimeout(restoreContext, 100);
+                    setTimeout(opInitSmartCollapse, 150);
                 });
             } else {
                 setTimeout(restoreContext, 100);
+                setTimeout(opInitSmartCollapse, 150);
             }
         })();
     </script>
