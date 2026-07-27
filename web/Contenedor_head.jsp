@@ -135,6 +135,31 @@
                 gap: var(--op-space-8);
             }
 
+            /* ═══════════════════════════════════════════════════════════════
+               SPRINT 3: COMPACTACIÓN VISUAL (DENSIDAD DE LECTURA DHF)
+               ═══════════════════════════════════════════════════════════════ */
+            .main-content table.table-bordered {
+                margin: var(--op-space-8) auto !important;
+                border-collapse: separate !important;
+                border-spacing: 0 !important;
+                border-radius: var(--op-radius-md) !important;
+                overflow: hidden !important;
+                box-shadow: var(--op-shadow-1) !important;
+            }
+
+            .main-content table.table-bordered th,
+            .main-content table.table-bordered td {
+                padding: var(--op-space-8) var(--op-space-12) !important;
+                font-size: 13px !important;
+                line-height: 1.45 !important;
+                vertical-align: middle !important;
+            }
+
+            .main-content table.table-bordered th {
+                font-weight: 600 !important;
+                letter-spacing: 0.01em !important;
+            }
+
             /* Container 3-Column Grid Layout */
             .main-content {
                 padding-top: 75px !important;
