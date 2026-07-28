@@ -199,6 +199,25 @@
                 color: #0284c7;
             }
 
+            /* ═══════════════════════════════════════════════════════════════
+               SPRINT 6: STICKY HEADER DE PROYECTO ISO (CABECERA DHF)
+               La cabecera con el CONSECUTIVO se fija al hacer scroll dentro
+               del .card de actividades. La navbar Stisla es position:absolute
+               (scrollea con la pagina), por eso el header se ancla con un
+               offset pequeno. z-index por debajo de la navbar (890) y de
+               dropdowns/modales (1000+) para no taparlos.
+               ═══════════════════════════════════════════════════════════════ */
+            .card-header.op-sticky-header {
+                position: -webkit-sticky !important;
+                position: sticky !important;
+                top: var(--op-space-8) !important;
+                z-index: 800 !important;
+                background: var(--op-surface-card) !important;
+                box-shadow: var(--op-shadow-2) !important;
+                border-radius: var(--op-radius-md) !important;
+                transition: box-shadow 0.2s ease !important;
+            }
+
             /* Container 3-Column Grid Layout */
             .main-content {
                 padding-top: 75px !important;
@@ -962,15 +981,33 @@
                 }
             }
 
+            // --- SPRINT 6: STICKY HEADER DE PROYECTO ISO ---
+            // Detecta la cabecera DHF por su texto (CONSECUTIVO) — el backend
+            // está congelado y el .card-header no tiene id único — y le aplica
+            // la clase .op-sticky-header. Progressive enhancement puro: sin POST,
+            // sin AJAX, sin alterar el DOM legacy.
+            function opInitStickyHeader() {
+                var headers = document.querySelectorAll('.main-content .card-header');
+                for (var i = 0; i < headers.length; i++) {
+                    var h = headers[i];
+                    var txt = h.textContent || h.innerText || '';
+                    if (txt.indexOf('CONSECUTIVO') !== -1) {
+                        h.classList.add('op-sticky-header');
+                    }
+                }
+            }
+
             // Restaurar cuando el DOM esté listo
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function () {
                     setTimeout(restoreContext, 100);
                     setTimeout(opInitSmartCollapse, 150);
+                    setTimeout(opInitStickyHeader, 180);
                 });
             } else {
                 setTimeout(restoreContext, 100);
                 setTimeout(opInitSmartCollapse, 150);
+                setTimeout(opInitStickyHeader, 180);
             }
         })();
     </script>
