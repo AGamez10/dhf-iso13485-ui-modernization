@@ -995,9 +995,10 @@
                 var headers = document.querySelectorAll('.main-content .card-header');
                 for (var i = 0; i < headers.length; i++) {
                     var h = headers[i];
-                    var txt = h.textContent || h.innerText || '';
+                    var txt = (h.textContent || h.innerText || '').toUpperCase();
                     if (txt.indexOf('CONSECUTIVO') !== -1) {
                         h.classList.add('op-sticky-header');
+                        break; // solo hay un header DHF por vista
                     }
                 }
             }
