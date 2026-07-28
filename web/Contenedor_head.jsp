@@ -27,7 +27,12 @@
                 /* Dimensiones de Layout */
                 --col1-width: 260px;
                 --col3-width: 380px;
-                --op-topbar-height: 48px;
+                /* Alto real de la navbar Stisla (ver style.css:1612).
+                   ADVERTENCIA: la navbar es position:absolute y SCROLLEA con la
+                   pagina, NO es fixed. Por eso este valor NO debe usarse como
+                   'top' de un position:sticky — no hay barra fija que evitar.
+                   Es solo una referencia de alto, no un offset de anclaje. */
+                --op-topbar-height: 70px;
 
                 /* Surfaces & Borders */
                 --op-surface-base: #F8F9FA;
