@@ -415,8 +415,8 @@ public class Tag_entradas extends TagSupport {
                 out.print("</tr>");
                 out.print("<tr>");
                 out.print("<td colspan='2'>");
-                out.print("<div id='editor' style='width: 100%;' data-toggle='tooltip' data-placement='top' title='Observaciones'></div>");
-                out.print("<input type='text' id='textInput' name='observacion' hidden/>");
+                out.print("<div id='oo-block-E1' style='margin-bottom:10px;'></div>");
+                out.print("<input type='hidden' id='textInput' name='observacion'/>");
                 out.print("</td>");
                 out.print("</tr>");
                 out.print("<tr>");
@@ -547,8 +547,8 @@ public class Tag_entradas extends TagSupport {
 //                out.print("</tr>");
                 out.print("<tr>");
                 out.print("<td colspan='2'>");
-                out.print("<div id='editor' style='width: 100%;' data-toggle='tooltip' data-placement='top' title='Observaciones'></div>");
-                out.print("<input type='text' id='textInput' name='observacion' hidden/>");
+                out.print("<div id='oo-block-E2' style='margin-bottom:10px;'></div>");
+                out.print("<input type='hidden' id='textInput' name='observacion'/>");
                 out.print("</td>");
                 out.print("</tr>");
                 out.print("<tr>");
@@ -606,8 +606,8 @@ public class Tag_entradas extends TagSupport {
 //                out.print("</tr>");
                 out.print("<tr>");
                 out.print("<td>");
-                out.print("<div id='editor' style='width: 100%;' data-toggle='tooltip' data-placement='top' title='Observciones'></div>");
-                out.print("<input type='text' id='textInput' name='observacion' hidden/>");
+                out.print("<div id='oo-block-E3' style='margin-bottom:10px;'></div>");
+                out.print("<input type='hidden' id='textInput' name='observacion'/>");
                 out.print("</td>");
                 out.print("</tr>");
                 out.print("<tr>");
@@ -762,8 +762,8 @@ public class Tag_entradas extends TagSupport {
                     out.print("</tr>");
                     out.print("<tr>");
                     out.print("<td colspan='2'>");
-                    out.print("<div id='editorM' style='width: 100%;'data-toggle='tooltip' data-placement='top' title='Observaciones'>" + obj_lst_id_herramental[10] + "</div>");
-                    out.print("<input type='text' id='textInputM' value='" + obj_lst_id_herramental[10] + "' name='observacion' hidden/>");
+                    out.print("<div id='oo-block-EM1' style='margin-bottom:10px;'></div>");
+                    out.print("<input type='hidden' id='textInputM' value='" + obj_lst_id_herramental[10] + "' name='observacion'/>");
                     out.print("</td>");
                     out.print("</tr>");
                     out.print("<tr>");
@@ -893,8 +893,8 @@ public class Tag_entradas extends TagSupport {
 //                    out.print("</tr>");
                     out.print("<tr>");
                     out.print("<td colspan='2'>");
-                    out.print("<div id='editorM' style='width: 100%;' data-toggle='tooltip' data-placement='top' title='Observaciones'>" + Obj_lst_id_formula[13] + "</div>");
-                    out.print("<input type='text' id='textInputM' value='" + Obj_lst_id_formula[13] + "' name='observacion' hidden/>");
+                    out.print("<div id='oo-block-EM2' style='margin-bottom:10px;'></div>");
+                    out.print("<input type='hidden' id='textInputM' value='" + Obj_lst_id_formula[13] + "' name='observacion'/>");
                     out.print("</td>");
                     out.print("</tr>");
                     out.print("<tr>");
@@ -954,8 +954,8 @@ public class Tag_entradas extends TagSupport {
 //                    out.print("</tr>");
                     out.print("<tr>");
                     out.print("<td>");
-                    out.print("<div id='editorM' style='width: 100%;' data-toggle='tooltip' data-placement='top' title='Observaciones'>" + obj_lst_oe_id[3] + "</div>");
-                    out.print("<input type='text' id='textInputM' value='" + obj_lst_oe_id[3] + "' name='observacion' hidden/>");
+                    out.print("<div id='oo-block-EM3' style='margin-bottom:10px;'></div>");
+                    out.print("<input type='hidden' id='textInputM' value='" + obj_lst_oe_id[3] + "' name='observacion'/>");
                     out.print("</td>");
                     out.print("</tr>");
                     out.print("<tr>");

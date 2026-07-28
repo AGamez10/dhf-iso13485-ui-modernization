@@ -2132,9 +2132,23 @@ public class Tag_memoria extends TagSupport {
             out.print("</div>");
             out.print("</div>");
             out.print("<div class='form-group'>");
-//            out.print("<label>Observaciones</label>");
-            out.print("<div id='editor' data-toggle='tooltip' data-placement='top' title='Observaciones'></div>");
-            out.print("<input type='text' id='textInput' name='observacion' hidden/>");
+            // OnlyOffice embedded editor block
+            out.print("<div id='oo-editor-block' style='border:1px solid #d1d7e0; border-radius:10px; overflow:hidden; background:#1d1d1d;'>");
+            // ─── Barra superior: botones de tipo + pantalla completa ───
+            out.print("<div style='display:flex; align-items:center; gap:6px; padding:8px 10px; background:#222; border-bottom:1px solid #3a3a3a;'>");
+            out.print("<span style='color:#aaa; font-size:12px; margin-right:4px;'>Nuevo documento:</span>");
+            out.print("<button type='button' id='oo-btn-doc' onclick=\"ooCreateDoc('document')\" class='btn btn-sm' style='background:#1565c0;color:#fff;border:none;border-radius:6px;font-size:12px;padding:3px 10px;'><i class='far fa-file-word'></i> Word</button>");
+            out.print("<button type='button' id='oo-btn-xls' onclick=\"ooCreateDoc('spreadsheet')\" class='btn btn-sm' style='background:#2e7d32;color:#fff;border:none;border-radius:6px;font-size:12px;padding:3px 10px;'><i class='far fa-file-excel'></i> Excel</button>");
+            out.print("<button type='button' id='oo-btn-ppt' onclick=\"ooCreateDoc('presentation')\" class='btn btn-sm' style='background:#e65100;color:#fff;border:none;border-radius:6px;font-size:12px;padding:3px 10px;'><i class='far fa-file-powerpoint'></i> PowerPoint</button>");
+            out.print("<div style='flex:1'></div>");
+            out.print("<button type='button' id='oo-btn-fullscreen' onclick='ooOpenFullscreen()' class='btn btn-sm' style='background:#333;color:#ccc;border:1px solid #555;border-radius:6px;font-size:12px;padding:3px 10px;' title='Pantalla completa'><i class='fas fa-expand'></i> Pantalla completa</button>");
+            out.print("</div>");
+            // ─── Contenedor del editor ───
+            out.print("<div id='oo-editor-container' style='width:100%;height:480px;background:#1d1d1d;'>");
+            out.print("<div id='oo-editor-loading' style='display:flex;align-items:center;justify-content:center;height:100%;color:#aaa;font-size:14px;gap:10px;'><i class='fas fa-spinner fa-spin'></i> Iniciando editor de documentos...</div>");
+            out.print("</div>");
+            out.print("</div>");
+            out.print("<input type='hidden' id='textInput' name='observacion' value=''/>");
             out.print("</div>");
             out.print("<br>");
             out.print("<input type='submit' value='Enviar' class='btn btn-success' style='margin-left: 47%;' data-toggle='tooltip' data-placement='top' title='Enviar actividad' onclick=\"uploadFiles()\"/>");
@@ -2216,8 +2230,8 @@ public class Tag_memoria extends TagSupport {
                 out.print("</div>");
                 out.print("<div class='form-group'>");
 //                out.print("<label>Observaciones</label>");
-                out.print("<div id='editorM' data-toggle='tooltip' data-placement='top' title='Observaciones'>" + obj_lst_memoria_id[4] + "</div>");
-                out.print("<input type='text' id='textInputM' name='observacion' value='" + obj_lst_memoria_id[4] + "' hidden/>");
+                out.print("<div id='oo-block-M' style='margin-bottom:10px;'></div>");
+                out.print("<input type='hidden' id='textInputM' name='observacion' value='" + obj_lst_memoria_id[4] + "'/>");
                 out.print("</div>");
                 out.print("<br>");
                 out.print("<input type='submit' value='Modificar' class='btn btn-success' style='margin-left: 47%;' data-toggle='tooltip' data-placement='top' title='Modificar actividad' onclick=\"uploadFiles()\"/>");
@@ -2388,8 +2402,8 @@ public class Tag_memoria extends TagSupport {
                 out.print("<div class='invalid-feedback invalid_data_rll'><i class='fas fa-exclamation-circle'></i>&nbsp;&nbsp;Debe ingresar un valor!</div>");
                 out.print("<br>");
 //                out.print("<label style='color:black;'>Observaciones</label>");
-                out.print("<div id='editorR' data-toggle='tooltip' data-placement='top' title='Observaciones'></div>");
-                out.print("<input type='text' id='textInputR' name='observacion' id='obs_res' hidden/>");
+                out.print("<div id='oo-block-R' style='margin-bottom:10px;'></div>");
+                out.print("<input type='hidden' id='textInputR' name='observacion'/>");
                 out.print("<br>");
                 out.print("<input type='submit' id='Formulario2' value='Responder' class='btn btn-success' style='margin-left: 47%;' onclick='Enviar_caso3();uploadFiles()' data-toggle='tooltip' data-placement='top' title='Responder actividad'/>");
                 out.print("<div align='center' id='Carga3' style='display: none;'><br /><i class='fas fa-spinner fa-pulse fa-lg' style='color: #29bfff;font-size: 27px;'></i><br /><br /><b>Enviando avances</b></div>");
@@ -2442,8 +2456,8 @@ public class Tag_memoria extends TagSupport {
                         out.print("<div class='invalid-feedback invalid_data_rll'><i class='fas fa-exclamation-circle'></i>&nbsp;&nbsp;Debe ingresar un valor!</div>");
                         out.print("<br>");
 //                        out.print("<label for='editorRM' style='color:black;'>Observaciones</label>");
-                        out.print("<div id='editorRM' data-toggle='tooltip' data-placement='top' title='Observaciones'>" + frag[2] + "</div>");
-                        out.print("<input type='text' id='textInputRM' value='" + frag[2] + "' name='observacion' hidden/>");
+                        out.print("<div id='oo-block-RM' style='margin-bottom:10px;'></div>");
+                        out.print("<input type='hidden' id='textInputRM' name='observacion' value='" + frag[2] + "'/>");
                         out.print("<br>");
                         out.print("<input type='submit' value='Modificar' class='btn btn-success' id='Formulario2' style='margin-left: 47%;' onclick='Enviar_caso3();uploadFiles()' data-toggle='tooltip' data-placement='top' title='Modificar respuesta'/>");
                         out.print("<div align='center' id='Carga3' style='display: none;'><br /><i class='fas fa-spinner fa-pulse fa-lg' style='color: #29bfff;font-size: 27px;'></i><br /><br /><b>Enviando avances</b></div>");

@@ -282,8 +282,8 @@ public class Tag_pruebas extends TagSupport {
 
             out.print("<div class='row'>");
             out.print("<div class='col'>");
-            out.print("<div id='editor' style='width: 100%;' data-toggle='tooltip' data-placement='top' title='Observaciones'></div>");
-            out.print("<input type='text' id='textInput' name='observacion' hidden/>");
+            out.print("<div id='oo-block-P' style='margin-bottom:10px;'></div>");
+            out.print("<input type='hidden' id='textInput' name='observacion'/>");
             out.print("</div>");
             out.print("</div>");
 
@@ -403,8 +403,8 @@ public class Tag_pruebas extends TagSupport {
 
                 out.print("<div class='row'>");
                 out.print("<div class='col'>");
-                out.print("<div id='editorM' style='width: 100%;' data-toggle='tooltip' data-placement='top' title='Observaciones'>" + obj_lst_prueba_c_id[6] + "</div>");
-                out.print("<input type='text' id='textInputM' value='" + obj_lst_prueba_c_id[6] + "' name='observacion' hidden/>");
+                out.print("<div id='oo-block-PM' style='margin-bottom:10px;'></div>");
+                out.print("<input type='hidden' id='textInputM' value='" + obj_lst_prueba_c_id[6] + "' name='observacion'/>");
                 out.print("</div>");
                 out.print("</div>");
 

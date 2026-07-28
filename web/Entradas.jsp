@@ -154,80 +154,19 @@
         <script type="text/javascript" src="Interfaz/Contenido/froala/JS/froala-image-editor.js"></script>
 
         <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                new FroalaEditor('#editor', {
-                    language: 'es',
-                    events: {
-                        'contentChanged': function () {
-                            var editableDiv = document.querySelector('#editor [contenteditable="true"]');
-                            var textInput = document.getElementById('textInput');
-                            var cleanedHTML = editableDiv.innerHTML
-                                    .replace(/^\s+|\s+$/g, '') // Elimina espacios al principio y al final
-                                    .replace(/\u200B/g, '') // Elimina espacios de ancho cero
-                                    .replace(/&ZeroWidthSpace;/g, ''); // Elimina &ZeroWidthSpace;
-
-                            // Asigna el contenido limpio al campo de entrada
-                            textInput.value = cleanedHTML;
-                        },
-                        'image.beforeUpload': function (files) {
-                            const editor = this;
-                            const reader = new FileReader();
-
-                            reader.onload = function (e) {
-                                const img = new Image();
-                                img.src = e.target.result;
-                                editor.image.insert(img.src, null, null, editor.image.get());
-                            };
-
-                            reader.readAsDataURL(files[0]);
-                            return false; // Previene la subida por defecto
-                        },
-                        'file.beforeUpload': function (files) {
-                            const editor = this;
-                            const reader = new FileReader();
-
-                            reader.onload = function (e) {
-                                const link = e.target.result;
-                                editor.file.insert(link, null, editor.file.get());
-                            };
-
-                            reader.readAsDataURL(files[0]);
-                            return false; // Previene la subida por defecto
-                        }
-                    },
-                    Flmngr: {
-                        apiKey: "toRgIgI6",
-                        urlFileManager: 'http://localhost/Archivo_DYD/flmngr/flmngr.php',
-                        urlFiles: 'http://localhost/Archivo_DYD/flmngr/files'
-                    }
-                });
-            });
-        </script>
-
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                // Inicializar el editor Froala
-                var editor = new FroalaEditor('#editorM', {
-                    language: 'es',
-                    Flmngr: {
-                        apiKey: 'toRgIgI6',
-                        urlFileManager: 'http://localhost/Archivo_DYD/flmngr/flmngr.php',
-                        urlFiles: 'http://localhost/Archivo_DYD/flmngr/files'
-                    },
-                    events: {
-                        'contentChanged': function () {
-                            // Capturar el contenido actual del editor
-                            var editorContent = editor.html.get();
-
-                            // Limpiar el contenido de caracteres invisibles
-                            var cleanedContent = editorContent
-                                    .replace(/^\s+|\s+$/g, '') // Elimina espacios al principio y al final
-                                    .replace(/\u200B/g, '') // Elimina espacios de ancho cero
-                                    .replace(/&ZeroWidthSpace;/g, ''); // Elimina &ZeroWidthSpace;
-
-                            // Actualizar el valor del input con el contenido del editor
-                            document.getElementById('textInputM').value = cleanedContent;
-                        }
+            // ── Entradas: inicializar editores OnlyOffice ──
+            document.addEventListener('DOMContentLoaded', function () {
+                var blocks = [
+                    { containerId: 'oo-block-E1',  inputId: 'textInput' },
+                    { containerId: 'oo-block-E2',  inputId: 'textInput' },
+                    { containerId: 'oo-block-E3',  inputId: 'textInput' },
+                    { containerId: 'oo-block-EM1', inputId: 'textInputM' },
+                    { containerId: 'oo-block-EM2', inputId: 'textInputM' },
+                    { containerId: 'oo-block-EM3', inputId: 'textInputM' }
+                ];
+                blocks.forEach(function (b) {
+                    if (document.getElementById(b.containerId) && typeof ooInitEditor === 'function') {
+                        ooInitEditor({ containerId: b.containerId, inputId: b.inputId, autoLoad: true });
                     }
                 });
             });

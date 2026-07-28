@@ -238,170 +238,202 @@
         <script type="text/javascript" src="Interfaz/Contenido/froala/JS/froala-image-editor.js"></script>
 
         <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                new FroalaEditor('#editor', {
-                    language: 'es',
-                    events: {
-                        'contentChanged': function () {
-                            var editableDiv = document.querySelector('#editor [contenteditable="true"]');
-                            var textInput = document.getElementById('textInput');
+            // ──────────────────────────────────────────────────────────────
+            //  OnlyOffice Inline Editor — Modal "Registrar avance"
+            // ──────────────────────────────────────────────────────────────
+            var _ooInlineEditor = null;   // DocsAPI instance
+            var _ooCurrentFileId = null;  // active file id
+            var _ooApiScriptLoaded = false;
+            var _ooToken = '';            // widget auth token (set on load)
 
-                            // Elimina espacios en blanco y caracteres invisibles directamente
-                            var cleanedHTML = editableDiv.innerHTML
-                                    .replace(/^\s+|\s+$/g, '') // Elimina espacios al principio y al final
-                                    .replace(/\u200B/g, '') // Elimina espacios de ancho cero
-                                    .replace(/&ZeroWidthSpace;/g, ''); // Elimina &ZeroWidthSpace;
-
-                            // Asigna el contenido limpio al campo de entrada
-                            textInput.value = cleanedHTML;
-                        },
-                        'image.beforeUpload': function (files) {
-                            const editor = this;
-                            const reader = new FileReader();
-
-                            reader.onload = function (e) {
-                                const img = new Image();
-                                img.src = e.target.result;
-                                editor.image.insert(img.src, null, null, editor.image.get());
-                            };
-
-                            reader.readAsDataURL(files[0]);
-                            return false; // Previene la subida por defecto
-                        },
-                        'file.beforeUpload': function (files) {
-                            const editor = this;
-                            const reader = new FileReader();
-
-                            reader.onload = function (e) {
-                                const link = e.target.result;
-                                editor.file.insert(link, null, editor.file.get());
-                            };
-
-                            reader.readAsDataURL(files[0]);
-                            return false; // Previene la subida por defecto
-                        }
-                    },
-                    Flmngr: {
-                        apiKey: "toRgIgI6",
-                        urlFileManager: 'http://localhost/Archivo_DYD/flmngr/flmngr.php',
-                        urlFiles: 'http://localhost/Archivo_DYD/flmngr/files/'
-                    }
-                });
+            // Obtain the widget token from the script tag written by the JSP
+            document.addEventListener('DOMContentLoaded', function () {
+                var widgetScript = document.querySelector('script[data-token]');
+                if (widgetScript) {
+                    _ooToken = widgetScript.getAttribute('data-token') || '';
+                }
+                // Auto-init with a blank Word doc when the modal opens
+                var btn = document.querySelector('button[onclick="mostrarConvencion(1)"], button[onclick*="Ventana1"]');
+                // Listen for Ventana1 becoming visible
+                var ventana1 = document.getElementById('Ventana1');
+                if (ventana1) {
+                    var _observer = new MutationObserver(function (mutations) {
+                        mutations.forEach(function (m) {
+                            if (m.type === 'attributes' && m.attributeName === 'style') {
+                                if (ventana1.style.display !== 'none' && !_ooCurrentFileId) {
+                                    ooCreateDoc('document');
+                                }
+                            }
+                        });
+                    });
+                    _observer.observe(ventana1, { attributes: true });
+                }
             });
+
+            function ooLoadApiScript(documentServerUrl, callback) {
+                if (_ooApiScriptLoaded) { callback(); return; }
+                var src = documentServerUrl.replace(/\/$/, '') + '/web-apps/apps/api/documents/api.js';
+                var existing = document.getElementById('oo-api-script');
+                if (existing) { _ooApiScriptLoaded = true; callback(); return; }
+                var s = document.createElement('script');
+                s.id = 'oo-api-script';
+                s.src = src;
+                s.onload = function () { _ooApiScriptLoaded = true; callback(); };
+                s.onerror = function () { console.error('[OO] Failed to load OnlyOffice API from', src); };
+                document.head.appendChild(s);
+            }
+
+            function ooDestroyInline() {
+                if (_ooInlineEditor) {
+                    try { _ooInlineEditor.destroyEditor(); } catch (e) {}
+                    _ooInlineEditor = null;
+                }
+                var c = document.getElementById('oo-editor-container');
+                if (c) {
+                    c.innerHTML = '<div id="oo-editor-loading" style="display:flex;align-items:center;justify-content:center;height:100%;color:#aaa;font-size:14px;gap:10px;">' +
+                        '<i class="fas fa-spinner fa-spin"></i> Cargando editor...</div>';
+                }
+            }
+
+            function ooCreateDoc(type) {
+                ooDestroyInline();
+                var loading = document.getElementById('oo-editor-loading');
+                if (loading) loading.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando documento...';
+
+                var API_KEY = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0';
+                var SERVER  = 'http://localhost:8080';
+
+                // Create blank file via REST
+                var url = SERVER + '/api/files/new';
+                if (type === 'spreadsheet') url = SERVER + '/api/files/new/spreadsheet';
+                if (type === 'presentation') url = SERVER + '/api/files/new/presentation';
+
+                var headers = {'Content-Type': 'application/json'};
+                if (_ooToken) {
+                    headers['Authorization'] = 'Bearer ' + _ooToken;
+                } else {
+                    headers['X-Api-Key'] = API_KEY;
+                }
+
+                fetch(url, { method: 'POST', headers: headers })
+                    .then(function (r) { return r.json(); })
+                    .then(function (resp) {
+                        console.log('[OO] Create response:', JSON.stringify(resp));
+                        if (!resp || !resp.data) {
+                            throw new Error('Respuesta inesperada del servidor: ' + JSON.stringify(resp));
+                        }
+                        var file = resp.data;
+                        // The API returns fileId (not id)
+                        _ooCurrentFileId = file.fileId || file.id;
+                        document.getElementById('textInput').value = 'oo:' + _ooCurrentFileId + ':' + (file.originalFileName || '');
+                        ooRenderInline(_ooCurrentFileId);
+                    })
+                    .catch(function (err) {
+                        console.error('[OO] Error creating file:', err);
+                        var loading = document.getElementById('oo-editor-loading');
+                        if (loading) loading.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#e74c3c"></i> Error al crear documento: ' + err.message;
+                    });
+            }
+
+            function ooRenderInline(fileId) {
+                var API_KEY = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0';
+                var SERVER  = 'http://localhost:8080';
+                var loading = document.getElementById('oo-editor-loading');
+
+                var headers = {'Content-Type': 'application/json'};
+                if (_ooToken) {
+                    headers['Authorization'] = 'Bearer ' + _ooToken;
+                } else {
+                    headers['X-Api-Key'] = API_KEY;
+                }
+
+                fetch(SERVER + '/api/editor/' + fileId, { headers: headers })
+                    .then(function (r) { return r.json(); })
+                    .then(function (resp) {
+                        console.log('[OO] Editor config response:', JSON.stringify(resp));
+                        if (!resp || !resp.data) {
+                            throw new Error('Config incompleta: ' + JSON.stringify(resp));
+                        }
+                        var cfg = resp.data;
+                        ooLoadApiScript(cfg.documentServer, function () {
+                            if (loading) loading.remove();
+                            // Ensure fresh container div
+                            var c = document.getElementById('oo-editor-container');
+                            c.innerHTML = '';
+                            var inner = document.createElement('div');
+                            inner.id = 'oo-editor-inner-' + fileId;
+                            c.appendChild(inner);
+
+                            _ooInlineEditor = new window.DocsAPI.DocEditor(inner.id, {
+                                document: cfg.document,
+                                documentType: cfg.document && cfg.document.fileType ? ooResolveDocType(cfg.document.fileType) : 'word',
+                                token: cfg.token,
+                                editorConfig: Object.assign({}, cfg.editorConfig, {
+                                    customization: Object.assign({}, cfg.editorConfig && cfg.editorConfig.customization, {
+                                        compactHeader: true,
+                                        toolbarNoTabs: false,
+                                        statusBar: true
+                                    })
+                                }),
+                                height: '100%',
+                                width: '100%',
+                                events: {
+                                    onDocumentReady: function () {
+                                        var fi = document.getElementById('textInput');
+                                        if (fi) fi.value = 'oo:' + fileId + ':' + (cfg.document && cfg.document.title ? cfg.document.title : '');
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch(function (err) {
+                        console.error('[OO] Editor config error:', err);
+                        if (loading) loading.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#e74c3c"></i> Error al cargar el editor.';
+                    });
+            }
+
+            function ooResolveDocType(ext) {
+                var docs = ['doc', 'docx', 'odt', 'rtf', 'txt'];
+                var sheets = ['xls', 'xlsx', 'ods', 'csv'];
+                var slides = ['ppt', 'pptx', 'odp'];
+                if (docs.indexOf(ext) >= 0) return 'word';
+                if (sheets.indexOf(ext) >= 0) return 'cell';
+                if (slides.indexOf(ext) >= 0) return 'slide';
+                return 'word';
+            }
+
+            function ooOpenFullscreen() {
+                if (_ooCurrentFileId && typeof OfficePlatform !== 'undefined' && typeof OfficePlatform.openEditor === 'function') {
+                    OfficePlatform.openEditor({ fileId: _ooCurrentFileId });
+                } else if (!_ooCurrentFileId) {
+                    alert('Primero crea un documento usando los botones de arriba.');
+                } else {
+                    alert('El servicio de OnlyOffice no está disponible en este momento.');
+                }
+            }
         </script>
+
 
 
         <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                // Inicializar el editor Froala
-                var editor = new FroalaEditor('#editorM', {
-                    language: 'es',
-                    Flmngr: {
-                        apiKey: 'toRgIgI6',
-                        urlFileManager: 'http://localhost/Archivo_DYD/flmngr/flmngr.php',
-                        urlFiles: 'http://localhost/Archivo_DYD/flmngr/files'
-                    },
-                    events: {
-                        'contentChanged': function () {
-                            // Capturar el contenido actual del editor
-                            var editorContent = editor.html.get();
-
-                            // Limpiar el contenido de caracteres invisibles
-                            var cleanedContent = editorContent
-                                    .replace(/^\s+|\s+$/g, '') // Elimina espacios al principio y al final
-                                    .replace(/\u200B/g, '') // Elimina espacios de ancho cero
-                                    .replace(/&ZeroWidthSpace;/g, ''); // Elimina &ZeroWidthSpace;
-
-                            // Actualizar el valor del input con el contenido limpio del editor
-                            document.getElementById('textInputM').value = cleanedContent;
-                        }
-                    }
-                });
+            // ── Memorias: inicializar editores OnlyOffice al cargar la página ──
+            document.addEventListener('DOMContentLoaded', function () {
+                // Modificar avance (Ventana4) — carga doc existente si el modal está visible
+                if (document.getElementById('oo-block-M') && typeof ooInitEditor === 'function') {
+                    ooInitEditor({ containerId: 'oo-block-M', inputId: 'textInputM', autoLoad: true });
+                }
+                // Responder actividad (Ventana5)
+                if (document.getElementById('oo-block-R') && typeof ooInitEditor === 'function') {
+                    ooInitEditor({ containerId: 'oo-block-R', inputId: 'textInputR', autoLoad: true });
+                }
+                // Modificar respuesta (Ventana6)
+                if (document.getElementById('oo-block-RM') && typeof ooInitEditor === 'function') {
+                    ooInitEditor({ containerId: 'oo-block-RM', inputId: 'textInputRM', autoLoad: true });
+                }
             });
         </script>
 
 
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                new FroalaEditor('#editorR', {
-                    language: 'es',
-                    events: {
-                        'contentChanged': function () {
-                            var editableDiv = document.querySelector('#editorR [contenteditable="true"]');
-                            var textInput = document.getElementById('textInputR');
-
-                            // Elimina espacios en blanco y caracteres invisibles directamente
-                            var cleanedHTML = editableDiv.innerHTML
-                                    .replace(/^\s+|\s+$/g, '') // Elimina espacios al principio y al final
-                                    .replace(/\u200B/g, '') // Elimina espacios de ancho cero
-                                    .replace(/&ZeroWidthSpace;/g, ''); // Elimina &ZeroWidthSpace;
-
-                            // Asigna el contenido limpio al campo de entrada
-                            textInput.value = cleanedHTML;
-                        },
-                        'image.beforeUpload': function (files) {
-                            const editor = this;
-                            const reader = new FileReader();
-
-                            reader.onload = function (e) {
-                                const img = new Image();
-                                img.src = e.target.result;
-                                editor.image.insert(img.src, null, null, editor.image.get());
-                            };
-
-                            reader.readAsDataURL(files[0]);
-                            return false; // Previene la subida por defecto
-                        },
-                        'file.beforeUpload': function (files) {
-                            const editor = this;
-                            const reader = new FileReader();
-
-                            reader.onload = function (e) {
-                                const link = e.target.result;
-                                editor.file.insert(link, null, editor.file.get());
-                            };
-
-                            reader.readAsDataURL(files[0]);
-                            return false; // Previene la subida por defecto
-                        }
-                    },
-                    Flmngr: {
-                        apiKey: "toRgIgI6",
-                        urlFileManager: 'http://localhost/Archivo_DYD/flmngr/flmngr.php',
-                        urlFiles: 'http://localhost/Archivo_DYD/flmngr/files'
-                    }
-                });
-            });
-        </script>
-
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                // Inicializar el editor Froala
-                var editor = new FroalaEditor('#editorRM', {
-                    language: 'es',
-                    Flmngr: {
-                        apiKey: 'toRgIgI6',
-                        urlFileManager: 'http://localhost/Archivo_DYD/flmngr/flmngr.php',
-                        urlFiles: 'http://localhost/Archivo_DYD/flmngr/files'
-                    },
-                    events: {
-                        'contentChanged': function () {
-                            // Capturar el contenido actual del editor
-                            var editorContent = editor.html.get();
-
-                            // Limpiar el contenido de caracteres invisibles
-                            var cleanedContent = editorContent
-                                    .replace(/^\s+|\s+$/g, '') // Elimina espacios al principio y al final
-                                    .replace(/\u200B/g, '') // Elimina espacios de ancho cero
-                                    .replace(/&ZeroWidthSpace;/g, ''); // Elimina &ZeroWidthSpace;
-
-                            // Actualizar el valor del input con el contenido del editor
-                            document.getElementById('textInputRM').value = cleanedContent;
-                        }
-                    }
-                });
-            });
-        </script>
 
         <script>
             function uploadFiles() {

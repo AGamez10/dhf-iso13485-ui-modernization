@@ -279,6 +279,7 @@ public class Tag_menu extends TagSupport {
 //            
 
             out.print("<ul class=\"sidebar-menu\">");
+            out.print("<li><a class=\"nav-link\" href=\"OfficePlatform.jsp\"><i class=\"fas fa-folder-open\"></i><span>Gestor de Archivos y Editor de Texto</span></a></li>");
             if (txt_permisos.contains("[31]") || txt_permisos.contains("[23]") || txt_permisos.contains("[27]")) {
                 out.print("<li class=\"menu-header\">Gesti&oacute;n</li>");
             }else {
