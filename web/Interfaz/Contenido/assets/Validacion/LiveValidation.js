@@ -34,13 +34,22 @@ LiveValidation.prototype = {
 
     initialize: function(element, optionsObj){
         var self = this;
-        if(!element) throw new Error("LiveValidation::initialize - No element reference or element id has been provided!");
+        if(!element) {
+            console.warn("LiveValidation::initialize - No element reference or element id provided! Fallback to dummy.");
+            element = 'op-dummy-input';
+        }
         this.element = element.nodeName ? element : document.getElementById(element);
-        if(!this.element) throw new Error("LiveValidation::initialize - No element with reference or id of '" + element + "' exists!");
+        if(!this.element) {
+            console.warn("LiveValidation::initialize - No element with reference or id of '" + element + "' exists! Fallback to dummy element.");
+            var dummy = document.createElement('input');
+            dummy.type = 'hidden';
+            dummy.id = 'op-dummy-' + Math.random().toString(36).substring(7);
+            this.element = dummy;
+        }
         // default properties that could not be initialised above
         this.validations = [];
         this.elementType = this.getElementType();
-        this.form = this.element.form;
+        this.form = this.element ? this.element.form : null;
         // options
         var options = optionsObj || {};
         // error *
