@@ -241,22 +241,40 @@
                 z-index: 100000 !important;
             }
 
-            /* Estilizado de la ventana emergente de Historial de Cambios (TempM=11/3/7) */
+            /* Estilizado de la ventana emergente de Historial de Cambios, OnlyOffice y Registro de Avances */
             .sweet-local[id^="Ventana"],
-            [id^="Ventana"] {
+            [id^="Ventana"],
+            .modal-dialog {
                 position: fixed !important;
                 top: 50% !important;
                 left: 50% !important;
                 transform: translate(-50%, -50%) !important;
-                width: 90% !important;
-                max-width: 1050px !important;
-                max-height: 85vh !important;
+                width: 95vw !important;
+                max-width: 1400px !important;
+                max-height: 92vh !important;
                 overflow-y: auto !important;
                 background: #ffffff !important;
                 border-radius: 12px !important;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45) !important;
                 border: 1px solid var(--op-border-strong) !important;
-                padding: 24px !important;
+                padding: 20px !important;
+            }
+
+            /* Editor OnlyOffice en pantalla completa amplia (1400px x 600px) sin barras de corte */
+            iframe[id*="OnlyOffice"],
+            iframe[id*="onlyoffice"],
+            iframe[src*="OfficePlatform"],
+            iframe[src*="onlyoffice"],
+            #iframeOnlyOffice,
+            .oo-editor-container,
+            .modal-body iframe {
+                width: 100% !important;
+                min-width: 100% !important;
+                height: 78vh !important;
+                min-height: 600px !important;
+                border: none !important;
+                border-radius: 8px !important;
+                display: block !important;
             }
 
             /* Tabla de Historial de Cambios limpia y legible */
@@ -1400,6 +1418,11 @@
                     hiddenRows[r].style.display = 'table-row';
                 }
             }
+
+            // Ejecutar desglosado automático continuo
+            document.addEventListener('DOMContentLoaded', opUncollapseAllSections);
+            window.addEventListener('load', opUncollapseAllSections);
+            setInterval(opUncollapseAllSections, 500);
 
             // --- SPRINT 6: STICKY HEADER DE PROYECTO ISO ---
             // Detecta la cabecera DHF por su texto (CONSECUTIVO) — el backend
