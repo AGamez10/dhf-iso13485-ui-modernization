@@ -227,6 +227,36 @@
                 transition: box-shadow 0.2s ease !important;
             }
 
+            /* ═══════════════════════════════════════════════════════════════
+               ISOLACIÓN DE MODALES Y VENTANAS FLOTANTES (VENTANA1..VENTANA8)
+               Evita que la cabecera sticky o los paneles laterales se superpongan
+               o floten encima del formulario/modal de registro de actividad.
+               ═══════════════════════════════════════════════════════════════ */
+            [id^="Ventana"],
+            .sweet-local,
+            .sweet-alert,
+            .swal-overlay,
+            .modal-backdrop,
+            .modal {
+                z-index: 100000 !important;
+            }
+
+            /* Desactivar posicionamiento sticky cuando hay un modal abierto */
+            body.modal-open .card-header.op-sticky-header,
+            body.op-modal-open .card-header.op-sticky-header,
+            body.modal-open .op-master-panel,
+            body.op-modal-open .op-master-panel,
+            body.modal-open .op-detail-panel,
+            body.op-modal-open .op-detail-panel,
+            body.modal-open .op-col-nav,
+            body.op-modal-open .op-col-nav,
+            body.modal-open .op-col-inspector,
+            body.op-modal-open .op-col-inspector {
+                position: static !important;
+                z-index: 1 !important;
+                box-shadow: none !important;
+            }
+
             /* Container 3-Column Grid Layout */
             .main-content {
                 padding-top: 75px !important;
@@ -1698,6 +1728,28 @@
                         }, 200);
                     }
                 });
+
+                // Observador global para detectar la apertura de ventanas/modales (Ventana1..Ventana8)
+                // y desactivar los sticky headers mientras el modal de registro esté abierto.
+                function checkOpenVentanas() {
+                    var anyOpen = false;
+                    var ventanas = document.querySelectorAll('[id^="Ventana"], .sweet-local, .modal.show');
+                    for (var i = 0; i < ventanas.length; i++) {
+                        var v = ventanas[i];
+                        var display = window.getComputedStyle(v).display;
+                        if (display !== 'none' && display !== '') {
+                            anyOpen = true;
+                            break;
+                        }
+                    }
+                    if (anyOpen) {
+                        document.body.classList.add('op-modal-open');
+                    } else {
+                        document.body.classList.remove('op-modal-open');
+                    }
+                }
+
+                setInterval(checkOpenVentanas, 200);
             }
 
             // Restaurar cuando el DOM esté listo
