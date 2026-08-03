@@ -1202,7 +1202,6 @@
                     }
                 })();
             </script>
-            <% } %>
     <!-- ═══════════════════════════════════════════════════════════════
          SPRINT 4: PERSISTENCIA DE CONTEXTO DE TRABAJO
          Elimina la pérdida de scroll, tab activo y acordeones
