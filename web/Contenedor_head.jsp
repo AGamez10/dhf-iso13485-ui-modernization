@@ -1367,40 +1367,37 @@
             // Guardar antes de unload (cubre redirects)
             window.addEventListener('beforeunload', saveContext);
 
-            // --- SPRINT 5: SMART COLLAPSE PARA ACTIVIDADES FINALIZADAS ---
-            function opInitSmartCollapse() {
-                var tables = document.querySelectorAll('.main-content table.table-bordered');
-                for (var i = 0; i < tables.length; i++) {
-                    var table = tables[i];
-                    var statusBadge = table.querySelector('b.text-success');
-                    if (statusBadge && (statusBadge.textContent.indexOf('FINALIZADO') !== -1 || statusBadge.innerText.indexOf('FINALIZADO') !== -1)) {
-                        table.classList.add('op-activity-collapsed');
+            // --- SPRINT 5: DESPLEGAR 100% DE LAS SECCIONES Y ACCORDIONES DE FORMA AUTOMÁTICA (0 CLICS) ---
+            // Garantiza que al abrir cualquier memoria de diseño, TODOS los numerales ISO (A, B, C, D, E...)
+            // y sus actividades se muestren desglosados y legibles sin tener que hacer clic en cada flecha.
+            function opUncollapseAllSections() {
+                var container = document.getElementById('Formulario') || document.querySelector('.main-content');
+                if (!container) return;
 
-                        // Insertar botón toggle de forma segura si no existe ya
-                        if (!table.querySelector('.op-collapse-toggle-btn')) {
-                            var statusTd = statusBadge.parentElement;
-                            if (statusTd) {
-                                var btn = document.createElement('button');
-                                btn.type = 'button';
-                                btn.className = 'op-collapse-toggle-btn';
-                                btn.innerHTML = '<i class="fas fa-chevron-down"></i> Mostrar detalle';
-                                btn.setAttribute('title', 'Alternar visibilidad del detalle de la actividad');
-                                btn.addEventListener('click', (function (tbl, toggleBtn) {
-                                    return function (e) {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        var isCollapsed = tbl.classList.toggle('op-activity-collapsed');
-                                        if (isCollapsed) {
-                                            toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Mostrar detalle';
-                                        } else {
-                                            toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Ocultar detalle';
-                                        }
-                                    };
-                                })(table, btn));
-                                statusTd.appendChild(btn);
-                            }
-                        }
-                    }
+                // 1. Forzar apertura de todos los divs y contenedores .collapse de Bootstrap
+                var collapses = container.querySelectorAll('.collapse, [id^="collapse"], [id^="Ventana"], .card-body div[style*="display: none"], .card-body div[style*="display:none"]');
+                for (var i = 0; i < collapses.length; i++) {
+                    var col = collapses[i];
+                    col.classList.add('show');
+                    col.style.display = 'block';
+                    col.style.visibility = 'visible';
+                    col.style.height = 'auto';
+                    col.style.opacity = '1';
+                }
+
+                // 2. Desactivar cualquier clase de colapso previo en las tablas
+                var tables = container.querySelectorAll('table.table-bordered, .op-activity-collapsed');
+                for (var j = 0; j < tables.length; j++) {
+                    var tbl = tables[j];
+                    tbl.classList.remove('op-activity-collapsed');
+                    tbl.style.display = 'table';
+                    tbl.style.width = '100%';
+                }
+
+                // 3. Forzar visibilidad de filas ocultas dentro de las actividades
+                var hiddenRows = container.querySelectorAll('tr[style*="display: none"], tr[style*="display:none"]');
+                for (var r = 0; r < hiddenRows.length; r++) {
+                    hiddenRows[r].style.display = 'table-row';
                 }
             }
 
@@ -1722,18 +1719,14 @@
             // Bootstrap (tabs/collapse) se estabilicen antes de restaurar contexto.
             function opInit() {
                 setTimeout(restoreContext, 100);
-                setTimeout(opInitSmartCollapse, 150);
+                setTimeout(opUncollapseAllSections, 150);
                 setTimeout(opInitStickyHeader, 180);
                 setTimeout(opInitSplitScreen, 250);
 
-                // Re-ejecutar split screen si cambia un tab o acordeón
+                // Re-ejecutar desglosado total si el usuario hace clic en un tab ISO (7.3.2, 7.3.3, 7.3.4...)
                 document.addEventListener('click', function(e) {
-                    if (e.target.closest('a[data-toggle="tab"], button[data-toggle="collapse"], .dropdown-item')) {
-                        setTimeout(function() {
-                            var ws = document.getElementById('op-split-workspace');
-                            if (ws) ws.remove();
-                            opInitSplitScreen();
-                        }, 200);
+                    if (e.target.closest('a[data-toggle="tab"], button[data-toggle="collapse"], .dropdown-item, .nav-link')) {
+                        setTimeout(opUncollapseAllSections, 150);
                     }
                 });
 
