@@ -1483,6 +1483,21 @@
                     masterPanel.appendChild(card);
                 }
 
+                // Botón de acción rápida: "+ Registrar Nueva Actividad"
+                var addCard = document.createElement('div');
+                addCard.className = 'op-activity-card';
+                addCard.style.cssText = 'border: 2px dashed var(--op-border-active) !important; background: var(--op-status-proceso-bg) !important; margin-top: 8px !important; text-align: center !important; justify-content: center !important; align-items: center !important; padding: 10px !important;';
+                addCard.innerHTML = '<div style="font-weight:700; color:var(--op-status-proceso-text); font-size:12px;"><i class="fas fa-plus-circle" style="margin-right:4px"></i> Registrar Nueva Actividad</div>';
+                addCard.addEventListener('click', function() {
+                    if (typeof mostrarConvencion === 'function') {
+                        mostrarConvencion(1);
+                    } else {
+                        var v1 = document.getElementById('Ventana1');
+                        if (v1) v1.style.display = 'block';
+                    }
+                });
+                masterPanel.insertBefore(addCard, masterHeader.nextSibling);
+
                 // Keyboard hint
                 var kbdHint = document.createElement('div');
                 kbdHint.className = 'op-kbd-hint';
@@ -1541,14 +1556,14 @@
                 // --- Event: Click on activity card ---
                 masterPanel.addEventListener('click', function (e) {
                     var card = e.target.closest('.op-activity-card');
-                    if (!card) return;
+                    if (!card || card === addCard) return;
                     var idx = parseInt(card.getAttribute('data-activity-index'), 10);
                     opShowActivityDetail(idx, activityTables, detailPanel, masterPanel);
                 });
 
                 // --- Event: Keyboard navigation ---
                 masterPanel.addEventListener('keydown', function (e) {
-                    var cards = masterPanel.querySelectorAll('.op-activity-card');
+                    var cards = masterPanel.querySelectorAll('.op-activity-card[data-activity-index]');
                     var activeCard = masterPanel.querySelector('.op-activity-card.op-active');
                     var currentIdx = -1;
                     if (activeCard) {
@@ -1600,7 +1615,7 @@
 
                 // If phase not found inside table th, check preceding heading or accordion parent
                 if (!info.phase) {
-                    var parentCollapse = table.closest('.collapse, [id^="Ventana"]');
+                    var parentCollapse = table.closest('.collapse, [id^="Ventana"], .card');
                     if (parentCollapse && parentCollapse.previousElementSibling) {
                         info.phase = (parentCollapse.previousElementSibling.textContent || '').trim();
                     }
@@ -1643,7 +1658,6 @@
                 } else if (statusElInfo && (statusElInfo.textContent || '').toUpperCase().indexOf('PROCESO') !== -1) {
                     info.status = 'proceso';
                 } else {
-                    // Fallback search in table HTML
                     var html = table.innerHTML.toUpperCase();
                     if (html.indexOf('FINALIZAD') !== -1) info.status = 'finalizado';
                     else if (html.indexOf('REVISION') !== -1 || html.indexOf('REVISIÓN') !== -1) info.status = 'revision';
@@ -1653,12 +1667,12 @@
                 return info;
             }
 
-            // Show activity detail in the detail panel
+            // Show activity detail in the detail panel (100% UN-COLLAPSED AND EXPANDED)
             function opShowActivityDetail(index, activityTables, detailPanel, masterPanel) {
                 if (index < 0 || index >= activityTables.length) return;
 
                 // Update active state in master cards
-                var cards = masterPanel.querySelectorAll('.op-activity-card');
+                var cards = masterPanel.querySelectorAll('.op-activity-card[data-activity-index]');
                 for (var i = 0; i < cards.length; i++) {
                     cards[i].classList.remove('op-active');
                 }
@@ -1667,44 +1681,58 @@
                     cards[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
                 }
 
-                // Clone the selected table into the detail panel
                 var table = activityTables[index];
+
+                // Extraer título del acordeón o subsección padre si existe
+                var sectionTitle = '';
+                var parentAccordion = table.closest('.collapse, [id^="Ventana"]');
+                if (parentAccordion && parentAccordion.previousElementSibling) {
+                    sectionTitle = (parentAccordion.previousElementSibling.textContent || '').trim();
+                }
+
+                // Clonar la tabla de la actividad
                 var clone = table.cloneNode(true);
                 clone.classList.remove('op-original-table');
                 clone.classList.remove('op-activity-collapsed');
                 clone.style.display = '';
 
-                // Remove any collapse buttons from the clone
+                // Remove collapse toggle buttons from clone
                 var collapseBtns = clone.querySelectorAll('.op-collapse-toggle-btn');
                 for (var j = 0; j < collapseBtns.length; j++) {
                     collapseBtns[j].remove();
                 }
 
-                // Show all hidden rows in the clone
-                var hiddenRows = clone.querySelectorAll('tr');
-                for (var k = 0; k < hiddenRows.length; k++) {
-                    hiddenRows[k].style.display = '';
+                // FORZAR EXPANSIÓN 100% DE TODOS LOS ELEMENTOS INTERNOS OCULTOS (filas, respuestas, acordeones, divs)
+                var hiddenElements = clone.querySelectorAll('tr, td, div, span, .collapse, [style*="display"]');
+                for (var k = 0; k < hiddenElements.length; k++) {
+                    var el = hiddenElements[k];
+                    el.classList.add('show');
+                    if (el.style.display === 'none') {
+                        el.style.display = '';
+                    }
+                    el.style.visibility = 'visible';
+                    el.style.opacity = '1';
                 }
+
+                var sectionHeaderHtml = sectionTitle ? '<div style="background:var(--op-surface-muted); padding:8px 12px; border-radius:var(--op-radius-md); font-weight:600; font-size:12px; margin-bottom:12px; color:var(--op-text-primary); border-left:3px solid var(--op-border-active)"><i class="fas fa-folder-open" style="margin-right:6px; color:var(--op-status-proceso-text)"></i>' + sectionTitle + '</div>' : '';
 
                 detailPanel.innerHTML = ''
                     + '<div class="op-detail-header">'
                     + '  <h6><i class="fas fa-file-alt" style="margin-right:4px"></i>Actividad ' + (index + 1) + '</h6>'
                     + '  <span style="font-size:11px;color:var(--op-text-muted)">' + (index + 1) + ' de ' + activityTables.length + '</span>'
                     + '</div>'
+                    + sectionHeaderHtml
                     + '<div class="op-detail-content"></div>';
 
                 var contentDiv = detailPanel.querySelector('.op-detail-content');
                 contentDiv.appendChild(clone);
 
-                // Re-attach OnlyOffice button formatter if available
+                // Re-ejecutar el scanner de botones OnlyOffice
                 if (typeof ooFormatTextNodes === 'function') {
                     setTimeout(ooFormatTextNodes, 100);
                 }
 
-                // Scroll detail panel to top
                 detailPanel.scrollTop = 0;
-
-                // Persist selection
                 sessionStorage.setItem('op_split_selected', index);
             }
 
