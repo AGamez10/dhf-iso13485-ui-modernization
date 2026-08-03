@@ -1462,16 +1462,16 @@
                 if (targetContainer && !document.getElementById('op-view-toolbar')) {
                     var toolbar = document.createElement('div');
                     toolbar.id = 'op-view-toolbar';
-                    toolbar.className = 'op-view-toolbar mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2';
-                    toolbar.style.cssText = 'background:var(--op-surface-card); padding:10px 16px; border-radius:var(--op-radius-lg); border:1px solid var(--op-border-active); box-shadow:var(--op-shadow-2); margin-bottom:16px !important; width:100%; display:flex; justify-content:space-between; align-items:center; position:sticky; top:75px; z-index:900;';
+                    toolbar.className = 'op-view-toolbar mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2';
+                    toolbar.style.cssText = 'background: #ffffff !important; padding: 12px 20px !important; border-radius: 10px !important; border: 1px solid var(--op-border-strong) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; margin-bottom: 24px !important; width: 100% !important; display: flex !important; justify-content: space-between !important; align-items: center !important; position: relative !important; z-index: 10 !important;';
 
                     toolbar.innerHTML = ''
                         + '<div class="d-flex align-items-center gap-2 flex-wrap">'
-                        + '  <div class="btn-group btn-group-toggle" data-toggle="buttons" style="gap:4px;">'
+                        + '  <div class="btn-group btn-group-toggle mr-3" data-toggle="buttons" style="gap:6px;">'
                         + '    <button type="button" class="btn btn-primary btn-sm font-weight-bold active" id="op-btn-full-doc"><i class="fas fa-file-alt mr-1"></i> 📄 Documento Continuo (0 Clics)</button>'
-                        + '    <button type="button" class="btn btn-outline-info btn-sm" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida</button>'
+                        + '    <button type="button" class="btn btn-outline-info btn-sm font-weight-bold" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida</button>'
                         + '  </div>'
-                        + '  <button type="button" class="btn btn-success btn-sm font-weight-bold ml-2" id="op-btn-save-all"><i class="fas fa-save mr-1"></i> 💾 Guardar Memoria Completa (1 Clic)</button>'
+                        + '  <button type="button" class="btn btn-success btn-sm font-weight-bold px-3" id="op-btn-save-all" style="box-shadow:0 2px 6px rgba(16,185,129,0.3);"><i class="fas fa-save mr-1"></i> 💾 Guardar Memoria Completa (1 Clic)</button>'
                         + '</div>'
                         + '<button type="button" class="btn btn-outline-success btn-sm font-weight-bold" id="op-btn-batch-modal"><i class="fas fa-bolt mr-1"></i> ⚡ Cargue Masivo DHF</button>';
 
@@ -1595,16 +1595,26 @@
                             tbl.style.display = 'table';
                             tbl.style.width = '100%';
 
-                            // Inyectar Textarea de Edición Rápida Inline en Sitio si no existe
-                            if (!tbl.querySelector('.op-inline-fast-editor')) {
-                                var lastRow = tbl.querySelector('tbody') || tbl;
-                                var editorBox = document.createElement('tr');
-                                editorBox.className = 'op-inline-editor-row';
-                                editorBox.innerHTML = '<td colspan="10" style="background:#f8fafc; padding:12px; border-top:2px solid var(--op-border-active);">'
-                                    + '  <div style="font-weight:700; font-size:12px; color:var(--op-text-primary); margin-bottom:4px;"><i class="fas fa-edit text-primary mr-1"></i> ✍️ Redacción / Avance Rápido de Actividad (Inline):</div>'
-                                    + '  <textarea class="form-control form-control-sm op-inline-fast-editor" rows="2" style="font-size:12px; border-radius:6px;" placeholder="Escribe aquí directamente el avance o notas de esta actividad..."></textarea>'
-                                    + '</td>';
-                                lastRow.appendChild(editorBox);
+                            // Inyectar Textarea de Edición Rápida Inline en Sitio (100% Ancho Completo y Amplio)
+                            var nextSibling = tbl.nextSibling;
+                            if (!tbl.parentNode.querySelector('.op-fast-editor-block[data-table-index="' + x + '"]')) {
+                                var editorBox = document.createElement('div');
+                                editorBox.className = 'op-fast-editor-block my-3 p-3';
+                                editorBox.setAttribute('data-table-index', x);
+                                editorBox.style.cssText = 'background: #ffffff !important; border: 1.5px solid var(--op-border-strong) !important; border-left: 4px solid var(--op-brand-primary) !important; border-radius: 8px !important; box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important; width: 100% !important; margin-top: 12px !important; margin-bottom: 24px !important; box-sizing: border-box !important; clear: both !important;';
+
+                                editorBox.innerHTML = ''
+                                    + '<div class="d-flex align-items-center justify-content-between mb-2">'
+                                    + '  <span style="font-weight:700; font-size:13px; color:#1e293b;"><i class="fas fa-pen-alt text-primary mr-1"></i> ✍️ Redacción / Avance Rápido de Actividad (Edición en Sitio)</span>'
+                                    + '  <span class="badge badge-light text-muted font-weight-normal">100% Inline</span>'
+                                    + '</div>'
+                                    + '<textarea class="form-control op-inline-fast-editor" rows="4" style="width:100% !important; min-width:100% !important; min-height:120px !important; font-size:13px !important; line-height:1.6 !important; padding:12px 16px !important; border-radius:8px !important; border:1px solid #cbd5e1 !important; color:#0f172a !important; background:#f8fafc !important; resize:vertical !important; box-sizing:border-box !important;" placeholder="Escribe aquí directamente la memoria técnica, notas o respuesta para esta actividad..."></textarea>';
+
+                                if (nextSibling) {
+                                    tbl.parentNode.insertBefore(editorBox, nextSibling);
+                                } else {
+                                    tbl.parentNode.appendChild(editorBox);
+                                }
                             }
                         }
 
@@ -1615,6 +1625,11 @@
                             allCollapses[c].style.display = 'block';
                             allCollapses[c].style.visibility = 'visible';
                             allCollapses[c].style.opacity = '1';
+                        }
+                        // Mostrar todos los bloques de edición inline en modo continuo
+                        var allEditors = cardBody.querySelectorAll('.op-fast-editor-block');
+                        for (var e = 0; e < allEditors.length; e++) {
+                            allEditors[e].style.display = 'block';
                         }
                     } else if (mode === 'split') {
                         if (btnSplit) {
@@ -1627,9 +1642,13 @@
                         }
                         workspace.style.display = 'flex';
 
-                        // Ocultar las tablas originales para que el Master-Detail tome el control
+                        // Ocultar las tablas originales y bloques inline para que el Master-Detail tome el control
                         for (var y = 0; y < activityTables.length; y++) {
                             activityTables[y].style.display = 'none';
+                        }
+                        var allEditorsSplit = cardBody.querySelectorAll('.op-fast-editor-block');
+                        for (var es = 0; es < allEditorsSplit.length; es++) {
+                            allEditorsSplit[es].style.display = 'none';
                         }
 
                         if (activityTables.length > 0) {
