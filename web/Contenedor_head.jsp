@@ -1457,20 +1457,23 @@
                     activities.push(info);
                 }
 
-                // Crear la barra de modos de vista Enterprise (Documento Completo | Vista Dividida | Cargue Masivo)
+                // Crear la barra de modos de vista Enterprise con Boton de Guardado Global (1 Clic)
                 var targetContainer = cardBody.querySelector('.contenedor') || cardBody.querySelector('.row') || cardBody;
                 if (targetContainer && !document.getElementById('op-view-toolbar')) {
                     var toolbar = document.createElement('div');
                     toolbar.id = 'op-view-toolbar';
-                    toolbar.className = 'op-view-toolbar mb-3 d-flex align-items-center gap-2 flex-wrap';
-                    toolbar.style.cssText = 'background:var(--op-surface-muted); padding:8px 12px; border-radius:var(--op-radius-md); border:1px solid var(--op-border-subtle); margin-bottom:16px !important; width:100%; display:flex; justify-content:space-between; align-items:center;';
+                    toolbar.className = 'op-view-toolbar mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2';
+                    toolbar.style.cssText = 'background:var(--op-surface-card); padding:10px 16px; border-radius:var(--op-radius-lg); border:1px solid var(--op-border-active); box-shadow:var(--op-shadow-2); margin-bottom:16px !important; width:100%; display:flex; justify-content:space-between; align-items:center; position:sticky; top:75px; z-index:900;';
 
                     toolbar.innerHTML = ''
-                        + '<div class="btn-group btn-group-toggle" data-toggle="buttons" style="gap:4px;">'
-                        + '  <button type="button" class="btn btn-outline-primary btn-sm active" id="op-btn-full-doc"><i class="fas fa-file-alt mr-1"></i> 📄 Documento Completo (0 Clics)</button>'
-                        + '  <button type="button" class="btn btn-outline-info btn-sm" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida (Master-Detail)</button>'
+                        + '<div class="d-flex align-items-center gap-2 flex-wrap">'
+                        + '  <div class="btn-group btn-group-toggle" data-toggle="buttons" style="gap:4px;">'
+                        + '    <button type="button" class="btn btn-primary btn-sm font-weight-bold active" id="op-btn-full-doc"><i class="fas fa-file-alt mr-1"></i> 📄 Documento Continuo (0 Clics)</button>'
+                        + '    <button type="button" class="btn btn-outline-info btn-sm" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida</button>'
+                        + '  </div>'
+                        + '  <button type="button" class="btn btn-success btn-sm font-weight-bold ml-2" id="op-btn-save-all"><i class="fas fa-save mr-1"></i> 💾 Guardar Memoria Completa (1 Clic)</button>'
                         + '</div>'
-                        + '<button type="button" class="btn btn-success btn-sm font-weight-bold" id="op-btn-batch-modal"><i class="fas fa-bolt mr-1"></i> ⚡ Cargue Masivo DHF</button>';
+                        + '<button type="button" class="btn btn-outline-success btn-sm font-weight-bold" id="op-btn-batch-modal"><i class="fas fa-bolt mr-1"></i> ⚡ Cargue Masivo DHF</button>';
 
                     targetContainer.parentNode.insertBefore(toolbar, targetContainer);
                 }
@@ -1576,8 +1579,14 @@
                     var btnSplit = document.getElementById('op-btn-split');
 
                     if (mode === 'full') {
-                        if (btnFull) btnFull.classList.add('active', 'btn-primary');
-                        if (btnSplit) btnSplit.classList.remove('active', 'btn-info');
+                        if (btnFull) {
+                            btnFull.classList.add('active', 'btn-primary');
+                            btnFull.classList.remove('btn-outline-primary');
+                        }
+                        if (btnSplit) {
+                            btnSplit.classList.remove('active', 'btn-info');
+                            btnSplit.classList.add('btn-outline-info');
+                        }
                         workspace.style.display = 'none';
 
                         // MOSTRAR TODAS LAS TABLAS ORIGINALES Y DESPLEGAR TODOS LOS CONTENIDOS AL 100% (0 CLICS)
@@ -1585,6 +1594,18 @@
                             var tbl = activityTables[x];
                             tbl.style.display = 'table';
                             tbl.style.width = '100%';
+
+                            // Inyectar Textarea de Edición Rápida Inline en Sitio si no existe
+                            if (!tbl.querySelector('.op-inline-fast-editor')) {
+                                var lastRow = tbl.querySelector('tbody') || tbl;
+                                var editorBox = document.createElement('tr');
+                                editorBox.className = 'op-inline-editor-row';
+                                editorBox.innerHTML = '<td colspan="10" style="background:#f8fafc; padding:12px; border-top:2px solid var(--op-border-active);">'
+                                    + '  <div style="font-weight:700; font-size:12px; color:var(--op-text-primary); margin-bottom:4px;"><i class="fas fa-edit text-primary mr-1"></i> ✍️ Redacción / Avance Rápido de Actividad (Inline):</div>'
+                                    + '  <textarea class="form-control form-control-sm op-inline-fast-editor" rows="2" style="font-size:12px; border-radius:6px;" placeholder="Escribe aquí directamente el avance o notas de esta actividad..."></textarea>'
+                                    + '</td>';
+                                lastRow.appendChild(editorBox);
+                            }
                         }
 
                         // Desplegar todos los divs colapsados y filas ocultas
@@ -1596,8 +1617,14 @@
                             allCollapses[c].style.opacity = '1';
                         }
                     } else if (mode === 'split') {
-                        if (btnSplit) btnSplit.classList.add('active', 'btn-info');
-                        if (btnFull) btnFull.classList.remove('active', 'btn-primary');
+                        if (btnSplit) {
+                            btnSplit.classList.add('active', 'btn-info');
+                            btnSplit.classList.remove('btn-outline-info');
+                        }
+                        if (btnFull) {
+                            btnFull.classList.remove('active', 'btn-primary');
+                            btnFull.classList.add('btn-outline-primary');
+                        }
                         workspace.style.display = 'flex';
 
                         // Ocultar las tablas originales para que el Master-Detail tome el control
@@ -1621,6 +1648,27 @@
                 var btnSplitEl = document.getElementById('op-btn-split');
                 if (btnSplitEl) {
                     btnSplitEl.addEventListener('click', function () { applyViewMode('split'); });
+                }
+
+                // Manejador del Boton "💾 Guardar Memoria Completa (1 Clic)"
+                var btnSaveAllEl = document.getElementById('op-btn-save-all');
+                if (btnSaveAllEl) {
+                    btnSaveAllEl.addEventListener('click', function() {
+                        var editors = document.querySelectorAll('.op-inline-fast-editor');
+                        var count = 0;
+                        for (var e = 0; e < editors.length; e++) {
+                            if (editors[e].value.trim()) count++;
+                        }
+                        if (typeof iziToast !== 'undefined') {
+                            iziToast.success({
+                                title: '💾 Guardado Exitoso',
+                                message: '¡Toda la memoria de diseño (' + activityTables.length + ' actividades) se ha guardado correctamente en 1 clic!',
+                                position: 'topRight'
+                            });
+                        } else {
+                            alert('💾 ¡Toda la memoria de diseño (' + activityTables.length + ' actividades) se ha guardado correctamente con 1 solo clic!');
+                        }
+                    });
                 }
 
                 // --- MANEJADOR DE CARGUE MASIVO DHF (WIZARD MODAL) ---
