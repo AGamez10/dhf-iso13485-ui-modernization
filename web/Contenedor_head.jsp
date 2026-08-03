@@ -1421,12 +1421,7 @@
                 }
             }
 
-            // --- SPRINT 8: SPLIT-SCREEN WORKSPACE (MASTER-DETAIL) ---
-            // Transforma la lista de actividades en un layout de 2 paneles:
-            //   - Master (izquierda): tarjetas compactas con nombre, estado, fase
-            //   - Detail (derecha): contenido completo de la actividad seleccionada
-            // Solo se activa en la vista de Memorias (detecta #Formulario o .main-content).
-            // Progressive enhancement puro: si falla, las tablas quedan intactas.
+            // --- SPRINT 8: MODERN IDE / NOTION STYLE NAVIGATION & SPLIT VIEW ENGINE ---
             function opInitSplitScreen() {
                 var formulario = document.getElementById('Formulario') || document.querySelector('.main-content');
                 if (!formulario) return;
@@ -1434,30 +1429,44 @@
                 var cardBody = formulario.querySelector('.card-body');
                 if (!cardBody) return;
 
-                // Evitar duplicar el workspace si ya fue creado
                 if (document.getElementById('op-split-workspace')) return;
 
-                // Recopilar todas las tablas de actividades (incluyendo dentro de collapse/tabs)
-                var tables = cardBody.querySelectorAll('table.table-bordered');
-                var activityTables = [];
-                for (var i = 0; i < tables.length; i++) {
-                    var tbl = tables[i];
-                    // Excluir tablas dentro de .card-header (cabecera ISO)
-                    if (tbl.closest('.card-header')) continue;
-                    activityTables.push(tbl);
+                // Recopilar todos los contenedores de actividades y tablas ISO 13485
+                var activityElements = [];
+                var allTables = cardBody.querySelectorAll('table.table-bordered, .card, div[id^="Ventana"]');
+                for (var i = 0; i < allTables.length; i++) {
+                    var elem = allTables[i];
+                    if (elem.closest('.card-header') || elem.id === 'op-view-toolbar') continue;
+                    // Asegurar que tenga texto sustancial
+                    var textContent = (elem.textContent || elem.innerText || '').trim();
+                    if (textContent.length > 20) {
+                        activityElements.push(elem);
+                    }
                 }
 
-                if (activityTables.length === 0) return;
+                if (activityElements.length === 0) return;
 
-                // Extraer metadata de cada actividad para las tarjetas del master
+                // Extraer metadata para la lista del navegador lateral (Master Sidebar)
                 var activities = [];
-                for (var j = 0; j < activityTables.length; j++) {
-                    var table = activityTables[j];
-                    var info = opExtractActivityInfo(table, j);
-                    activities.push(info);
+                for (var j = 0; j < activityElements.length; j++) {
+                    var el = activityElements[j];
+                    var title = 'Sección / Actividad ' + (j + 1);
+                    var rawText = (el.textContent || el.innerText || '').trim();
+
+                    // Buscar títulos tipo 7.3.X o A - NORMAS o ACTIVIDAD
+                    var titleMatch = rawText.match(/(7\.3\.\d[^\n\r]+|ACTIVIDAD\s*\d+[^\n\r]+|[A-Z]\s*-\s*[^\n\r]+)/i);
+                    if (titleMatch && titleMatch[0]) {
+                        title = titleMatch[0].substring(0, 75);
+                    }
+
+                    activities.push({
+                        element: el,
+                        title: title,
+                        index: j
+                    });
                 }
 
-                // Crear la barra de modos de vista Enterprise con Boton de Guardado Global (1 Clic)
+                // Crear la barra de modos de vista Enterprise
                 var targetContainer = cardBody.querySelector('.contenedor') || cardBody.querySelector('.row') || cardBody;
                 if (targetContainer && !document.getElementById('op-view-toolbar')) {
                     var toolbar = document.createElement('div');
@@ -1469,106 +1478,55 @@
                         + '<div class="d-flex align-items-center gap-2 flex-wrap">'
                         + '  <div class="btn-group btn-group-toggle mr-3" data-toggle="buttons" style="gap:6px;">'
                         + '    <button type="button" class="btn btn-primary btn-sm font-weight-bold active" id="op-btn-full-doc"><i class="fas fa-file-alt mr-1"></i> 📄 Documento Continuo (0 Clics)</button>'
-                        + '    <button type="button" class="btn btn-outline-info btn-sm font-weight-bold" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida</button>'
+                        + '    <button type="button" class="btn btn-outline-info btn-sm font-weight-bold" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida (IDE Notion)</button>'
                         + '  </div>'
                         + '  <button type="button" class="btn btn-success btn-sm font-weight-bold px-3" id="op-btn-save-all" style="box-shadow:0 2px 6px rgba(16,185,129,0.3);"><i class="fas fa-save mr-1"></i> 💾 Guardar Memoria Completa (1 Clic)</button>'
-                        + '</div>'
-                        + '<button type="button" class="btn btn-outline-success btn-sm font-weight-bold" id="op-btn-batch-modal"><i class="fas fa-bolt mr-1"></i> ⚡ Cargue Masivo DHF</button>';
+                        + '</div>';
 
                     targetContainer.parentNode.insertBefore(toolbar, targetContainer);
                 }
 
-                // Crear el workspace split-screen
+                // Crear el workspace split-screen estilo IDE / Notion
                 var workspace = document.createElement('div');
                 workspace.className = 'op-split-workspace';
                 workspace.id = 'op-split-workspace';
+                workspace.style.cssText = 'display:none; gap:20px; width:100%; min-height:650px; align-items:flex-start;';
 
-                // --- Master Panel ---
+                // Master Panel (Navegador Lateral Estilo VS Code / Notion)
                 var masterPanel = document.createElement('div');
                 masterPanel.className = 'op-master-panel';
                 masterPanel.id = 'op-master-panel';
+                masterPanel.style.cssText = 'width:320px; min-width:320px; background:#f8fafc; border:1px solid var(--op-border-strong); border-radius:10px; padding:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04); height:auto; max-height:80vh; overflow-y:auto; position:sticky; top:20px;';
 
                 var masterHeader = document.createElement('div');
-                masterHeader.className = 'op-master-header';
-                masterHeader.innerHTML = '<h6><i class="fas fa-list-ul" style="margin-right:4px"></i>Actividades (' + activities.length + ')</h6>'
-                    + '<span class="op-master-count" style="background:var(--op-status-proceso-bg);color:var(--op-status-proceso-text)">DHF ISO</span>';
+                masterHeader.className = 'op-master-header mb-3 pb-2 border-bottom';
+                masterHeader.innerHTML = '<h6 class="m-0 font-weight-bold text-primary" style="font-size:13px;"><i class="fas fa-project-diagram mr-1"></i> Índice DHF ISO 13485 (' + activities.length + ')</h6>';
                 masterPanel.appendChild(masterHeader);
 
-                // Build activity cards
+                // Tarjetas del índice
                 for (var k = 0; k < activities.length; k++) {
                     var act = activities[k];
                     var card = document.createElement('div');
-                    card.className = 'op-activity-card';
+                    card.className = 'op-activity-card p-2 mb-2';
                     card.setAttribute('data-activity-index', k);
-                    card.setAttribute('tabindex', '0');
-
-                    var dotClass = 'op-dot-proceso';
-                    var statusLabel = 'En proceso';
-                    if (act.status === 'finalizado') {
-                        dotClass = 'op-dot-finalizado';
-                        statusLabel = 'Finalizada';
-                    } else if (act.status === 'revision') {
-                        dotClass = 'op-dot-revision';
-                        statusLabel = 'En revisión';
-                    }
-
-                    card.innerHTML = ''
-                        + '<div class="op-activity-card-title">' + act.title + '</div>'
-                        + '<div class="op-activity-card-meta">'
-                        + '  <span class="op-dot ' + dotClass + '"></span>'
-                        + '  <span style="font-weight:600">' + statusLabel + '</span>'
-                        + '  <span style="color:var(--op-text-muted)">·</span>'
-                        + '  <span>' + (act.author || 'Autor') + '</span>'
-                        + '</div>'
-                        + '<div class="op-activity-card-phase">' + act.phase + '</div>';
-
+                    card.style.cssText = 'background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; color:#334155; transition:all 0.2s;';
+                    card.innerHTML = '<i class="fas fa-file-contract text-info mr-2"></i>' + act.title;
                     masterPanel.appendChild(card);
                 }
 
-                // Botón de acción rápida: "+ Registrar Nueva Actividad"
-                var addCard = document.createElement('div');
-                addCard.className = 'op-activity-card';
-                addCard.style.cssText = 'border: 2px dashed var(--op-border-active) !important; background: var(--op-status-proceso-bg) !important; margin-top: 8px !important; text-align: center !important; justify-content: center !important; align-items: center !important; padding: 10px !important;';
-                addCard.innerHTML = '<div style="font-weight:700; color:var(--op-status-proceso-text); font-size:12px;"><i class="fas fa-plus-circle" style="margin-right:4px"></i> Registrar Nueva Actividad</div>';
-                addCard.addEventListener('click', function() {
-                    if (typeof mostrarConvencion === 'function') {
-                        mostrarConvencion(1);
-                    } else {
-                        var v1 = document.getElementById('Ventana1');
-                        if (v1) v1.style.display = 'block';
-                    }
-                });
-                masterPanel.insertBefore(addCard, masterHeader.nextSibling);
-
-                // Keyboard hint
-                var kbdHint = document.createElement('div');
-                kbdHint.className = 'op-kbd-hint';
-                kbdHint.innerHTML = '<kbd>↑</kbd> <kbd>↓</kbd> navegar · <kbd>Enter</kbd> seleccionar';
-                masterPanel.appendChild(kbdHint);
-
-                // --- Detail Panel ---
+                // Detail Panel (Lienzo Principal de Lectura y Edición)
                 var detailPanel = document.createElement('div');
                 detailPanel.className = 'op-detail-panel';
                 detailPanel.id = 'op-detail-panel';
-                detailPanel.innerHTML = ''
-                    + '<div class="op-detail-empty">'
-                    + '  <i class="fas fa-hand-pointer"></i>'
-                    + '  <p>Selecciona una actividad<br>de la lista para ver su detalle</p>'
-                    + '</div>';
+                detailPanel.style.cssText = 'flex:1; background:#ffffff; border:1px solid var(--op-border-strong); border-radius:10px; padding:24px; box-shadow:0 4px 16px rgba(0,0,0,0.06); min-height:650px;';
+                detailPanel.innerHTML = '<div class="text-center p-5 text-muted"><i class="fas fa-hand-pointer fa-2x mb-2"></i><p>Selecciona una sección del índice para ver y editar su contenido completo.</p></div>';
 
                 workspace.appendChild(masterPanel);
                 workspace.appendChild(detailPanel);
 
-                // Insert workspace BEFORE the first activity table
-                var firstTable = activityTables[0];
-                firstTable.parentNode.insertBefore(workspace, firstTable);
+                var firstElem = activityElements[0];
+                firstElem.parentNode.insertBefore(workspace, firstElem);
 
-                // Mark original tables with a class for toggling visibility
-                for (var m = 0; m < activityTables.length; m++) {
-                    activityTables[m].classList.add('op-original-table');
-                }
-
-                // --- GESTIÓN DE MODOS DE VISTA (DOCUMENTO COMPLETO VS SPLIT SCREEN) ---
                 var currentMode = sessionStorage.getItem('op_view_mode') || 'full';
 
                 function applyViewMode(mode) {
@@ -1579,81 +1537,29 @@
                     var btnSplit = document.getElementById('op-btn-split');
 
                     if (mode === 'full') {
-                        if (btnFull) {
-                            btnFull.classList.add('active', 'btn-primary');
-                            btnFull.classList.remove('btn-outline-primary');
-                        }
-                        if (btnSplit) {
-                            btnSplit.classList.remove('active', 'btn-info');
-                            btnSplit.classList.add('btn-outline-info');
-                        }
+                        if (btnFull) { btnFull.classList.add('active', 'btn-primary'); btnFull.classList.remove('btn-outline-primary'); }
+                        if (btnSplit) { btnSplit.classList.remove('active', 'btn-info'); btnSplit.classList.add('btn-outline-info'); }
                         workspace.style.display = 'none';
 
-                        // MOSTRAR TODAS LAS TABLAS ORIGINALES Y DESPLEGAR TODOS LOS CONTENIDOS AL 100% (0 CLICS)
-                        for (var x = 0; x < activityTables.length; x++) {
-                            var tbl = activityTables[x];
-                            tbl.style.display = 'table';
-                            tbl.style.width = '100%';
-
-                            // Inyectar Textarea de Edición Rápida Inline en Sitio (100% Ancho Completo y Amplio)
-                            var nextSibling = tbl.nextSibling;
-                            if (!tbl.parentNode.querySelector('.op-fast-editor-block[data-table-index="' + x + '"]')) {
-                                var editorBox = document.createElement('div');
-                                editorBox.className = 'op-fast-editor-block my-3 p-3';
-                                editorBox.setAttribute('data-table-index', x);
-                                editorBox.style.cssText = 'background: #ffffff !important; border: 1.5px solid var(--op-border-strong) !important; border-left: 4px solid var(--op-brand-primary) !important; border-radius: 8px !important; box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important; width: 100% !important; margin-top: 12px !important; margin-bottom: 24px !important; box-sizing: border-box !important; clear: both !important;';
-
-                                editorBox.innerHTML = ''
-                                    + '<div class="d-flex align-items-center justify-content-between mb-2">'
-                                    + '  <span style="font-weight:700; font-size:13px; color:#1e293b;"><i class="fas fa-pen-alt text-primary mr-1"></i> ✍️ Redacción / Avance Rápido de Actividad (Edición en Sitio)</span>'
-                                    + '  <span class="badge badge-light text-muted font-weight-normal">100% Inline</span>'
-                                    + '</div>'
-                                    + '<textarea class="form-control op-inline-fast-editor" rows="4" style="width:100% !important; min-width:100% !important; min-height:120px !important; font-size:13px !important; line-height:1.6 !important; padding:12px 16px !important; border-radius:8px !important; border:1px solid #cbd5e1 !important; color:#0f172a !important; background:#f8fafc !important; resize:vertical !important; box-sizing:border-box !important;" placeholder="Escribe aquí directamente la memoria técnica, notas o respuesta para esta actividad..."></textarea>';
-
-                                if (nextSibling) {
-                                    tbl.parentNode.insertBefore(editorBox, nextSibling);
-                                } else {
-                                    tbl.parentNode.appendChild(editorBox);
-                                }
-                            }
+                        for (var x = 0; x < activityElements.length; x++) {
+                            activityElements[x].style.display = '';
                         }
-
-                        // Desplegar todos los divs colapsados y filas ocultas
-                        var allCollapses = cardBody.querySelectorAll('.collapse, [style*="display: none"], [style*="display:none"]');
-                        for (var c = 0; c < allCollapses.length; c++) {
-                            allCollapses[c].classList.add('show');
-                            allCollapses[c].style.display = 'block';
-                            allCollapses[c].style.visibility = 'visible';
-                            allCollapses[c].style.opacity = '1';
-                        }
-                        // Mostrar todos los bloques de edición inline en modo continuo
                         var allEditors = cardBody.querySelectorAll('.op-fast-editor-block');
-                        for (var e = 0; e < allEditors.length; e++) {
-                            allEditors[e].style.display = 'block';
-                        }
+                        for (var e = 0; e < allEditors.length; e++) { allEditors[e].style.display = 'block'; }
                     } else if (mode === 'split') {
-                        if (btnSplit) {
-                            btnSplit.classList.add('active', 'btn-info');
-                            btnSplit.classList.remove('btn-outline-info');
-                        }
-                        if (btnFull) {
-                            btnFull.classList.remove('active', 'btn-primary');
-                            btnFull.classList.add('btn-outline-primary');
-                        }
+                        if (btnSplit) { btnSplit.classList.add('active', 'btn-info'); btnSplit.classList.remove('btn-outline-info'); }
+                        if (btnFull) { btnFull.classList.remove('active', 'btn-primary'); btnFull.classList.add('btn-outline-primary'); }
                         workspace.style.display = 'flex';
 
-                        // Ocultar las tablas originales y bloques inline para que el Master-Detail tome el control
-                        for (var y = 0; y < activityTables.length; y++) {
-                            activityTables[y].style.display = 'none';
+                        for (var y = 0; y < activityElements.length; y++) {
+                            activityElements[y].style.display = 'none';
                         }
                         var allEditorsSplit = cardBody.querySelectorAll('.op-fast-editor-block');
-                        for (var es = 0; es < allEditorsSplit.length; es++) {
-                            allEditorsSplit[es].style.display = 'none';
-                        }
+                        for (var es = 0; es < allEditorsSplit.length; es++) { allEditorsSplit[es].style.display = 'none'; }
 
-                        if (activityTables.length > 0) {
+                        if (activityElements.length > 0) {
                             var sel = parseInt(sessionStorage.getItem('op_split_selected') || '0', 10);
-                            opShowActivityDetail(sel, activityTables, detailPanel, masterPanel);
+                            opShowActivityDetail(sel, activityElements, detailPanel, masterPanel, activities);
                         }
                     }
                 }
@@ -1661,213 +1567,66 @@
                 applyViewMode(currentMode);
 
                 var btnFullEl = document.getElementById('op-btn-full-doc');
-                if (btnFullEl) {
-                    btnFullEl.addEventListener('click', function () { applyViewMode('full'); });
-                }
+                if (btnFullEl) btnFullEl.addEventListener('click', function () { applyViewMode('full'); });
                 var btnSplitEl = document.getElementById('op-btn-split');
-                if (btnSplitEl) {
-                    btnSplitEl.addEventListener('click', function () { applyViewMode('split'); });
-                }
+                if (btnSplitEl) btnSplitEl.addEventListener('click', function () { applyViewMode('split'); });
 
-                // Manejador del Boton "💾 Guardar Memoria Completa (1 Clic)"
-                var btnSaveAllEl = document.getElementById('op-btn-save-all');
-                if (btnSaveAllEl) {
-                    btnSaveAllEl.addEventListener('click', function() {
-                        var editors = document.querySelectorAll('.op-inline-fast-editor');
-                        var count = 0;
-                        for (var e = 0; e < editors.length; e++) {
-                            if (editors[e].value.trim()) count++;
-                        }
-                        if (typeof iziToast !== 'undefined') {
-                            iziToast.success({
-                                title: '💾 Guardado Exitoso',
-                                message: '¡Toda la memoria de diseño (' + activityTables.length + ' actividades) se ha guardado correctamente en 1 clic!',
-                                position: 'topRight'
-                            });
-                        } else {
-                            alert('💾 ¡Toda la memoria de diseño (' + activityTables.length + ' actividades) se ha guardado correctamente con 1 solo clic!');
-                        }
-                    });
-                }
-
-                // --- MANEJADOR DE CARGUE MASIVO DHF (WIZARD MODAL) ---
-                var btnBatchEl = document.getElementById('op-btn-batch-modal');
-                if (btnBatchEl) {
-                    btnBatchEl.addEventListener('click', function() {
-                        opShowBatchCreationModal();
-                    });
-                }
-
-                // --- Event: Click on activity card ---
                 masterPanel.addEventListener('click', function (e) {
                     var card = e.target.closest('.op-activity-card');
-                    if (!card || card === addCard) return;
+                    if (!card) return;
                     var idx = parseInt(card.getAttribute('data-activity-index'), 10);
-                    opShowActivityDetail(idx, activityTables, detailPanel, masterPanel);
+                    opShowActivityDetail(idx, activityElements, detailPanel, masterPanel, activities);
                 });
-
-                // --- Event: Keyboard navigation ---
-                masterPanel.addEventListener('keydown', function (e) {
-                    var cards = masterPanel.querySelectorAll('.op-activity-card[data-activity-index]');
-                    var activeCard = masterPanel.querySelector('.op-activity-card.op-active');
-                    var currentIdx = -1;
-                    if (activeCard) {
-                        currentIdx = parseInt(activeCard.getAttribute('data-activity-index'), 10);
-                    }
-
-                    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        var nextIdx = e.key === 'ArrowDown'
-                            ? Math.min(currentIdx + 1, cards.length - 1)
-                            : Math.max(currentIdx - 1, 0);
-                        opShowActivityDetail(nextIdx, activityTables, detailPanel, masterPanel);
-                        cards[nextIdx].focus();
-                    } else if (e.key === 'Enter') {
-                        e.preventDefault();
-                        if (currentIdx >= 0) {
-                            opShowActivityDetail(currentIdx, activityTables, detailPanel, masterPanel);
-                        }
-                    }
-                });
-
-                // Auto-select first activity if split is active
-                if (splitActive && activityTables.length > 0) {
-                    setTimeout(function () {
-                        opShowActivityDetail(0, activityTables, detailPanel, masterPanel);
-                    }, 50);
-                }
             }
 
-            // Extract activity info from a table for the master card
-            function opExtractActivityInfo(table, index) {
-                var info = {
-                    title: 'Actividad ' + (index + 1),
-                    author: '',
-                    status: 'proceso',
-                    phase: '',
-                    date: ''
-                };
+            // Renderizar la actividad seleccionada en el Lienzo Principal de Vista Dividida (100% Completo)
+            function opShowActivityDetail(index, activityElements, detailPanel, masterPanel, activities) {
+                if (index < 0 || index >= activityElements.length) return;
 
-                // Extract phase from header row (background: #dfe1e1 or aliceblue)
-                var headerThs = table.querySelectorAll('th');
-                for (var i = 0; i < headerThs.length; i++) {
-                    var thText = (headerThs[i].textContent || '').trim();
-                    var bgStyle = headerThs[i].getAttribute('style') || '';
-                    if (bgStyle.indexOf('dfe1e1') !== -1 || bgStyle.indexOf('aliceblue') !== -1) {
-                        info.phase = thText;
-                    }
-                }
-
-                // If phase not found inside table th, check preceding heading or accordion parent
-                if (!info.phase) {
-                    var parentCollapse = table.closest('.collapse, [id^="Ventana"], .card');
-                    if (parentCollapse && parentCollapse.previousElementSibling) {
-                        info.phase = (parentCollapse.previousElementSibling.textContent || '').trim();
-                    }
-                }
-                if (!info.phase) {
-                    info.phase = 'ISO 13485 DHF';
-                }
-
-                // Extract activity title from td containing 'ACTIVIDAD N:' or 'Actividad N:'
-                var tds = table.querySelectorAll('td');
-                for (var j = 0; j < tds.length; j++) {
-                    var tdText = (tds[j].textContent || '').trim();
-                    if ((tdText.toUpperCase().indexOf('ACTIVIDAD') !== -1) && tdText.indexOf(':') !== -1) {
-                        var colonIdx = tdText.indexOf(':');
-                        var content = tdText.substring(colonIdx + 1).trim();
-                        if (content.length > 0) {
-                            info.title = content.substring(0, 80) + (content.length > 80 ? '...' : '');
-                        }
-                    }
-                    if (tdText.toUpperCase().indexOf('AUTOR:') !== -1) {
-                        info.author = tdText.replace(/AUTOR:/i, '').trim();
-                        if (info.author.length > 25) {
-                            info.author = info.author.substring(0, 22) + '...';
-                        }
-                    }
-                    if (tdText.toUpperCase().indexOf('FECHA:') !== -1) {
-                        info.date = tdText.replace(/FECHA:/i, '').trim();
-                    }
-                }
-
-                // Detect status from the b.text-* elements or status text
-                var statusElSuccess = table.querySelector('b.text-success, span.text-success');
-                var statusElWarning = table.querySelector('b.text-warning, span.text-warning');
-                var statusElInfo = table.querySelector('b.text-info, span.text-info');
-
-                if (statusElSuccess && (statusElSuccess.textContent || '').toUpperCase().indexOf('FINALIZ') !== -1) {
-                    info.status = 'finalizado';
-                } else if (statusElWarning && (statusElWarning.textContent || '').toUpperCase().indexOf('REVISI') !== -1) {
-                    info.status = 'revision';
-                } else if (statusElInfo && (statusElInfo.textContent || '').toUpperCase().indexOf('PROCESO') !== -1) {
-                    info.status = 'proceso';
-                } else {
-                    var html = table.innerHTML.toUpperCase();
-                    if (html.indexOf('FINALIZAD') !== -1) info.status = 'finalizado';
-                    else if (html.indexOf('REVISION') !== -1 || html.indexOf('REVISIÓN') !== -1) info.status = 'revision';
-                    else info.status = 'proceso';
-                }
-
-                return info;
-            }
-
-            // Show activity detail in the detail panel (100% UN-COLLAPSED AND EXPANDED)
-            function opShowActivityDetail(index, activityTables, detailPanel, masterPanel) {
-                if (index < 0 || index >= activityTables.length) return;
-
-                // Update active state in master cards
-                var cards = masterPanel.querySelectorAll('.op-activity-card[data-activity-index]');
+                var cards = masterPanel.querySelectorAll('.op-activity-card');
                 for (var i = 0; i < cards.length; i++) {
-                    cards[i].classList.remove('op-active');
+                    cards[i].style.background = '#ffffff';
+                    cards[i].style.borderColor = '#e2e8f0';
+                    cards[i].style.color = '#334155';
                 }
                 if (cards[index]) {
-                    cards[index].classList.add('op-active');
-                    cards[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    cards[index].style.background = '#e0f2fe';
+                    cards[index].style.borderColor = '#0284c7';
+                    cards[index].style.color = '#0369a1';
                 }
 
-                var table = activityTables[index];
+                var origElem = activityElements[index];
+                var clone = origElem.cloneNode(true);
+                clone.style.display = 'block';
 
-                // Extraer título del acordeón o subsección padre si existe
-                var sectionTitle = '';
-                var parentAccordion = table.closest('.collapse, [id^="Ventana"]');
-                if (parentAccordion && parentAccordion.previousElementSibling) {
-                    sectionTitle = (parentAccordion.previousElementSibling.textContent || '').trim();
+                // Forzar despliegue de 100% de los elementos internos
+                var hiddenEls = clone.querySelectorAll('.collapse, [style*="display: none"], [style*="display:none"]');
+                for (var h = 0; h < hiddenEls.length; h++) {
+                    hiddenEls[h].classList.add('show');
+                    hiddenEls[h].style.display = 'block';
+                    hiddenEls[h].style.visibility = 'visible';
+                    hiddenEls[h].style.opacity = '1';
                 }
 
-                // Clonar la tabla de la actividad
-                var clone = table.cloneNode(true);
-                clone.classList.remove('op-original-table');
-                clone.classList.remove('op-activity-collapsed');
-                clone.style.display = '';
-
-                // Remove collapse toggle buttons from clone
-                var collapseBtns = clone.querySelectorAll('.op-collapse-toggle-btn');
-                for (var j = 0; j < collapseBtns.length; j++) {
-                    collapseBtns[j].remove();
-                }
-
-                // FORZAR EXPANSIÓN 100% DE TODOS LOS ELEMENTOS INTERNOS OCULTOS (filas, respuestas, acordeones, divs)
-                var hiddenElements = clone.querySelectorAll('tr, td, div, span, .collapse, [style*="display"]');
-                for (var k = 0; k < hiddenElements.length; k++) {
-                    var el = hiddenElements[k];
-                    el.classList.add('show');
-                    if (el.style.display === 'none') {
-                        el.style.display = '';
-                    }
-                    el.style.visibility = 'visible';
-                    el.style.opacity = '1';
-                }
-
-                var sectionHeaderHtml = sectionTitle ? '<div style="background:var(--op-surface-muted); padding:8px 12px; border-radius:var(--op-radius-md); font-weight:600; font-size:12px; margin-bottom:12px; color:var(--op-text-primary); border-left:3px solid var(--op-border-active)"><i class="fas fa-folder-open" style="margin-right:6px; color:var(--op-status-proceso-text)"></i>' + sectionTitle + '</div>' : '';
+                var title = activities && activities[index] ? activities[index].title : ('Sección ' + (index + 1));
 
                 detailPanel.innerHTML = ''
-                    + '<div class="op-detail-header">'
-                    + '  <h6><i class="fas fa-file-alt" style="margin-right:4px"></i>Actividad ' + (index + 1) + '</h6>'
-                    + '  <span style="font-size:11px;color:var(--op-text-muted)">' + (index + 1) + ' de ' + activityTables.length + '</span>'
+                    + '<div class="d-flex align-items-center justify-content-between pb-3 mb-4 border-bottom">'
+                    + '  <div>'
+                    + '    <span class="badge badge-primary px-2 py-1 mb-1">DHF ISO 13485</span>'
+                    + '    <h5 class="m-0 font-weight-bold text-dark">' + title + '</h5>'
+                    + '  </div>'
+                    + '  <span class="text-muted font-weight-bold" style="font-size:12px;">Sección ' + (index + 1) + ' de ' + activityElements.length + '</span>'
                     + '</div>'
-                    + sectionHeaderHtml
-                    + '<div class="op-detail-content"></div>';
+                    + '<div class="op-detail-content"></div>'
+                    + '<div class="mt-4 pt-3 border-top">'
+                    + '  <div class="font-weight-bold mb-2 text-primary" style="font-size:13px;"><i class="fas fa-edit mr-1"></i> Redacción / Avance Rápido para esta Sección:</div>'
+                    + '  <textarea class="form-control op-inline-fast-editor" rows="4" style="width:100% !important; min-height:120px !important; font-size:13px !important; line-height:1.6 !important; padding:12px 16px !important; border-radius:8px !important; border:1px solid #cbd5e1 !important; color:#0f172a !important; background:#f8fafc !important;" placeholder="Escribe aquí las notas o avances de esta sección..."></textarea>'
+                    + '</div>';
+
+                detailPanel.querySelector('.op-detail-content').appendChild(clone);
+                sessionStorage.setItem('op_split_selected', index);
+            }
 
                 var contentDiv = detailPanel.querySelector('.op-detail-content');
                 contentDiv.appendChild(clone);
