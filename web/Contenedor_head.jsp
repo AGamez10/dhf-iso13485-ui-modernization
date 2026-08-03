@@ -770,6 +770,34 @@
         <script src="Interfaz/Contenido/assets/modules/jquery.min.js"></script>
         <script type="text/javascript" src="Interfaz/Contenido/assets/Alertas/dist/sweetalert.min.js"></script>
         <script type="text/javascript" src="Interfaz/Contenido/assets/Validacion/LiveValidation.js"></script>
+        <!-- ═══════════════════════════════════════════════════════════════
+             PATCH DE RESILIENCIA JS: LIVEVALIDATION FALLBACK
+             Evita la destruccion del hilo de ejecucion JS cuando los Tags
+             Java legacy (Tag_proyecto, Tag_alertas) intentan validar IDs
+             que no existen en la vista actual (e.g. 'datepicker').
+             ═══════════════════════════════════════════════════════════════ -->
+        <script type="text/javascript">
+            (function () {
+                if (typeof LiveValidation !== 'undefined' && LiveValidation.prototype && LiveValidation.prototype.initialize) {
+                    var _origInit = LiveValidation.prototype.initialize;
+                    LiveValidation.prototype.initialize = function (element, options) {
+                        var targetEl = (typeof element === 'string') ? document.getElementById(element) : element;
+                        if (!targetEl) {
+                            console.warn('[LiveValidation Resilience Patch] Elemento no encontrado en el DOM:', element, '— Evitando excepcion fatal.');
+                            var dummy = document.createElement('input');
+                            dummy.type = 'hidden';
+                            dummy.id = 'op-dummy-' + Math.random().toString(36).substring(7);
+                            this.element = dummy;
+                            this.valid = true;
+                            this.form = null;
+                            this.options = options || {};
+                            return true;
+                        }
+                        return _origInit.call(this, element, options);
+                    };
+                }
+            })();
+        </script>
 
         <!-- Integración Global del SDK Office Platform -->
         <% 
