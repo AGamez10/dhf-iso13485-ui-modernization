@@ -82,9 +82,9 @@
 
         <script>
             $(document).ready(function () {
-                // Leer límite desde sessionStorage o usar 25 por defecto
+                // Leer límite desde sessionStorage o usar 50 por defecto (más útil que 25)
                 var savedLimit = sessionStorage.getItem('op_proyectos_limit');
-                var limit = savedLimit ? parseInt(savedLimit, 10) : 25;
+                var limit = savedLimit ? parseInt(savedLimit, 10) : 50;
                 var currentPage = 1;
                 var pageRange = 4; // Número máximo de botones de página a mostrar en el rango central
 

@@ -170,42 +170,13 @@
             }
 
             /* ═══════════════════════════════════════════════════════════════
-               SPRINT 5: SMART COLLAPSE (ACTIVIDADES FINALIZADAS)
+               SPRINT 5: ELIMINADO — el colapso automático se suprimió.
+               Las actividades finalizadas se muestran completas igual que
+               las activas. No se ocultan filas con CSS.
                ═══════════════════════════════════════════════════════════════ */
-            .main-content table.table-bordered.op-activity-collapsed {
-                opacity: 0.88;
-                border-left: 4px solid var(--op-status-finalizado-dot) !important;
-                transition: opacity 0.2s ease, box-shadow 0.2s ease;
-            }
-
-            .main-content table.table-bordered.op-activity-collapsed:hover {
-                opacity: 1;
-                box-shadow: var(--op-shadow-2) !important;
-            }
-
-            .main-content table.table-bordered.op-activity-collapsed tbody tr:nth-child(n+4) {
-                display: none !important;
-            }
-
-            .op-collapse-toggle-btn {
-                background: var(--op-surface-muted);
-                color: var(--op-status-proceso-text);
-                border: 1px solid var(--op-border-muted);
-                border-radius: var(--op-radius-sm);
-                padding: 2px 8px;
-                font-size: 11px;
-                font-weight: 600;
-                cursor: pointer;
-                display: inline-flex;
-                align-items: center;
-                gap: 4px;
-                margin-left: 8px;
-                transition: all 0.15s ease;
-            }
-
-            .op-collapse-toggle-btn:hover {
-                background: var(--op-surface-muted-hover);
-                color: var(--op-border-active);
+            /* Indicador visual sutil para actividades finalizadas (solo borde) */
+            .main-content table.table-bordered.op-activity-done {
+                border-left: 3px solid var(--op-status-finalizado-dot) !important;
             }
 
             /* ═══════════════════════════════════════════════════════════════
@@ -1385,44 +1356,73 @@
             // Guardar antes de unload (cubre redirects)
             window.addEventListener('beforeunload', saveContext);
 
-            // --- SPRINT 5: DESPLEGAR 100% DE LAS SECCIONES Y ACCORDIONES DE FORMA AUTOMÁTICA (0 CLICS) ---
-            // Garantiza que al abrir cualquier memoria de diseño, TODOS los numerales ISO (A, B, C, D, E...)
-            // y sus actividades se muestren desglosados y legibles sin tener que hacer clic en cada flecha.
-            function opUncollapseAllSections() {
-                var container = document.getElementById('Formulario') || document.querySelector('.main-content');
+            // --- SPRINT 5: APERTURA TOTAL Y PERMANENTE DE SECCIONES ISO (MutationObserver) ---
+            // Utiliza MutationObserver para detectar cualquier cambio en el DOM
+            // (ej: Bootstrap re-colapsando al cambiar de tab) y forzar reapertura inmediata.
+            function opForceExpandAll(root) {
+                var container = root || document.getElementById('Formulario') || document.querySelector('.main-content');
                 if (!container) return;
 
-                // 1. Forzar apertura de todos los divs y contenedores .collapse de Bootstrap
-                var collapses = container.querySelectorAll('.collapse, [id^="collapse"], [id^="Ventana"], .card-body div[style*="display: none"], .card-body div[style*="display:none"]');
+                // 1. Abrir todos los .collapse de Bootstrap (tabs 7.3.2, 7.3.3, etc.)
+                var collapses = container.querySelectorAll('.collapse:not(.show)');
                 for (var i = 0; i < collapses.length; i++) {
                     var col = collapses[i];
-                    col.classList.add('show');
-                    col.style.display = 'block';
-                    col.style.visibility = 'visible';
-                    col.style.height = 'auto';
-                    col.style.opacity = '1';
+                    // NO tocar Ventana* — son modales que deben estar cerrados por defecto
+                    if (!col.id || col.id.indexOf('Ventana') !== 0) {
+                        col.classList.add('show');
+                        col.style.display = 'block';
+                        col.style.height = 'auto';
+                        col.style.overflow = 'visible';
+                    }
                 }
 
-                // 2. Desactivar cualquier clase de colapso previo en las tablas
-                var tables = container.querySelectorAll('table.table-bordered, .op-activity-collapsed');
-                for (var j = 0; j < tables.length; j++) {
-                    var tbl = tables[j];
-                    tbl.classList.remove('op-activity-collapsed');
-                    tbl.style.display = 'table';
-                    tbl.style.width = '100%';
+                // 2. Quitar op-activity-collapsed de cualquier tabla que lo tenga
+                var collapsed = container.querySelectorAll('.op-activity-collapsed');
+                for (var j = 0; j < collapsed.length; j++) {
+                    collapsed[j].classList.remove('op-activity-collapsed');
                 }
 
-                // 3. Forzar visibilidad de filas ocultas dentro de las actividades
+                // 3. Desbloquear filas ocultas (display:none inline)
                 var hiddenRows = container.querySelectorAll('tr[style*="display: none"], tr[style*="display:none"]');
                 for (var r = 0; r < hiddenRows.length; r++) {
-                    hiddenRows[r].style.display = 'table-row';
+                    hiddenRows[r].removeAttribute('style');
                 }
             }
 
-            // Ejecutar desglosado automático continuo
-            document.addEventListener('DOMContentLoaded', opUncollapseAllSections);
-            window.addEventListener('load', opUncollapseAllSections);
-            setInterval(opUncollapseAllSections, 500);
+            // Ejecutar al cargar la página
+            document.addEventListener('DOMContentLoaded', function() { opForceExpandAll(); });
+            window.addEventListener('load', function() { opForceExpandAll(); });
+
+            // MutationObserver: reacciona a cualquier cambio de clase en el DOM
+            // (ej: Bootstrap agrega/quita .show cuando el usuario cambia de tab)
+            var opExpandObserver = new MutationObserver(function(mutations) {
+                var needsExpand = false;
+                for (var i = 0; i < mutations.length; i++) {
+                    var m = mutations[i];
+                    if (m.type === 'attributes' && m.attributeName === 'class') {
+                        var el = m.target;
+                        // Si un .collapse perdió su clase .show, re-expandir
+                        if (el.classList.contains('collapse') && !el.classList.contains('show')) {
+                            if (!el.id || el.id.indexOf('Ventana') !== 0) {
+                                needsExpand = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (needsExpand) {
+                    setTimeout(opForceExpandAll, 30);
+                }
+            });
+
+            // Arrancar el observer sobre todo el body una vez cargado
+            window.addEventListener('load', function() {
+                opExpandObserver.observe(document.body, {
+                    attributes: true,
+                    attributeFilter: ['class'],
+                    subtree: true
+                });
+            });
 
             // --- SPRINT 6: STICKY HEADER DE PROYECTO ISO ---
             // Detecta la cabecera DHF por su texto (CONSECUTIVO) — el backend
@@ -1742,14 +1742,14 @@
             // Bootstrap (tabs/collapse) se estabilicen antes de restaurar contexto.
             function opInit() {
                 setTimeout(restoreContext, 100);
-                setTimeout(opUncollapseAllSections, 150);
+                setTimeout(opForceExpandAll, 150);
                 setTimeout(opInitStickyHeader, 180);
                 setTimeout(opInitSplitScreen, 250);
 
-                // Re-ejecutar desglosado total si el usuario hace clic en un tab ISO (7.3.2, 7.3.3, 7.3.4...)
+                // Re-ejecutar expansión total al cambiar de tab ISO (7.3.2, 7.3.3, etc.)
                 document.addEventListener('click', function(e) {
                     if (e.target.closest('a[data-toggle="tab"], button[data-toggle="collapse"], .dropdown-item, .nav-link')) {
-                        setTimeout(opUncollapseAllSections, 150);
+                        setTimeout(opForceExpandAll, 200);
                     }
                 });
 
