@@ -1335,23 +1335,20 @@
             // Transforma la lista de actividades en un layout de 2 paneles:
             //   - Master (izquierda): tarjetas compactas con nombre, estado, fase
             //   - Detail (derecha): contenido completo de la actividad seleccionada
-            // Solo se activa en la vista de Memorias (detecta #Formulario).
+            // Solo se activa en la vista de Memorias (detecta #Formulario o .main-content).
             // Progressive enhancement puro: si falla, las tablas quedan intactas.
             function opInitSplitScreen() {
-                // Solo activar en Memorias.jsp (tiene #Formulario)
-                var formulario = document.getElementById('Formulario');
+                var formulario = document.getElementById('Formulario') || document.querySelector('.main-content');
                 if (!formulario) return;
 
-                // Buscar el card-body que contiene las actividades
                 var cardBody = formulario.querySelector('.card-body');
                 if (!cardBody) return;
 
-                // Recopilar todas las tablas de actividades
-                var tables = cardBody.querySelectorAll('table.table-bordered');
-                if (!tables || tables.length < 2) return; // La primera tabla puede ser la cabecera
+                // Evitar duplicar el workspace si ya fue creado
+                if (document.getElementById('op-split-workspace')) return;
 
-                // Separar la cabecera (contenedor/filtros) de las tablas de actividades
-                // Las tablas de actividades son las que están después de .contenedor y <br>
+                // Recopilar todas las tablas de actividades (incluyendo dentro de collapse/tabs)
+                var tables = cardBody.querySelectorAll('table.table-bordered');
                 var activityTables = [];
                 for (var i = 0; i < tables.length; i++) {
                     var tbl = tables[i];
@@ -1370,16 +1367,16 @@
                     activities.push(info);
                 }
 
-                // Crear el toggle button junto al filtro existente
-                var contenedor = cardBody.querySelector('.contenedor');
-                if (contenedor) {
+                // Crear el toggle button junto al filtro existente o al inicio del card-body
+                var targetContainer = cardBody.querySelector('.contenedor') || cardBody.querySelector('.row') || cardBody;
+                if (targetContainer && !document.getElementById('op-split-toggle')) {
                     var toggleBtn = document.createElement('button');
                     toggleBtn.type = 'button';
-                    toggleBtn.className = 'op-split-toggle';
+                    toggleBtn.className = 'op-split-toggle op-active';
                     toggleBtn.id = 'op-split-toggle';
                     toggleBtn.innerHTML = '<i class="fas fa-columns"></i> Vista Dividida';
                     toggleBtn.setAttribute('title', 'Alternar vista dividida Master-Detail');
-                    contenedor.appendChild(toggleBtn);
+                    targetContainer.appendChild(toggleBtn);
                 }
 
                 // Crear el workspace split-screen
@@ -1394,8 +1391,8 @@
 
                 var masterHeader = document.createElement('div');
                 masterHeader.className = 'op-master-header';
-                masterHeader.innerHTML = '<h6><i class="fas fa-list-ul" style="margin-right:4px"></i>Actividades</h6>'
-                    + '<span class="op-master-count">' + activities.length + '</span>';
+                masterHeader.innerHTML = '<h6><i class="fas fa-list-ul" style="margin-right:4px"></i>Actividades (' + activities.length + ')</h6>'
+                    + '<span class="op-master-count" style="background:var(--op-status-proceso-bg);color:var(--op-status-proceso-text)">DHF ISO</span>';
                 masterPanel.appendChild(masterHeader);
 
                 // Build activity cards
@@ -1420,9 +1417,9 @@
                         + '<div class="op-activity-card-title">' + act.title + '</div>'
                         + '<div class="op-activity-card-meta">'
                         + '  <span class="op-dot ' + dotClass + '"></span>'
-                        + '  <span>' + statusLabel + '</span>'
+                        + '  <span style="font-weight:600">' + statusLabel + '</span>'
                         + '  <span style="color:var(--op-text-muted)">·</span>'
-                        + '  <span>' + act.author + '</span>'
+                        + '  <span>' + (act.author || 'Autor') + '</span>'
                         + '</div>'
                         + '<div class="op-activity-card-phase">' + act.phase + '</div>';
 
@@ -1457,8 +1454,8 @@
                     activityTables[m].classList.add('op-original-table');
                 }
 
-                // --- Event: Toggle split mode ---
-                var splitActive = sessionStorage.getItem('op_split_active') === 'true';
+                // --- Event: Toggle split mode (DEFAULT TO TRUE / ACTIVE) ---
+                var splitActive = sessionStorage.getItem('op_split_active') !== 'false';
 
                 function setSplitMode(active) {
                     splitActive = active;
@@ -1544,44 +1541,56 @@
                     }
                 }
 
-                // Extract activity title from td containing 'ACTIVIDAD N:'
+                // If phase not found inside table th, check preceding heading or accordion parent
+                if (!info.phase) {
+                    var parentCollapse = table.closest('.collapse, [id^="Ventana"]');
+                    if (parentCollapse && parentCollapse.previousElementSibling) {
+                        info.phase = (parentCollapse.previousElementSibling.textContent || '').trim();
+                    }
+                }
+                if (!info.phase) {
+                    info.phase = 'ISO 13485 DHF';
+                }
+
+                // Extract activity title from td containing 'ACTIVIDAD N:' or 'Actividad N:'
                 var tds = table.querySelectorAll('td');
                 for (var j = 0; j < tds.length; j++) {
                     var tdText = (tds[j].textContent || '').trim();
-                    if (tdText.indexOf('ACTIVIDAD') !== -1 && tdText.indexOf(':') !== -1) {
-                        // Get the activity content (after the colon)
+                    if ((tdText.toUpperCase().indexOf('ACTIVIDAD') !== -1) && tdText.indexOf(':') !== -1) {
                         var colonIdx = tdText.indexOf(':');
                         var content = tdText.substring(colonIdx + 1).trim();
                         if (content.length > 0) {
                             info.title = content.substring(0, 80) + (content.length > 80 ? '...' : '');
                         }
                     }
-                    if (tdText.indexOf('AUTOR:') !== -1) {
-                        info.author = tdText.replace('AUTOR:', '').trim();
-                        // Shorten author name
+                    if (tdText.toUpperCase().indexOf('AUTOR:') !== -1) {
+                        info.author = tdText.replace(/AUTOR:/i, '').trim();
                         if (info.author.length > 25) {
                             info.author = info.author.substring(0, 22) + '...';
                         }
                     }
-                    if (tdText.indexOf('FECHA:') !== -1) {
-                        info.date = tdText.replace('FECHA:', '').trim();
+                    if (tdText.toUpperCase().indexOf('FECHA:') !== -1) {
+                        info.date = tdText.replace(/FECHA:/i, '').trim();
                     }
                 }
 
-                // Detect status from the b.text-* elements
-                var statusEl = table.querySelector('b.text-success');
-                if (statusEl && (statusEl.textContent || '').indexOf('FINALIZ') !== -1) {
+                // Detect status from the b.text-* elements or status text
+                var statusElSuccess = table.querySelector('b.text-success, span.text-success');
+                var statusElWarning = table.querySelector('b.text-warning, span.text-warning');
+                var statusElInfo = table.querySelector('b.text-info, span.text-info');
+
+                if (statusElSuccess && (statusElSuccess.textContent || '').toUpperCase().indexOf('FINALIZ') !== -1) {
                     info.status = 'finalizado';
+                } else if (statusElWarning && (statusElWarning.textContent || '').toUpperCase().indexOf('REVISI') !== -1) {
+                    info.status = 'revision';
+                } else if (statusElInfo && (statusElInfo.textContent || '').toUpperCase().indexOf('PROCESO') !== -1) {
+                    info.status = 'proceso';
                 } else {
-                    statusEl = table.querySelector('b.text-warning');
-                    if (statusEl && (statusEl.textContent || '').indexOf('REVISI') !== -1) {
-                        info.status = 'revision';
-                    } else {
-                        statusEl = table.querySelector('b.text-info');
-                        if (statusEl) {
-                            info.status = 'proceso';
-                        }
-                    }
+                    // Fallback search in table HTML
+                    var html = table.innerHTML.toUpperCase();
+                    if (html.indexOf('FINALIZAD') !== -1) info.status = 'finalizado';
+                    else if (html.indexOf('REVISION') !== -1 || html.indexOf('REVISIÓN') !== -1) info.status = 'revision';
+                    else info.status = 'proceso';
                 }
 
                 return info;
@@ -1598,7 +1607,6 @@
                 }
                 if (cards[index]) {
                     cards[index].classList.add('op-active');
-                    // Scroll card into view if needed
                     cards[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
                 }
 
@@ -1652,6 +1660,17 @@
                 setTimeout(opInitSmartCollapse, 150);
                 setTimeout(opInitStickyHeader, 180);
                 setTimeout(opInitSplitScreen, 250);
+
+                // Re-ejecutar split screen si cambia un tab o acordeón
+                document.addEventListener('click', function(e) {
+                    if (e.target.closest('a[data-toggle="tab"], button[data-toggle="collapse"], .dropdown-item')) {
+                        setTimeout(function() {
+                            var ws = document.getElementById('op-split-workspace');
+                            if (ws) ws.remove();
+                            opInitSplitScreen();
+                        }, 200);
+                    }
+                });
             }
 
             // Restaurar cuando el DOM esté listo
