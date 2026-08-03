@@ -38,9 +38,13 @@
                 --op-surface-base: #F8F9FA;
                 --op-surface-card: #FFFFFF;
                 --op-surface-overlay: #FFFFFF;
+                --op-surface-muted: #f1f5f9;
+                --op-surface-muted-hover: #e2e8f0;
                 --op-border-subtle: #E9ECEF;
                 --op-border-strong: #CED4DA;
                 --op-border-active: #0284C7;
+                --op-border-muted: #cbd5e1;
+                --op-border-panel: #e4e6fc;
 
                 /* Typography Colors */
                 --op-text-primary: #212529;
@@ -184,9 +188,9 @@
             }
 
             .op-collapse-toggle-btn {
-                background: #f1f5f9;
-                color: #0369a1;
-                border: 1px solid #cbd5e1;
+                background: var(--op-surface-muted);
+                color: var(--op-status-proceso-text);
+                border: 1px solid var(--op-border-muted);
                 border-radius: var(--op-radius-sm);
                 padding: 2px 8px;
                 font-size: 11px;
@@ -200,8 +204,8 @@
             }
 
             .op-collapse-toggle-btn:hover {
-                background: #e2e8f0;
-                color: #0284c7;
+                background: var(--op-surface-muted-hover);
+                color: var(--op-border-active);
             }
 
             /* ═══════════════════════════════════════════════════════════════
@@ -247,9 +251,9 @@
                 top: 80px !important;
                 max-height: calc(100vh - 100px) !important;
                 overflow-y: auto !important;
-                background: #ffffff !important;
+                background: var(--op-surface-card) !important;
                 border-radius: 8px !important;
-                border: 1px solid #e4e6fc !important;
+                border: 1px solid var(--op-border-panel) !important;
                 box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
                 padding: var(--space-12) !important;
             }
@@ -266,9 +270,9 @@
                 top: 80px !important;
                 max-height: calc(100vh - 100px) !important;
                 overflow-y: auto !important;
-                background: #ffffff !important;
+                background: var(--op-surface-card) !important;
                 border-radius: 8px !important;
-                border: 1px solid #e4e6fc !important;
+                border: 1px solid var(--op-border-panel) !important;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
                 padding: var(--space-16) !important;
                 display: none;
@@ -297,10 +301,10 @@
                 border-radius: 8px !important;
                 overflow: hidden !important;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
-                border: 1px solid #e4e6fc !important;
+                border: 1px solid var(--op-border-panel) !important;
                 transition: transform 0.15s ease, box-shadow 0.15s ease !important;
                 margin-bottom: var(--space-20) !important;
-                background: #ffffff !important;
+                background: var(--op-surface-card) !important;
             }
 
             .op-col-main table.table-bordered:hover {
@@ -455,6 +459,305 @@
             .op-toast-stack {
                 z-index: 2147483647 !important;
             }
+
+            /* ═══════════════════════════════════════════════════════════════
+               SPRINT 8: SPLIT-SCREEN WORKSPACE (MASTER-DETAIL)
+               Layout de dos paneles para lectura rápida de memorias.
+               Master (izquierda): lista compacta de actividades.
+               Detail (derecha): contenido completo de la actividad seleccionada.
+               Solo se activa en Memorias.jsp (detectado por #Formulario).
+               ═══════════════════════════════════════════════════════════════ */
+            .op-split-workspace {
+                display: flex !important;
+                gap: var(--op-space-16) !important;
+                align-items: flex-start !important;
+                width: 100% !important;
+                min-height: 60vh !important;
+            }
+
+            /* Master List Panel */
+            .op-master-panel {
+                width: 340px !important;
+                min-width: 280px !important;
+                max-width: 400px !important;
+                flex-shrink: 0 !important;
+                position: sticky !important;
+                top: 85px !important;
+                max-height: calc(100vh - 100px) !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                background: var(--op-surface-card) !important;
+                border-radius: var(--op-radius-lg) !important;
+                border: 1px solid var(--op-border-panel) !important;
+                box-shadow: var(--op-shadow-1) !important;
+                padding: var(--op-space-12) !important;
+                scrollbar-width: thin !important;
+                scrollbar-color: var(--op-border-subtle) transparent !important;
+            }
+
+            .op-master-panel::-webkit-scrollbar {
+                width: 5px;
+            }
+
+            .op-master-panel::-webkit-scrollbar-thumb {
+                background: var(--op-border-subtle);
+                border-radius: 4px;
+            }
+
+            .op-master-header {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                padding: var(--op-space-8) var(--op-space-4) !important;
+                margin-bottom: var(--op-space-8) !important;
+                border-bottom: 1px solid var(--op-border-subtle) !important;
+            }
+
+            .op-master-header h6 {
+                margin: 0 !important;
+                font-size: 13px !important;
+                font-weight: 700 !important;
+                color: var(--op-text-primary) !important;
+                letter-spacing: 0.02em !important;
+            }
+
+            .op-master-count {
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                color: var(--op-text-muted) !important;
+                background: var(--op-surface-muted) !important;
+                padding: 2px 8px !important;
+                border-radius: var(--op-radius-full) !important;
+            }
+
+            /* Activity Card in Master List */
+            .op-activity-card {
+                display: flex !important;
+                flex-direction: column !important;
+                padding: var(--op-space-8) var(--op-space-12) !important;
+                margin-bottom: var(--op-space-4) !important;
+                border-radius: var(--op-radius-md) !important;
+                border: 1px solid transparent !important;
+                cursor: pointer !important;
+                transition: all 0.15s ease !important;
+                position: relative !important;
+                background: transparent !important;
+            }
+
+            .op-activity-card:hover {
+                background: var(--op-surface-muted) !important;
+                border-color: var(--op-border-subtle) !important;
+            }
+
+            .op-activity-card.op-active {
+                background: var(--op-status-proceso-bg) !important;
+                border-color: var(--op-border-active) !important;
+                border-left: 3px solid var(--op-border-active) !important;
+            }
+
+            .op-activity-card-title {
+                font-size: 12px !important;
+                font-weight: 600 !important;
+                color: var(--op-text-primary) !important;
+                line-height: 1.35 !important;
+                margin-bottom: 2px !important;
+                display: -webkit-box !important;
+                -webkit-line-clamp: 2 !important;
+                -webkit-box-orient: vertical !important;
+                overflow: hidden !important;
+            }
+
+            .op-activity-card-meta {
+                display: flex !important;
+                align-items: center !important;
+                gap: var(--op-space-8) !important;
+                font-size: 11px !important;
+                color: var(--op-text-secondary) !important;
+                margin-top: 2px !important;
+            }
+
+            .op-activity-card-meta .op-dot {
+                width: 6px !important;
+                height: 6px !important;
+                border-radius: 50% !important;
+                flex-shrink: 0 !important;
+            }
+
+            .op-dot-proceso {
+                background: var(--op-status-proceso-dot) !important;
+            }
+
+            .op-dot-revision {
+                background: var(--op-status-revision-dot) !important;
+            }
+
+            .op-dot-finalizado {
+                background: var(--op-status-finalizado-dot) !important;
+            }
+
+            .op-activity-card-phase {
+                font-size: 10px !important;
+                color: var(--op-text-muted) !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.03em !important;
+                margin-top: 1px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+
+            /* Detail Panel */
+            .op-detail-panel {
+                flex: 1 !important;
+                min-width: 0 !important;
+                position: sticky !important;
+                top: 85px !important;
+                max-height: calc(100vh - 100px) !important;
+                overflow-y: auto !important;
+                background: var(--op-surface-card) !important;
+                border-radius: var(--op-radius-lg) !important;
+                border: 1px solid var(--op-border-panel) !important;
+                box-shadow: var(--op-shadow-2) !important;
+                padding: var(--op-space-16) var(--op-space-20) !important;
+                scrollbar-width: thin !important;
+                scrollbar-color: var(--op-border-subtle) transparent !important;
+            }
+
+            .op-detail-panel::-webkit-scrollbar {
+                width: 5px;
+            }
+
+            .op-detail-panel::-webkit-scrollbar-thumb {
+                background: var(--op-border-subtle);
+                border-radius: 4px;
+            }
+
+            .op-detail-header {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                padding-bottom: var(--op-space-8) !important;
+                margin-bottom: var(--op-space-12) !important;
+                border-bottom: 2px solid var(--op-border-active) !important;
+            }
+
+            .op-detail-header h6 {
+                margin: 0 !important;
+                font-size: 14px !important;
+                font-weight: 700 !important;
+                color: var(--op-text-primary) !important;
+            }
+
+            .op-detail-empty {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                min-height: 300px !important;
+                color: var(--op-text-muted) !important;
+                text-align: center !important;
+            }
+
+            .op-detail-empty i {
+                font-size: 48px !important;
+                margin-bottom: var(--op-space-12) !important;
+                opacity: 0.4 !important;
+            }
+
+            .op-detail-empty p {
+                font-size: 14px !important;
+                margin: 0 !important;
+            }
+
+            /* Detail content — the original table is moved here */
+            .op-detail-content table.table-bordered {
+                margin: 0 auto !important;
+                width: 100% !important;
+                animation: opFadeIn 0.2s ease !important;
+            }
+
+            @keyframes opFadeIn {
+                from { opacity: 0; transform: translateY(6px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+
+            /* Toggle button for split-screen mode */
+            .op-split-toggle {
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 4px !important;
+                padding: 4px 10px !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                color: var(--op-text-secondary) !important;
+                background: var(--op-surface-muted) !important;
+                border: 1px solid var(--op-border-subtle) !important;
+                border-radius: var(--op-radius-sm) !important;
+                cursor: pointer !important;
+                transition: all 0.15s ease !important;
+                margin-left: var(--op-space-8) !important;
+            }
+
+            .op-split-toggle:hover {
+                background: var(--op-surface-muted-hover) !important;
+                color: var(--op-border-active) !important;
+            }
+
+            .op-split-toggle.op-active {
+                background: var(--op-status-proceso-bg) !important;
+                border-color: var(--op-border-active) !important;
+                color: var(--op-status-proceso-text) !important;
+            }
+
+            /* When split is active, hide the original tables flow */
+            .op-split-active .op-original-table {
+                display: none !important;
+            }
+
+            /* When split is inactive, hide the split workspace */
+            .op-split-inactive .op-split-workspace {
+                display: none !important;
+            }
+
+            /* Keyboard navigation hint */
+            .op-kbd-hint {
+                font-size: 10px !important;
+                color: var(--op-text-muted) !important;
+                padding: var(--op-space-8) var(--op-space-4) !important;
+                text-align: center !important;
+                border-top: 1px solid var(--op-border-subtle) !important;
+                margin-top: var(--op-space-8) !important;
+            }
+
+            .op-kbd-hint kbd {
+                display: inline-block !important;
+                padding: 1px 5px !important;
+                font-size: 10px !important;
+                font-family: monospace !important;
+                background: var(--op-surface-muted) !important;
+                border: 1px solid var(--op-border-subtle) !important;
+                border-radius: 3px !important;
+                box-shadow: 0 1px 0 var(--op-border-subtle) !important;
+            }
+
+            /* Responsive — disable split on narrow viewports */
+            @media (max-width: 900px) {
+                .op-split-workspace {
+                    flex-direction: column !important;
+                }
+                .op-master-panel {
+                    width: 100% !important;
+                    max-width: none !important;
+                    position: relative !important;
+                    top: auto !important;
+                    max-height: 300px !important;
+                }
+                .op-detail-panel {
+                    position: relative !important;
+                    top: auto !important;
+                    max-height: none !important;
+                }
+            }
         </style>
     </head>
 
@@ -469,14 +772,39 @@
         <script type="text/javascript" src="Interfaz/Contenido/assets/Validacion/LiveValidation.js"></script>
 
         <!-- Integración Global del SDK Office Platform -->
-        <% Object documentObj=session.getAttribute("Documento"); Object usuarioObj=session.getAttribute("Usuario"); if
-            (documentObj !=null && usuarioObj !=null) { String cedulaStr=documentObj.toString(); String
-            nombreStr=usuarioObj.toString(); String token=Methods.OfficePlatformResolver.resolveToken(cedulaStr,
-            nombreStr); %>
-            <script src="http://localhost:8080/office-platform-widget.js?v=<%= System.currentTimeMillis() %>"
-                data-api-key="opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0" data-container="office-platform"
-                data-server="http://localhost:8080" data-token="<%= token %>">
-                </script>
+        <% 
+            Object documentObj = session.getAttribute("Documento"); 
+            Object usuarioObj = session.getAttribute("Usuario");
+            Object idUsuarioObj = session.getAttribute("Id_usuario");
+            
+            String cedulaStr = "";
+            if (documentObj != null && !documentObj.toString().trim().isEmpty()) {
+                cedulaStr = documentObj.toString().trim();
+            } else if (idUsuarioObj != null && !idUsuarioObj.toString().trim().isEmpty()) {
+                cedulaStr = "usr_" + idUsuarioObj.toString().trim();
+            } else if (usuarioObj != null && !usuarioObj.toString().trim().isEmpty()) {
+                cedulaStr = "usr_" + usuarioObj.toString().trim().replaceAll("[^a-zA-Z0-9]", "_");
+            } else {
+                cedulaStr = "sess_" + session.getId();
+            }
+            
+            String nombreStr = (usuarioObj != null && !usuarioObj.toString().trim().isEmpty()) 
+                    ? usuarioObj.toString().trim() 
+                    : "Usuario";
+                    
+            String token = Methods.OfficePlatformResolver.resolveToken(cedulaStr, nombreStr);
+        %>
+        <%-- Contenedor oculto para el widget OnlyOffice en paginas que no tienen
+             el suyo propio (evita "Container not found"). Se omite en OfficePlatform.jsp,
+             que ya tiene su propio #office-platform visible. --%>
+        <% if (request.getRequestURI() == null
+               || !request.getRequestURI().toLowerCase().contains("officeplatform")) { %>
+            <div id="office-platform" style="display: none;"></div>
+        <% } %>
+        <script src="http://localhost:8080/office-platform-widget.js?v=<%= System.currentTimeMillis() %>"
+            data-api-key="opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0" data-container="office-platform"
+            data-server="http://localhost:8080" data-token="<%= token %>">
+        </script>
             <script>
                 // ===================================================================
                 //  OO EDITOR GLOBAL HELPER  —  window.ooInitEditor(cfg)
@@ -1003,17 +1331,334 @@
                 }
             }
 
-            // Restaurar cuando el DOM esté listo
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', function () {
-                    setTimeout(restoreContext, 100);
-                    setTimeout(opInitSmartCollapse, 150);
-                    setTimeout(opInitStickyHeader, 180);
+            // --- SPRINT 8: SPLIT-SCREEN WORKSPACE (MASTER-DETAIL) ---
+            // Transforma la lista de actividades en un layout de 2 paneles:
+            //   - Master (izquierda): tarjetas compactas con nombre, estado, fase
+            //   - Detail (derecha): contenido completo de la actividad seleccionada
+            // Solo se activa en la vista de Memorias (detecta #Formulario).
+            // Progressive enhancement puro: si falla, las tablas quedan intactas.
+            function opInitSplitScreen() {
+                // Solo activar en Memorias.jsp (tiene #Formulario)
+                var formulario = document.getElementById('Formulario');
+                if (!formulario) return;
+
+                // Buscar el card-body que contiene las actividades
+                var cardBody = formulario.querySelector('.card-body');
+                if (!cardBody) return;
+
+                // Recopilar todas las tablas de actividades
+                var tables = cardBody.querySelectorAll('table.table-bordered');
+                if (!tables || tables.length < 2) return; // La primera tabla puede ser la cabecera
+
+                // Separar la cabecera (contenedor/filtros) de las tablas de actividades
+                // Las tablas de actividades son las que están después de .contenedor y <br>
+                var activityTables = [];
+                for (var i = 0; i < tables.length; i++) {
+                    var tbl = tables[i];
+                    // Excluir tablas dentro de .card-header (cabecera ISO)
+                    if (tbl.closest('.card-header')) continue;
+                    activityTables.push(tbl);
+                }
+
+                if (activityTables.length === 0) return;
+
+                // Extraer metadata de cada actividad para las tarjetas del master
+                var activities = [];
+                for (var j = 0; j < activityTables.length; j++) {
+                    var table = activityTables[j];
+                    var info = opExtractActivityInfo(table, j);
+                    activities.push(info);
+                }
+
+                // Crear el toggle button junto al filtro existente
+                var contenedor = cardBody.querySelector('.contenedor');
+                if (contenedor) {
+                    var toggleBtn = document.createElement('button');
+                    toggleBtn.type = 'button';
+                    toggleBtn.className = 'op-split-toggle';
+                    toggleBtn.id = 'op-split-toggle';
+                    toggleBtn.innerHTML = '<i class="fas fa-columns"></i> Vista Dividida';
+                    toggleBtn.setAttribute('title', 'Alternar vista dividida Master-Detail');
+                    contenedor.appendChild(toggleBtn);
+                }
+
+                // Crear el workspace split-screen
+                var workspace = document.createElement('div');
+                workspace.className = 'op-split-workspace';
+                workspace.id = 'op-split-workspace';
+
+                // --- Master Panel ---
+                var masterPanel = document.createElement('div');
+                masterPanel.className = 'op-master-panel';
+                masterPanel.id = 'op-master-panel';
+
+                var masterHeader = document.createElement('div');
+                masterHeader.className = 'op-master-header';
+                masterHeader.innerHTML = '<h6><i class="fas fa-list-ul" style="margin-right:4px"></i>Actividades</h6>'
+                    + '<span class="op-master-count">' + activities.length + '</span>';
+                masterPanel.appendChild(masterHeader);
+
+                // Build activity cards
+                for (var k = 0; k < activities.length; k++) {
+                    var act = activities[k];
+                    var card = document.createElement('div');
+                    card.className = 'op-activity-card';
+                    card.setAttribute('data-activity-index', k);
+                    card.setAttribute('tabindex', '0');
+
+                    var dotClass = 'op-dot-proceso';
+                    var statusLabel = 'En proceso';
+                    if (act.status === 'finalizado') {
+                        dotClass = 'op-dot-finalizado';
+                        statusLabel = 'Finalizada';
+                    } else if (act.status === 'revision') {
+                        dotClass = 'op-dot-revision';
+                        statusLabel = 'En revisión';
+                    }
+
+                    card.innerHTML = ''
+                        + '<div class="op-activity-card-title">' + act.title + '</div>'
+                        + '<div class="op-activity-card-meta">'
+                        + '  <span class="op-dot ' + dotClass + '"></span>'
+                        + '  <span>' + statusLabel + '</span>'
+                        + '  <span style="color:var(--op-text-muted)">·</span>'
+                        + '  <span>' + act.author + '</span>'
+                        + '</div>'
+                        + '<div class="op-activity-card-phase">' + act.phase + '</div>';
+
+                    masterPanel.appendChild(card);
+                }
+
+                // Keyboard hint
+                var kbdHint = document.createElement('div');
+                kbdHint.className = 'op-kbd-hint';
+                kbdHint.innerHTML = '<kbd>↑</kbd> <kbd>↓</kbd> navegar · <kbd>Enter</kbd> seleccionar';
+                masterPanel.appendChild(kbdHint);
+
+                // --- Detail Panel ---
+                var detailPanel = document.createElement('div');
+                detailPanel.className = 'op-detail-panel';
+                detailPanel.id = 'op-detail-panel';
+                detailPanel.innerHTML = ''
+                    + '<div class="op-detail-empty">'
+                    + '  <i class="fas fa-hand-pointer"></i>'
+                    + '  <p>Selecciona una actividad<br>de la lista para ver su detalle</p>'
+                    + '</div>';
+
+                workspace.appendChild(masterPanel);
+                workspace.appendChild(detailPanel);
+
+                // Insert workspace BEFORE the first activity table
+                var firstTable = activityTables[0];
+                firstTable.parentNode.insertBefore(workspace, firstTable);
+
+                // Mark original tables with a class for toggling visibility
+                for (var m = 0; m < activityTables.length; m++) {
+                    activityTables[m].classList.add('op-original-table');
+                }
+
+                // --- Event: Toggle split mode ---
+                var splitActive = sessionStorage.getItem('op_split_active') === 'true';
+
+                function setSplitMode(active) {
+                    splitActive = active;
+                    sessionStorage.setItem('op_split_active', active ? 'true' : 'false');
+                    var btn = document.getElementById('op-split-toggle');
+                    if (active) {
+                        cardBody.classList.add('op-split-active');
+                        cardBody.classList.remove('op-split-inactive');
+                        if (btn) btn.classList.add('op-active');
+                    } else {
+                        cardBody.classList.remove('op-split-active');
+                        cardBody.classList.add('op-split-inactive');
+                        if (btn) btn.classList.remove('op-active');
+                    }
+                }
+
+                setSplitMode(splitActive);
+
+                var toggleBtnEl = document.getElementById('op-split-toggle');
+                if (toggleBtnEl) {
+                    toggleBtnEl.addEventListener('click', function () {
+                        setSplitMode(!splitActive);
+                    });
+                }
+
+                // --- Event: Click on activity card ---
+                masterPanel.addEventListener('click', function (e) {
+                    var card = e.target.closest('.op-activity-card');
+                    if (!card) return;
+                    var idx = parseInt(card.getAttribute('data-activity-index'), 10);
+                    opShowActivityDetail(idx, activityTables, detailPanel, masterPanel);
                 });
-            } else {
+
+                // --- Event: Keyboard navigation ---
+                masterPanel.addEventListener('keydown', function (e) {
+                    var cards = masterPanel.querySelectorAll('.op-activity-card');
+                    var activeCard = masterPanel.querySelector('.op-activity-card.op-active');
+                    var currentIdx = -1;
+                    if (activeCard) {
+                        currentIdx = parseInt(activeCard.getAttribute('data-activity-index'), 10);
+                    }
+
+                    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        var nextIdx = e.key === 'ArrowDown'
+                            ? Math.min(currentIdx + 1, cards.length - 1)
+                            : Math.max(currentIdx - 1, 0);
+                        opShowActivityDetail(nextIdx, activityTables, detailPanel, masterPanel);
+                        cards[nextIdx].focus();
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (currentIdx >= 0) {
+                            opShowActivityDetail(currentIdx, activityTables, detailPanel, masterPanel);
+                        }
+                    }
+                });
+
+                // Auto-select first activity if split is active
+                if (splitActive && activityTables.length > 0) {
+                    setTimeout(function () {
+                        opShowActivityDetail(0, activityTables, detailPanel, masterPanel);
+                    }, 50);
+                }
+            }
+
+            // Extract activity info from a table for the master card
+            function opExtractActivityInfo(table, index) {
+                var info = {
+                    title: 'Actividad ' + (index + 1),
+                    author: '',
+                    status: 'proceso',
+                    phase: '',
+                    date: ''
+                };
+
+                // Extract phase from header row (background: #dfe1e1 or aliceblue)
+                var headerThs = table.querySelectorAll('th');
+                for (var i = 0; i < headerThs.length; i++) {
+                    var thText = (headerThs[i].textContent || '').trim();
+                    var bgStyle = headerThs[i].getAttribute('style') || '';
+                    if (bgStyle.indexOf('dfe1e1') !== -1 || bgStyle.indexOf('aliceblue') !== -1) {
+                        info.phase = thText;
+                    }
+                }
+
+                // Extract activity title from td containing 'ACTIVIDAD N:'
+                var tds = table.querySelectorAll('td');
+                for (var j = 0; j < tds.length; j++) {
+                    var tdText = (tds[j].textContent || '').trim();
+                    if (tdText.indexOf('ACTIVIDAD') !== -1 && tdText.indexOf(':') !== -1) {
+                        // Get the activity content (after the colon)
+                        var colonIdx = tdText.indexOf(':');
+                        var content = tdText.substring(colonIdx + 1).trim();
+                        if (content.length > 0) {
+                            info.title = content.substring(0, 80) + (content.length > 80 ? '...' : '');
+                        }
+                    }
+                    if (tdText.indexOf('AUTOR:') !== -1) {
+                        info.author = tdText.replace('AUTOR:', '').trim();
+                        // Shorten author name
+                        if (info.author.length > 25) {
+                            info.author = info.author.substring(0, 22) + '...';
+                        }
+                    }
+                    if (tdText.indexOf('FECHA:') !== -1) {
+                        info.date = tdText.replace('FECHA:', '').trim();
+                    }
+                }
+
+                // Detect status from the b.text-* elements
+                var statusEl = table.querySelector('b.text-success');
+                if (statusEl && (statusEl.textContent || '').indexOf('FINALIZ') !== -1) {
+                    info.status = 'finalizado';
+                } else {
+                    statusEl = table.querySelector('b.text-warning');
+                    if (statusEl && (statusEl.textContent || '').indexOf('REVISI') !== -1) {
+                        info.status = 'revision';
+                    } else {
+                        statusEl = table.querySelector('b.text-info');
+                        if (statusEl) {
+                            info.status = 'proceso';
+                        }
+                    }
+                }
+
+                return info;
+            }
+
+            // Show activity detail in the detail panel
+            function opShowActivityDetail(index, activityTables, detailPanel, masterPanel) {
+                if (index < 0 || index >= activityTables.length) return;
+
+                // Update active state in master cards
+                var cards = masterPanel.querySelectorAll('.op-activity-card');
+                for (var i = 0; i < cards.length; i++) {
+                    cards[i].classList.remove('op-active');
+                }
+                if (cards[index]) {
+                    cards[index].classList.add('op-active');
+                    // Scroll card into view if needed
+                    cards[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+
+                // Clone the selected table into the detail panel
+                var table = activityTables[index];
+                var clone = table.cloneNode(true);
+                clone.classList.remove('op-original-table');
+                clone.classList.remove('op-activity-collapsed');
+                clone.style.display = '';
+
+                // Remove any collapse buttons from the clone
+                var collapseBtns = clone.querySelectorAll('.op-collapse-toggle-btn');
+                for (var j = 0; j < collapseBtns.length; j++) {
+                    collapseBtns[j].remove();
+                }
+
+                // Show all hidden rows in the clone
+                var hiddenRows = clone.querySelectorAll('tr');
+                for (var k = 0; k < hiddenRows.length; k++) {
+                    hiddenRows[k].style.display = '';
+                }
+
+                detailPanel.innerHTML = ''
+                    + '<div class="op-detail-header">'
+                    + '  <h6><i class="fas fa-file-alt" style="margin-right:4px"></i>Actividad ' + (index + 1) + '</h6>'
+                    + '  <span style="font-size:11px;color:var(--op-text-muted)">' + (index + 1) + ' de ' + activityTables.length + '</span>'
+                    + '</div>'
+                    + '<div class="op-detail-content"></div>';
+
+                var contentDiv = detailPanel.querySelector('.op-detail-content');
+                contentDiv.appendChild(clone);
+
+                // Re-attach OnlyOffice button formatter if available
+                if (typeof ooFormatTextNodes === 'function') {
+                    setTimeout(ooFormatTextNodes, 100);
+                }
+
+                // Scroll detail panel to top
+                detailPanel.scrollTop = 0;
+
+                // Persist selection
+                sessionStorage.setItem('op_split_selected', index);
+            }
+
+            // --- SPRINT 7: ORQUESTADOR ÚNICO DE INICIALIZACIÓN DE LA CAPA .op-* ---
+            // Un solo punto de arranque para toda la capa de mejora. Los delays
+            // escalonados (100/150/180/250ms) se PRESERVAN: dejan que el DOM legacy y
+            // Bootstrap (tabs/collapse) se estabilicen antes de restaurar contexto.
+            function opInit() {
                 setTimeout(restoreContext, 100);
                 setTimeout(opInitSmartCollapse, 150);
                 setTimeout(opInitStickyHeader, 180);
+                setTimeout(opInitSplitScreen, 250);
+            }
+
+            // Restaurar cuando el DOM esté listo
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', opInit);
+            } else {
+                opInit();
             }
         })();
     </script>
