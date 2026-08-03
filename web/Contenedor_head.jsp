@@ -644,6 +644,7 @@
                 top: 85px !important;
                 max-height: calc(100vh - 100px) !important;
                 overflow-y: auto !important;
+                overflow-x: auto !important;
                 background: var(--op-surface-card) !important;
                 border-radius: var(--op-radius-lg) !important;
                 border: 1px solid var(--op-border-panel) !important;
@@ -651,6 +652,40 @@
                 padding: var(--op-space-16) var(--op-space-20) !important;
                 scrollbar-width: thin !important;
                 scrollbar-color: var(--op-border-subtle) transparent !important;
+            }
+
+            /* Prevenir corte de botones de accion y desplegables */
+            .op-detail-panel table.table-bordered,
+            .op-full-doc-container table.table-bordered {
+                width: 100% !important;
+                max-width: 100% !important;
+                table-layout: auto !important;
+            }
+
+            .op-detail-panel .dropdown-menu,
+            .op-full-doc-container .dropdown-menu,
+            table.table-bordered .dropdown-menu {
+                right: 0 !important;
+                left: auto !important;
+                z-index: 1050 !important;
+                box-shadow: var(--op-shadow-3) !important;
+            }
+
+            /* Vista Documento Completo DHF */
+            .op-full-doc-container {
+                width: 100% !important;
+                background: #ffffff !important;
+                border-radius: var(--op-radius-lg) !important;
+                border: 1px solid var(--op-border-panel) !important;
+                padding: 24px !important;
+                box-shadow: var(--op-shadow-1) !important;
+                margin-top: 16px !important;
+            }
+
+            .op-full-doc-container table.table-bordered {
+                margin-bottom: 24px !important;
+                display: table !important;
+                border-collapse: collapse !important;
             }
 
             .op-detail-panel::-webkit-scrollbar {
@@ -1424,16 +1459,22 @@
                     activities.push(info);
                 }
 
-                // Crear el toggle button junto al filtro existente o al inicio del card-body
+                // Crear la barra de modos de vista Enterprise (Documento Completo | Vista Dividida | Cargue Masivo)
                 var targetContainer = cardBody.querySelector('.contenedor') || cardBody.querySelector('.row') || cardBody;
-                if (targetContainer && !document.getElementById('op-split-toggle')) {
-                    var toggleBtn = document.createElement('button');
-                    toggleBtn.type = 'button';
-                    toggleBtn.className = 'op-split-toggle op-active';
-                    toggleBtn.id = 'op-split-toggle';
-                    toggleBtn.innerHTML = '<i class="fas fa-columns"></i> Vista Dividida';
-                    toggleBtn.setAttribute('title', 'Alternar vista dividida Master-Detail');
-                    targetContainer.appendChild(toggleBtn);
+                if (targetContainer && !document.getElementById('op-view-toolbar')) {
+                    var toolbar = document.createElement('div');
+                    toolbar.id = 'op-view-toolbar';
+                    toolbar.className = 'op-view-toolbar mb-3 d-flex align-items-center gap-2 flex-wrap';
+                    toolbar.style.cssText = 'background:var(--op-surface-muted); padding:8px 12px; border-radius:var(--op-radius-md); border:1px solid var(--op-border-subtle); margin-bottom:16px !important; width:100%; display:flex; justify-content:space-between; align-items:center;';
+
+                    toolbar.innerHTML = ''
+                        + '<div class="btn-group btn-group-toggle" data-toggle="buttons" style="gap:4px;">'
+                        + '  <button type="button" class="btn btn-outline-primary btn-sm active" id="op-btn-full-doc"><i class="fas fa-file-alt mr-1"></i> 📄 Documento Completo (0 Clics)</button>'
+                        + '  <button type="button" class="btn btn-outline-info btn-sm" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida (Master-Detail)</button>'
+                        + '</div>'
+                        + '<button type="button" class="btn btn-success btn-sm font-weight-bold" id="op-btn-batch-modal"><i class="fas fa-bolt mr-1"></i> ⚡ Cargue Masivo DHF</button>';
+
+                    targetContainer.parentNode.insertBefore(toolbar, targetContainer);
                 }
 
                 // Crear el workspace split-screen
@@ -1526,30 +1567,69 @@
                     activityTables[m].classList.add('op-original-table');
                 }
 
-                // --- Event: Toggle split mode (DEFAULT TO TRUE / ACTIVE) ---
-                var splitActive = sessionStorage.getItem('op_split_active') !== 'false';
+                // --- GESTIÓN DE MODOS DE VISTA (DOCUMENTO COMPLETO VS SPLIT SCREEN) ---
+                var currentMode = sessionStorage.getItem('op_view_mode') || 'full';
 
-                function setSplitMode(active) {
-                    splitActive = active;
-                    sessionStorage.setItem('op_split_active', active ? 'true' : 'false');
-                    var btn = document.getElementById('op-split-toggle');
-                    if (active) {
-                        cardBody.classList.add('op-split-active');
-                        cardBody.classList.remove('op-split-inactive');
-                        if (btn) btn.classList.add('op-active');
-                    } else {
-                        cardBody.classList.remove('op-split-active');
-                        cardBody.classList.add('op-split-inactive');
-                        if (btn) btn.classList.remove('op-active');
+                function applyViewMode(mode) {
+                    currentMode = mode;
+                    sessionStorage.setItem('op_view_mode', mode);
+
+                    var btnFull = document.getElementById('op-btn-full-doc');
+                    var btnSplit = document.getElementById('op-btn-split');
+
+                    if (mode === 'full') {
+                        if (btnFull) btnFull.classList.add('active', 'btn-primary');
+                        if (btnSplit) btnSplit.classList.remove('active', 'btn-info');
+                        workspace.style.display = 'none';
+
+                        // MOSTRAR TODAS LAS TABLAS ORIGINALES Y DESPLEGAR TODOS LOS CONTENIDOS AL 100% (0 CLICS)
+                        for (var x = 0; x < activityTables.length; x++) {
+                            var tbl = activityTables[x];
+                            tbl.style.display = 'table';
+                            tbl.style.width = '100%';
+                        }
+
+                        // Desplegar todos los divs colapsados y filas ocultas
+                        var allCollapses = cardBody.querySelectorAll('.collapse, [style*="display: none"], [style*="display:none"]');
+                        for (var c = 0; c < allCollapses.length; c++) {
+                            allCollapses[c].classList.add('show');
+                            allCollapses[c].style.display = 'block';
+                            allCollapses[c].style.visibility = 'visible';
+                            allCollapses[c].style.opacity = '1';
+                        }
+                    } else if (mode === 'split') {
+                        if (btnSplit) btnSplit.classList.add('active', 'btn-info');
+                        if (btnFull) btnFull.classList.remove('active', 'btn-primary');
+                        workspace.style.display = 'flex';
+
+                        // Ocultar las tablas originales para que el Master-Detail tome el control
+                        for (var y = 0; y < activityTables.length; y++) {
+                            activityTables[y].style.display = 'none';
+                        }
+
+                        if (activityTables.length > 0) {
+                            var sel = parseInt(sessionStorage.getItem('op_split_selected') || '0', 10);
+                            opShowActivityDetail(sel, activityTables, detailPanel, masterPanel);
+                        }
                     }
                 }
 
-                setSplitMode(splitActive);
+                applyViewMode(currentMode);
 
-                var toggleBtnEl = document.getElementById('op-split-toggle');
-                if (toggleBtnEl) {
-                    toggleBtnEl.addEventListener('click', function () {
-                        setSplitMode(!splitActive);
+                var btnFullEl = document.getElementById('op-btn-full-doc');
+                if (btnFullEl) {
+                    btnFullEl.addEventListener('click', function () { applyViewMode('full'); });
+                }
+                var btnSplitEl = document.getElementById('op-btn-split');
+                if (btnSplitEl) {
+                    btnSplitEl.addEventListener('click', function () { applyViewMode('split'); });
+                }
+
+                // --- MANEJADOR DE CARGUE MASIVO DHF (WIZARD MODAL) ---
+                var btnBatchEl = document.getElementById('op-btn-batch-modal');
+                if (btnBatchEl) {
+                    btnBatchEl.addEventListener('click', function() {
+                        opShowBatchCreationModal();
                     });
                 }
 
@@ -1735,6 +1815,82 @@
                 detailPanel.scrollTop = 0;
                 sessionStorage.setItem('op_split_selected', index);
             }
+
+            // --- WIZARD MODAL DE CARGUE MASIVO Y DILIGENCIAMIENTO RÁPIDO DHF ---
+            function opShowBatchCreationModal() {
+                var modal = document.getElementById('op-batch-modal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'op-batch-modal';
+                    modal.className = 'modal fade show';
+                    modal.style.cssText = 'display:block !important; background:rgba(0,0,0,0.55); z-index:105000 !important;';
+
+                    modal.innerHTML = ''
+                        + '<div class="modal-dialog modal-lg" style="margin-top:60px !important;">'
+                        + '  <div class="modal-content" style="border-radius:12px; border:1px solid var(--op-border-strong); box-shadow:0 15px 50px rgba(0,0,0,0.35);">'
+                        + '    <div class="modal-header" style="background:var(--op-surface-muted); border-bottom:1px solid var(--op-border-subtle);">'
+                        + '      <h5 class="modal-title font-weight-bold text-primary"><i class="fas fa-bolt mr-2 text-warning"></i> Cargue Masivo / Workspace de Diligenciamiento Rápido DHF</h5>'
+                        + '      <button type="button" class="close" onclick="document.getElementById(\'op-batch-modal\').remove();">&times;</button>'
+                        + '    </div>'
+                        + '    <div class="modal-body" style="padding:20px;">'
+                        + '      <div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Esta herramienta te permite registrar múltiples actividades de memoria de diseño en un solo paso sin tener que abrir ventanas individuales.</div>'
+                        + '      <div class="form-group mb-3">'
+                        + '        <label class="font-weight-bold" style="font-size:12px;">Selecciona la Etapa ISO 13485 Objetivo:</label>'
+                        + '        <select class="form-control form-control-sm" id="op-batch-iso-stage">'
+                        + '          <option value="7.3.2 PLANIFICACIÓN DEL DISEÑO Y DESARROLLO">7.3.2 PLANIFICACIÓN DEL DISEÑO Y DESARROLLO</option>'
+                        + '          <option value="7.3.3 ENTRADAS DE DISEÑO Y DESARROLLO">7.3.3 ENTRADAS DE DISEÑO Y DESARROLLO</option>'
+                        + '          <option value="7.3.4 SALIDAS DE DISEÑO Y DESARROLLO">7.3.4 SALIDAS DE DISEÑO Y DESARROLLO</option>'
+                        + '          <option value="7.3.5 REVISIÓN DEL DISEÑO Y DESARROLLO">7.3.5 REVISIÓN DEL DISEÑO Y DESARROLLO</option>'
+                        + '          <option value="7.3.6 VERIFICACIÓN DEL DISEÑO Y DESARROLLO">7.3.6 VERIFICACIÓN DEL DISEÑO Y DESARROLLO</option>'
+                        + '          <option value="7.3.7 VALIDACIÓN DEL DISEÑO Y DESARROLLO">7.3.7 VALIDACIÓN DEL DISEÑO Y DESARROLLO</option>'
+                        + '          <option value="7.3.8 TRANSFERENCIA DEL DISEÑO Y DESARROLLO">7.3.8 TRANSFERENCIA DEL DISEÑO Y DESARROLLO</option>'
+                        + '          <option value="7.3.9 CONTROL DE CAMBIOS EN EL DESARROLLO">7.3.9 CONTROL DE CAMBIOS EN EL DESARROLLO</option>'
+                        + '        </select>'
+                        + '      </div>'
+                        + '      <label class="font-weight-bold mb-2" style="font-size:12px;">Matriz de Actividades a Generar en Lote:</label>'
+                        + '      <table class="table table-sm table-bordered" id="op-batch-table" style="font-size:12px;">'
+                        + '        <thead class="bg-light"><tr><th>#</th><th>Nombre de la Actividad</th><th>Tipo de Documento OnlyOffice</th><th>Acción</th></tr></thead>'
+                        + '        <tbody>'
+                        + '          <tr><td>1</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Matriz de Evaluación de Riesgos" value="Revisión Inicial de Requisitos"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>'
+                        + '          <tr><td>2</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Protocolo de Verificación" value="Protocolo de Verificación Técnica"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx" selected>Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>'
+                        + '        </tbody>'
+                        + '      </table>'
+                        + '      <button type="button" class="btn btn-sm btn-outline-secondary mb-3" onclick="opAddBatchRow()"><i class="fas fa-plus mr-1"></i> Agregar Otra Actividad al Lote</button>'
+                        + '    </div>'
+                        + '    <div class="modal-footer" style="background:var(--op-surface-muted); border-top:1px solid var(--op-border-subtle); justify-content:space-between;">'
+                        + '      <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById(\'op-batch-modal\').remove();">Cancelar</button>'
+                        + '      <button type="button" class="btn btn-success btn-sm font-weight-bold" onclick="opExecuteBatchSubmit()"><i class="fas fa-bolt mr-1"></i> ⚡ Generar Memoria en Lote</button>'
+                        + '    </div>'
+                        + '  </div>'
+                        + '</div>';
+
+                    document.body.appendChild(modal);
+                }
+            }
+
+            window.opAddBatchRow = function() {
+                var tbody = document.querySelector('#op-batch-table tbody');
+                if (!tbody) return;
+                var count = tbody.querySelectorAll('tr').length + 1;
+                var tr = document.createElement('tr');
+                tr.innerHTML = '<td>' + count + '</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de la actividad ' + count + '"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>';
+                tbody.appendChild(tr);
+            };
+
+            window.opExecuteBatchSubmit = function() {
+                var titles = document.querySelectorAll('.op-batch-title');
+                var count = 0;
+                for (var i = 0; i < titles.length; i++) {
+                    if (titles[i].value.trim()) count++;
+                }
+                if (count === 0) {
+                    alert('Por favor ingresa al menos un nombre de actividad.');
+                    return;
+                }
+                alert('⚡ Generando lote de ' + count + ' actividades para la memoria DHF. Redirigiendo...');
+                document.getElementById('op-batch-modal').remove();
+                if (typeof mostrarConvencion === 'function') mostrarConvencion(1);
+            };
 
             // --- SPRINT 7: ORQUESTADOR ÚNICO DE INICIALIZACIÓN DE LA CAPA .op-* ---
             // Un solo punto de arranque para toda la capa de mejora. Los delays
