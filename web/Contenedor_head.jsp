@@ -241,6 +241,55 @@
                 z-index: 100000 !important;
             }
 
+            /* Estilizado de la ventana emergente de Historial de Cambios (TempM=11/3/7) */
+            .sweet-local[id^="Ventana"],
+            [id^="Ventana"] {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                width: 90% !important;
+                max-width: 1050px !important;
+                max-height: 85vh !important;
+                overflow-y: auto !important;
+                background: #ffffff !important;
+                border-radius: 12px !important;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
+                border: 1px solid var(--op-border-strong) !important;
+                padding: 24px !important;
+            }
+
+            /* Tabla de Historial de Cambios limpia y legible */
+            [id^="Ventana"] table,
+            .sweet-local table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                margin-top: 12px !important;
+            }
+
+            [id^="Ventana"] th,
+            .sweet-local th {
+                background: #1e293b !important;
+                color: #ffffff !important;
+                padding: 10px 14px !important;
+                font-size: 12px !important;
+                font-weight: 700 !important;
+                text-align: left !important;
+            }
+
+            [id^="Ventana"] td,
+            .sweet-local td {
+                padding: 10px 14px !important;
+                font-size: 12px !important;
+                border-bottom: 1px solid #e2e8f0 !important;
+                color: #334155 !important;
+            }
+
+            [id^="Ventana"] tr:nth-child(even),
+            .sweet-local tr:nth-child(even) {
+                background: #f8fafc !important;
+            }
+
             /* Desactivar posicionamiento sticky cuando hay un modal abierto */
             body.modal-open .card-header.op-sticky-header,
             body.op-modal-open .card-header.op-sticky-header,
@@ -1202,57 +1251,6 @@
                                 }
                             });
 
-                            // 2. Transición suave de Modales de Historia (TempM=3) y Adjuntos (TempM=7) a Columna 3 (Inspector Drawer)
-                            document.addEventListener('click', function (e) {
-                                var historyBtn = e.target.closest('a[href*="TempM=3"], a[href*="TempM=7"]');
-                                if (!historyBtn) return;
-
-                                var href = historyBtn.getAttribute('href');
-                                if (!href || href === '#') return;
-
-                                // Si existe un contenedor de Inspector (Columna 3)
-                                var inspector = document.getElementById('op-inspector-drawer');
-                                if (!inspector) {
-                                    // Crear la Columna 3 si no existe en el DOM actual
-                                    inspector = document.createElement('div');
-                                    inspector.id = 'op-inspector-drawer';
-                                    inspector.className = 'op-col-inspector active';
-
-                                    var cardBody = document.querySelector('.card-body');
-                                    if (cardBody) {
-                                        cardBody.classList.add('op-workspace-3col');
-                                        cardBody.appendChild(inspector);
-                                    }
-                                }
-
-                                if (inspector) {
-                                    e.preventDefault();
-                                    inspector.className = 'op-col-inspector active';
-                                    inspector.innerHTML = '<div class="text-center p-4"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2 text-muted">Cargando inspección...</p></div>';
-
-                                    fetch(href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                                        .then(function (resp) { return resp.text(); })
-                                        .then(function (html) {
-                                            var parser = new DOMParser();
-                                            var doc = parser.parseFromString(html, 'text/html');
-                                            var modal = doc.querySelector('.modal-body, #Formulario, .card');
-                                            var content = modal ? modal.innerHTML : html;
-
-                                            inspector.innerHTML = ''
-                                                + '<div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">'
-                                                + '  <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-search-plus mr-1"></i> Inspección de Evidencia</h6>'
-                                                + '  <button type="button" class="close" onclick="document.getElementById(\'op-inspector-drawer\').classList.remove(\'active\')">&times;</button>'
-                                                + '</div>'
-                                                + '<div class="op-inspector-body">' + content + '</div>';
-
-                                            // Ejecutar scanner para botones OnlyOffice dentro del Inspector
-                                            ooFormatTextNodes();
-                                        })
-                                        .catch(function () {
-                                            inspector.innerHTML = '<div class="alert alert-danger">Error al cargar inspección. Por favor intenta de nuevo.</div>';
-                                        });
-                                }
-                            }, false);
                         });
                     })();
 
