@@ -1670,12 +1670,7 @@
                     + '</div>';
 
                 detailPanel.querySelector('.op-detail-content').appendChild(clone);
-                sessionStorage.setItem('op_split_selected', index);
-            }
-
-                var contentDiv = detailPanel.querySelector('.op-detail-content');
-                contentDiv.appendChild(clone);
-
+                
                 // Re-ejecutar el scanner de botones OnlyOffice
                 if (typeof ooFormatTextNodes === 'function') {
                     setTimeout(ooFormatTextNodes, 100);
@@ -1686,7 +1681,7 @@
             }
 
             // --- WIZARD MODAL DE CARGUE MASIVO Y DILIGENCIAMIENTO RÁPIDO DHF ---
-            function opShowBatchCreationModal() {
+            window.opShowBatchCreationModal = function() {
                 var modal = document.getElementById('op-batch-modal');
                 if (!modal) {
                     modal = document.createElement('div');
@@ -1698,11 +1693,11 @@
                         + '<div class="modal-dialog modal-lg" style="margin-top:60px !important;">'
                         + '  <div class="modal-content" style="border-radius:12px; border:1px solid var(--op-border-strong); box-shadow:0 15px 50px rgba(0,0,0,0.35);">'
                         + '    <div class="modal-header" style="background:var(--op-surface-muted); border-bottom:1px solid var(--op-border-subtle);">'
-                        + '      <h5 class="modal-title font-weight-bold text-primary"><i class="fas fa-bolt mr-2 text-warning"></i> Cargue Masivo / Workspace de Diligenciamiento Rápido DHF</h5>'
-                        + '      <button type="button" class="close" onclick="document.getElementById(\'op-batch-modal\').remove();">&times;</button>'
+                        + '      <h5 class="modal-title font-weight-bold text-primary"><i class="fas fa-bolt mr-2 text-warning"></i> Workspace Cargue Masivo DHF</h5>'
+                        + '      <button type="button" class="close" id="op-batch-close-btn">&times;</button>'
                         + '    </div>'
                         + '    <div class="modal-body" style="padding:20px;">'
-                        + '      <div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Esta herramienta te permite registrar múltiples actividades de memoria de diseño en un solo paso sin tener que abrir ventanas individuales.</div>'
+                        + '      <div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Registra múltiples actividades DHF en 1 solo paso sin abrir ventanas individuales.</div>'
                         + '      <div class="form-group mb-3">'
                         + '        <label class="font-weight-bold" style="font-size:12px;">Selecciona la Etapa ISO 13485 Objetivo:</label>'
                         + '        <select class="form-control form-control-sm" id="op-batch-iso-stage">'
@@ -1712,22 +1707,19 @@
                         + '          <option value="7.3.5 REVISIÓN DEL DISEÑO Y DESARROLLO">7.3.5 REVISIÓN DEL DISEÑO Y DESARROLLO</option>'
                         + '          <option value="7.3.6 VERIFICACIÓN DEL DISEÑO Y DESARROLLO">7.3.6 VERIFICACIÓN DEL DISEÑO Y DESARROLLO</option>'
                         + '          <option value="7.3.7 VALIDACIÓN DEL DISEÑO Y DESARROLLO">7.3.7 VALIDACIÓN DEL DISEÑO Y DESARROLLO</option>'
-                        + '          <option value="7.3.8 TRANSFERENCIA DEL DISEÑO Y DESARROLLO">7.3.8 TRANSFERENCIA DEL DISEÑO Y DESARROLLO</option>'
-                        + '          <option value="7.3.9 CONTROL DE CAMBIOS EN EL DESARROLLO">7.3.9 CONTROL DE CAMBIOS EN EL DESARROLLO</option>'
                         + '        </select>'
                         + '      </div>'
                         + '      <label class="font-weight-bold mb-2" style="font-size:12px;">Matriz de Actividades a Generar en Lote:</label>'
                         + '      <table class="table table-sm table-bordered" id="op-batch-table" style="font-size:12px;">'
                         + '        <thead class="bg-light"><tr><th>#</th><th>Nombre de la Actividad</th><th>Tipo de Documento OnlyOffice</th><th>Acción</th></tr></thead>'
                         + '        <tbody>'
-                        + '          <tr><td>1</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Matriz de Evaluación de Riesgos" value="Revisión Inicial de Requisitos"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>'
-                        + '          <tr><td>2</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Protocolo de Verificación" value="Protocolo de Verificación Técnica"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx" selected>Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>'
+                        + '          <tr><td>1</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Matriz de Evaluación de Riesgos" value="Revisión Inicial de Requisitos"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger op-remove-row">&times;</button></td></tr>'
+                        + '          <tr><td>2</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Protocolo de Verificación" value="Protocolo de Verificación Técnica"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx" selected>Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger op-remove-row">&times;</button></td></tr>'
                         + '        </tbody>'
                         + '      </table>'
-                        + '      <button type="button" class="btn btn-sm btn-outline-secondary mb-3" onclick="opAddBatchRow()"><i class="fas fa-plus mr-1"></i> Agregar Otra Actividad al Lote</button>'
+                        + '      <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="op-batch-add-btn"><i class="fas fa-plus mr-1"></i> Agregar Otra Actividad al Lote</button>'
                         + '    </div>'
                         + '    <div class="modal-footer" style="background:var(--op-surface-muted); border-top:1px solid var(--op-border-subtle); justify-content:space-between;">'
-                        + '      <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById(\'op-batch-modal\').remove();">Cancelar</button>'
                         + '      <button type="button" class="btn btn-success btn-sm font-weight-bold" onclick="opExecuteBatchSubmit()"><i class="fas fa-bolt mr-1"></i> ⚡ Generar Memoria en Lote</button>'
                         + '    </div>'
                         + '  </div>'
