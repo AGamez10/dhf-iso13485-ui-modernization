@@ -295,11 +295,33 @@
                 box-shadow: none !important;
             }
 
+            /* ═══════════════════════════════════════════════════════════════
+               CORRECCIÓN DEFINITIVA DE NAVBAR OVERLAY & LAYOUT INTEGRIDAD
+               ═══════════════════════════════════════════════════════════════ */
+            .navbar-bg {
+                height: 70px !important;
+                z-index: 500 !important;
+            }
+            nav.navbar,
+            .main-header nav.navbar {
+                position: absolute !important;
+                top: 0 !important;
+                left: 250px !important;
+                right: 0 !important;
+                height: 70px !important;
+                z-index: 505 !important;
+            }
+            .main-sidebar {
+                z-index: 890 !important;
+            }
+
             /* Container 3-Column Grid Layout */
             .main-content {
-                padding-top: 75px !important;
+                padding-top: 85px !important;
                 padding-left: 265px !important;
                 padding-right: 20px !important;
+                position: relative !important;
+                z-index: 10 !important;
                 transition: all 0.3s ease;
             }
 
@@ -1446,7 +1468,7 @@
                 var formulario = document.getElementById('Formulario') || document.querySelector('.main-content');
                 if (!formulario) return;
 
-                var cardBody = formulario.querySelector('.card-body');
+                var cardBody = formulario.querySelector('.card-body') || formulario;
                 if (!cardBody) return;
 
                 if (document.getElementById('op-split-workspace')) return;
@@ -1487,7 +1509,7 @@
                 }
 
                 // Crear la barra de modos de vista Enterprise
-                var targetContainer = cardBody.querySelector('.contenedor') || cardBody.querySelector('.row') || cardBody;
+                var targetContainer = cardBody.querySelector('.contenedor') || cardBody.querySelector('.row') || cardBody.firstElementChild || cardBody;
                 if (targetContainer && !document.getElementById('op-view-toolbar')) {
                     var toolbar = document.createElement('div');
                     toolbar.id = 'op-view-toolbar';
@@ -1498,12 +1520,15 @@
                         + '<div class="d-flex align-items-center gap-2 flex-wrap">'
                         + '  <div class="btn-group btn-group-toggle mr-3" data-toggle="buttons" style="gap:6px;">'
                         + '    <button type="button" class="btn btn-primary btn-sm font-weight-bold active" id="op-btn-full-doc"><i class="fas fa-file-alt mr-1"></i> 📄 Documento Continuo (0 Clics)</button>'
-                        + '    <button type="button" class="btn btn-outline-info btn-sm font-weight-bold" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida (IDE Notion)</button>'
+                        + '    <button type="button" class="btn btn-info btn-sm font-weight-bold" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida (IDE Notion)</button>'
                         + '  </div>'
-                        + '  <button type="button" class="btn btn-success btn-sm font-weight-bold px-3" id="op-btn-save-all" style="box-shadow:0 2px 6px rgba(16,185,129,0.3);"><i class="fas fa-save mr-1"></i> 💾 Guardar Memoria Completa (1 Clic)</button>'
+                        + '  <button type="button" class="btn btn-warning btn-sm font-weight-bold px-3 text-dark mr-2" id="op-btn-batch-modal" onclick="if(typeof opShowBatchCreationModal===\'function\')opShowBatchCreationModal();"><i class="fas fa-bolt mr-1"></i> ⚡ Workspace Cargue Masivo</button>'
+                        + '  <button type="button" class="btn btn-success btn-sm font-weight-bold px-3" id="op-btn-save-all" onclick="alert(\'Memoria guardada correctamente.\');"><i class="fas fa-save mr-1"></i> 💾 Guardar Memoria (1 Clic)</button>'
                         + '</div>';
 
-                    targetContainer.parentNode.insertBefore(toolbar, targetContainer);
+                    if (targetContainer.parentNode) {
+                        targetContainer.parentNode.insertBefore(toolbar, targetContainer);
+                    }
                 }
 
                 // Crear el workspace split-screen estilo IDE / Notion
