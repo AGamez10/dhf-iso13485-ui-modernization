@@ -1465,6 +1465,10 @@
 
             // --- SPRINT 8: MODERN IDE / NOTION STYLE NAVIGATION & SPLIT VIEW ENGINE ---
             function opInitSplitScreen() {
+                // Ejecutar ÚNICAMENTE en la vista de Memorias DHF (evita alterar tablas CRUD sencillas de Pruebas, Categorías, etc.)
+                var isMemorias = (window.location.search.indexOf('opc=7') !== -1) || (window.location.pathname.indexOf('Memorias') !== -1);
+                if (!isMemorias) return;
+
                 var formulario = document.getElementById('Formulario') || document.querySelector('.main-content');
                 if (!formulario) return;
 
