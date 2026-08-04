@@ -1464,45 +1464,75 @@
             }
 
             // --- SPRINT 8: MODERN IDE / NOTION STYLE NAVIGATION & SPLIT VIEW ENGINE ---
-            function opInitSplitScreen() {
-                // Ejecutar ÚNICAMENTE en la vista de Memorias DHF (evita alterar tablas CRUD sencillas de Pruebas, Categorías, etc.)
-                var isMemorias = (window.location.search.indexOf('opc=7') !== -1) || (window.location.pathname.indexOf('Memorias') !== -1);
-                if (!isMemorias) return;
+            var _opPlaceholders = [];
+            var _opActiveActivityIndex = null;
 
-                var formulario = document.getElementById('Formulario') || document.querySelector('.main-content');
+            function opInitSplitScreen() {
+                // Ejecutar en vistas de Memorias DHF, Entradas DHF o Pruebas DHF
+                var isDHFPage = (
+                    window.location.search.indexOf('opc=7') !== -1 ||
+                    window.location.search.indexOf('opc=14') !== -1 ||
+                    window.location.search.indexOf('opc=18') !== -1 ||
+                    window.location.pathname.indexOf('Memorias') !== -1 ||
+                    window.location.pathname.indexOf('Entradas') !== -1 ||
+                    window.location.pathname.indexOf('Pruebas') !== -1
+                ) && (document.title.toLowerCase().indexOf('memorias') !== -1 || document.title.toLowerCase().indexOf('entradas') !== -1 || window.location.search.indexOf('ipy=') !== -1);
+
+                if (!isDHFPage) return;
+
+                var formulario = document.getElementById('Formulario') || document.querySelector('.main-content') || document.body;
                 if (!formulario) return;
 
                 var cardBody = formulario.querySelector('.card-body') || formulario;
                 if (!cardBody) return;
 
-                if (document.getElementById('op-split-workspace')) return;
+                // Si ya existe el workspace, no duplicarlo pero refrescarlo
+                var existingWorkspace = document.getElementById('op-split-workspace');
+                if (existingWorkspace) {
+                    existingWorkspace.remove();
+                    _opPlaceholders.forEach(function(pl) { if(pl) pl.remove(); });
+                    _opPlaceholders = [];
+                    _opActiveActivityIndex = null;
+                }
 
-                // Recopilar todos los contenedores de actividades y tablas ISO 13485
+                // Recopilar tablas de actividades reales
                 var activityElements = [];
-                var allTables = cardBody.querySelectorAll('table.table-bordered, .card, div[id^="Ventana"]');
+                var allTables = cardBody.querySelectorAll('table.table-bordered');
                 for (var i = 0; i < allTables.length; i++) {
                     var elem = allTables[i];
-                    if (elem.closest('.card-header') || elem.id === 'op-view-toolbar') continue;
-                    // Asegurar que tenga texto sustancial
+                    if (elem.closest('.card-header') || elem.id === 'op-view-toolbar' || elem.querySelector('img')) continue;
                     var textContent = (elem.textContent || elem.innerText || '').trim();
-                    if (textContent.length > 20) {
+                    if (textContent.indexOf('AUTOR:') !== -1 || textContent.indexOf('ACTIVIDAD') !== -1 || textContent.indexOf('ESTADO:') !== -1 || textContent.indexOf('RESPUESTAS') !== -1) {
                         activityElements.push(elem);
                     }
                 }
 
                 if (activityElements.length === 0) return;
 
-                // Extraer metadata para la lista del navegador lateral (Master Sidebar)
+                // Crear marcadores de posición (placeholders) para poder mover los nodos de vuelta
+                for (var j = 0; j < activityElements.length; j++) {
+                    var el = activityElements[j];
+                    var placeholder = document.createElement('div');
+                    placeholder.id = 'op-placeholder-' + j;
+                    placeholder.style.display = 'none';
+                    el.parentNode.insertBefore(placeholder, el);
+                    _opPlaceholders.push(placeholder);
+                }
+
+                // Extraer metadata para el listado del navegador lateral (Master Sidebar)
                 var activities = [];
                 for (var j = 0; j < activityElements.length; j++) {
                     var el = activityElements[j];
-                    var title = 'Sección / Actividad ' + (j + 1);
-                    var rawText = (el.textContent || el.innerText || '').trim();
+                    var title = 'Actividad DHF ' + (j + 1);
+                    var rawText = (el.textContent || el.innerText || '').replace(/\s+/g, ' ').trim();
 
-                    // Buscar títulos tipo 7.3.X o A - NORMAS o ACTIVIDAD
-                    var titleMatch = rawText.match(/(7\.3\.\d[^\n\r]+|ACTIVIDAD\s*\d+[^\n\r]+|[A-Z]\s*-\s*[^\n\r]+)/i);
+                    // Buscar títulos de la actividad o el numeral
+                    var titleMatch = rawText.match(/(Actividad\s*\d+[^:\|]*|7\.3\.\d[^\n\r\|]*|[A-Z]\s*-\s*[^:\|]*)/i);
                     if (titleMatch && titleMatch[0]) {
-                        title = titleMatch[0].substring(0, 75);
+                        title = titleMatch[0].substring(0, 60);
+                    } else {
+                        var firstRow = el.querySelector('tr');
+                        if (firstRow) title = (firstRow.textContent || '').trim().substring(0, 60);
                     }
 
                     activities.push({
@@ -1512,27 +1542,28 @@
                     });
                 }
 
-                // Crear la barra de modos de vista Enterprise
+                // Crear la barra de modos de vista Enterprise si no existe
                 var targetContainer = cardBody.querySelector('.contenedor') || cardBody.querySelector('.row') || cardBody.firstElementChild || cardBody;
-                if (targetContainer && !document.getElementById('op-view-toolbar')) {
-                    var toolbar = document.createElement('div');
-                    toolbar.id = 'op-view-toolbar';
-                    toolbar.className = 'op-view-toolbar mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2';
-                    toolbar.style.cssText = 'background: #ffffff !important; padding: 12px 20px !important; border-radius: 10px !important; border: 1px solid var(--op-border-strong) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; margin-bottom: 24px !important; width: 100% !important; display: flex !important; justify-content: space-between !important; align-items: center !important; position: relative !important; z-index: 10 !important;';
+                var existingToolbar = document.getElementById('op-view-toolbar');
+                if (existingToolbar) existingToolbar.remove();
 
-                    toolbar.innerHTML = ''
-                        + '<div class="d-flex align-items-center gap-2 flex-wrap">'
-                        + '  <div class="btn-group btn-group-toggle mr-3" data-toggle="buttons" style="gap:6px;">'
-                        + '    <button type="button" class="btn btn-primary btn-sm font-weight-bold active" id="op-btn-full-doc"><i class="fas fa-file-alt mr-1"></i> 📄 Documento Continuo (0 Clics)</button>'
-                        + '    <button type="button" class="btn btn-info btn-sm font-weight-bold" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida (IDE Notion)</button>'
-                        + '  </div>'
-                        + '  <button type="button" class="btn btn-warning btn-sm font-weight-bold px-3 text-dark mr-2" id="op-btn-batch-modal" onclick="if(typeof opShowBatchCreationModal===\'function\')opShowBatchCreationModal();"><i class="fas fa-bolt mr-1"></i> ⚡ Workspace Cargue Masivo</button>'
-                        + '  <button type="button" class="btn btn-success btn-sm font-weight-bold px-3" id="op-btn-save-all" onclick="alert(\'Memoria guardada correctamente.\');"><i class="fas fa-save mr-1"></i> 💾 Guardar Memoria (1 Clic)</button>'
-                        + '</div>';
+                var toolbar = document.createElement('div');
+                toolbar.id = 'op-view-toolbar';
+                toolbar.className = 'op-view-toolbar mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2';
+                toolbar.style.cssText = 'background: #ffffff !important; padding: 12px 20px !important; border-radius: 10px !important; border: 1px solid var(--op-border-strong) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; margin-bottom: 24px !important; width: 100% !important; display: flex !important; justify-content: space-between !important; align-items: center !important; position: relative !important; z-index: 10 !important;';
 
-                    if (targetContainer.parentNode) {
-                        targetContainer.parentNode.insertBefore(toolbar, targetContainer);
-                    }
+                toolbar.innerHTML = ''
+                    + '<div class="d-flex align-items-center gap-2 flex-wrap">'
+                    + '  <div class="btn-group btn-group-toggle mr-3" data-toggle="buttons" style="gap:6px;">'
+                    + '    <button type="button" class="btn btn-primary btn-sm font-weight-bold active" id="op-btn-full-doc"><i class="fas fa-file-alt mr-1"></i> 📄 Documento Continuo (0 Clics)</button>'
+                    + '    <button type="button" class="btn btn-info btn-sm font-weight-bold" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida (IDE Notion)</button>'
+                    + '  </div>'
+                    + '  <button type="button" class="btn btn-warning btn-sm font-weight-bold px-3 text-dark mr-2" id="op-btn-batch-modal" onclick="if(typeof opShowBatchCreationModal===\'function\')opShowBatchCreationModal();"><i class="fas fa-bolt mr-1"></i> ⚡ Workspace Cargue Masivo</button>'
+                    + '  <button type="button" class="btn btn-success btn-sm font-weight-bold px-3" id="op-btn-save-all" onclick="alert(\'Memoria guardada correctamente.\');"><i class="fas fa-save mr-1"></i> 💾 Guardar Memoria (1 Clic)</button>'
+                    + '</div>';
+
+                if (targetContainer.parentNode) {
+                    targetContainer.parentNode.insertBefore(toolbar, targetContainer);
                 }
 
                 // Crear el workspace split-screen estilo IDE / Notion
@@ -1541,7 +1572,7 @@
                 workspace.id = 'op-split-workspace';
                 workspace.style.cssText = 'display:none; gap:20px; width:100%; min-height:650px; align-items:flex-start;';
 
-                // Master Panel (Navegador Lateral Estilo VS Code / Notion)
+                // Master Panel (Navegador Lateral)
                 var masterPanel = document.createElement('div');
                 masterPanel.className = 'op-master-panel';
                 masterPanel.id = 'op-master-panel';
@@ -1588,6 +1619,17 @@
                     if (mode === 'full') {
                         if (btnFull) { btnFull.classList.add('active', 'btn-primary'); btnFull.classList.remove('btn-outline-primary'); }
                         if (btnSplit) { btnSplit.classList.remove('active', 'btn-info'); btnSplit.classList.add('btn-outline-info'); }
+                        
+                        // Mover de vuelta la actividad activa a su posición original antes de ocultar
+                        if (_opActiveActivityIndex !== null) {
+                            var node = activityElements[_opActiveActivityIndex];
+                            var placeholder = document.getElementById('op-placeholder-' + _opActiveActivityIndex);
+                            if (node && placeholder) {
+                                placeholder.parentNode.insertBefore(node, placeholder);
+                                node.style.display = '';
+                            }
+                        }
+                        
                         workspace.style.display = 'none';
 
                         for (var x = 0; x < activityElements.length; x++) {
@@ -1598,13 +1640,15 @@
                     } else if (mode === 'split') {
                         if (btnSplit) { btnSplit.classList.add('active', 'btn-info'); btnSplit.classList.remove('btn-outline-info'); }
                         if (btnFull) { btnFull.classList.remove('active', 'btn-primary'); btnFull.classList.add('btn-outline-primary'); }
-                        workspace.style.display = 'flex';
-
+                        
+                        // Ocultar todas las actividades de su sitio original
                         for (var y = 0; y < activityElements.length; y++) {
                             activityElements[y].style.display = 'none';
                         }
                         var allEditorsSplit = cardBody.querySelectorAll('.op-fast-editor-block');
                         for (var es = 0; es < allEditorsSplit.length; es++) { allEditorsSplit[es].style.display = 'none'; }
+                        
+                        workspace.style.display = 'flex';
 
                         if (activityElements.length > 0) {
                             var sel = parseInt(sessionStorage.getItem('op_split_selected') || '0', 10);
@@ -1628,10 +1672,11 @@
                 });
             }
 
-            // Renderizar la actividad seleccionada en el Lienzo Principal de Vista Dividida (100% Completo)
+            // Renderizar la actividad seleccionada en el Lienzo Principal de Vista Dividida (100% Interactiva)
             function opShowActivityDetail(index, activityElements, detailPanel, masterPanel, activities) {
                 if (index < 0 || index >= activityElements.length) return;
 
+                // Actualizar estilo en el menú lateral
                 var cards = masterPanel.querySelectorAll('.op-activity-card');
                 for (var i = 0; i < cards.length; i++) {
                     cards[i].style.background = '#ffffff';
@@ -1644,45 +1689,127 @@
                     cards[index].style.color = '#0369a1';
                 }
 
-                var origElem = activityElements[index];
-                var clone = origElem.cloneNode(true);
-                clone.style.display = 'block';
+                // Mover de vuelta la actividad anterior
+                if (_opActiveActivityIndex !== null && _opActiveActivityIndex !== index) {
+                    var prevNode = activityElements[_opActiveActivityIndex];
+                    var prevPlaceholder = document.getElementById('op-placeholder-' + _opActiveActivityIndex);
+                    if (prevNode && prevPlaceholder) {
+                        prevPlaceholder.parentNode.insertBefore(prevNode, prevPlaceholder);
+                        prevNode.style.display = 'none';
+                    }
+                }
 
-                // Forzar despliegue de 100% de los elementos internos
-                var hiddenEls = clone.querySelectorAll('.collapse, [style*="display: none"], [style*="display:none"]');
+                _opActiveActivityIndex = index;
+                var realNode = activityElements[index];
+                realNode.style.display = 'block';
+
+                // Asegurar que las respuestas y partes colapsadas estén abiertas y visibles
+                var hiddenEls = realNode.querySelectorAll('.collapse');
                 for (var h = 0; h < hiddenEls.length; h++) {
                     hiddenEls[h].classList.add('show');
                     hiddenEls[h].style.display = 'block';
-                    hiddenEls[h].style.visibility = 'visible';
-                    hiddenEls[h].style.opacity = '1';
                 }
 
                 var title = activities && activities[index] ? activities[index].title : ('Sección ' + (index + 1));
 
+                // Limpiar detailPanel y armar cabecera moderna
                 detailPanel.innerHTML = ''
                     + '<div class="d-flex align-items-center justify-content-between pb-3 mb-4 border-bottom">'
                     + '  <div>'
                     + '    <span class="badge badge-primary px-2 py-1 mb-1">DHF ISO 13485</span>'
                     + '    <h5 class="m-0 font-weight-bold text-dark">' + title + '</h5>'
                     + '  </div>'
-                    + '  <span class="text-muted font-weight-bold" style="font-size:12px;">Sección ' + (index + 1) + ' de ' + activityElements.length + '</span>'
+                    + '  <div class="d-flex align-items-center gap-2">'
+                    + '    <button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" onclick="opOpenRegisterForActivity(' + index + ')"><i class="fas fa-edit"></i> Registrar Avance</button>'
+                    + '    <span class="text-muted font-weight-bold ml-3" style="font-size:12px;">Sección ' + (index + 1) + ' de ' + activityElements.length + '</span>'
+                    + '  </div>'
                     + '</div>'
-                    + '<div class="op-detail-content"></div>'
-                    + '<div class="mt-4 pt-3 border-top">'
-                    + '  <div class="font-weight-bold mb-2 text-primary" style="font-size:13px;"><i class="fas fa-edit mr-1"></i> Redacción / Avance Rápido para esta Sección:</div>'
-                    + '  <textarea class="form-control op-inline-fast-editor" rows="4" style="width:100% !important; min-height:120px !important; font-size:13px !important; line-height:1.6 !important; padding:12px 16px !important; border-radius:8px !important; border:1px solid #cbd5e1 !important; color:#0f172a !important; background:#f8fafc !important;" placeholder="Escribe aquí las notas o avances de esta sección..."></textarea>'
-                    + '</div>';
+                    + '<div class="op-detail-content-wrapper mb-4"></div>'
+                    + '<div class="op-onlyoffice-embedded-container" id="op-onlyoffice-embedded-' + index + '" style="margin-top:20px;"></div>';
 
-                detailPanel.querySelector('.op-detail-content').appendChild(clone);
-                
-                // Re-ejecutar el scanner de botones OnlyOffice
-                if (typeof ooFormatTextNodes === 'function') {
-                    setTimeout(ooFormatTextNodes, 100);
+                // Mover el nodo real de la actividad dentro del panel derecho
+                detailPanel.querySelector('.op-detail-content-wrapper').appendChild(realNode);
+
+                // Detectar si la actividad tiene un archivo OnlyOffice adjunto
+                var fileLink = realNode.querySelector('a[href*="/api/files/"]');
+                var ooContainer = document.getElementById('op-onlyoffice-embedded-' + index);
+                if (fileLink && ooContainer) {
+                    var href = fileLink.getAttribute('href');
+                    var match = href.match(/\/api\/files\/(\d+)\/download/);
+                    if (match && match[1]) {
+                        var fileId = match[1];
+                        ooContainer.innerHTML = ''
+                            + '<div class="font-weight-bold text-dark mb-2" style="font-size:13px;"><i class="fas fa-file-alt text-primary mr-1"></i> Documento OnlyOffice Asociado:</div>'
+                            + '<div id="op-oo-frame-wrapper-' + index + '" style="height:550px; border:1px solid #cbd5e1; border-radius:10px; overflow:hidden;"></div>';
+                        
+                        setTimeout(function() {
+                            if (typeof window.ooInitEditor === 'function') {
+                                window.ooInitEditor({
+                                    containerId: 'op-oo-frame-wrapper-' + index,
+                                    inputId: 'textInput',
+                                    existingFileId: parseInt(fileId, 10),
+                                    autoLoad: true
+                                });
+                            }
+                        }, 200);
+                    }
+                } else if (ooContainer) {
+                    // Si no tiene OnlyOffice, darle la opción de crear uno directo en la actividad sin modales
+                    ooContainer.innerHTML = ''
+                        + '<div class="alert alert-light border p-3" style="border-radius:10px;">'
+                        + '  <div class="font-weight-bold text-muted mb-2" style="font-size:12px;"><i class="fas fa-file-medical text-info mr-1"></i> Esta actividad no cuenta con un archivo OnlyOffice asociado. ¿Deseas iniciar uno?</div>'
+                        + '  <div class="d-flex gap-2">'
+                        + '    <button type="button" class="btn btn-sm btn-outline-primary" onclick="opCreateOnlyOfficeForSelected(' + index + ', \'document\')"><i class="far fa-file-word mr-1"></i> Documento Word</button>'
+                        + '    <button type="button" class="btn btn-sm btn-outline-success" onclick="opCreateOnlyOfficeForSelected(' + index + ', \'spreadsheet\')"><i class="far fa-file-excel mr-1"></i> Planilla Excel</button>'
+                        + '    <button type="button" class="btn btn-sm btn-outline-warning text-dark" onclick="opCreateOnlyOfficeForSelected(' + index + ', \'presentation\')"><i class="far fa-file-powerpoint mr-1"></i> Presentación PPT</button>'
+                        + '  </div>'
+                        + '</div>';
                 }
 
                 detailPanel.scrollTop = 0;
                 sessionStorage.setItem('op_split_selected', index);
             }
+
+            // Abrir el modal "Registrar avance" configurado para esta actividad
+            window.opOpenRegisterForActivity = function(index) {
+                var realSelect = document.querySelector('#Ventana1 select[name="numeral"]') || document.querySelector('select[name="numeral"]');
+                var activityEl = _opPlaceholders[index] ? _opPlaceholders[index].nextElementSibling : null;
+                if (!activityEl) return;
+                
+                // Tratar de buscar el valor del numeral/etapa en la tabla
+                var firstRow = activityEl.querySelector('tr');
+                var text = firstRow ? (firstRow.textContent || '').trim() : '';
+                
+                // Mostrar Ventana1
+                if (typeof mostrarConvencion === 'function') {
+                    mostrarConvencion(1);
+                    
+                    // Buscar coincidencia en el select
+                    if (realSelect && text) {
+                        for (var i = 0; i < realSelect.options.length; i++) {
+                            var opt = realSelect.options[i];
+                            if (opt.text && text.indexOf(opt.text) !== -1) {
+                                realSelect.selectedIndex = i;
+                                $(realSelect).trigger('change');
+                                break;
+                            }
+                        }
+                    }
+                }
+            };
+
+            // Crear documento OnlyOffice directamente en la actividad seleccionada
+            window.opCreateOnlyOfficeForSelected = function(index, type) {
+                opOpenRegisterForActivity(index);
+                setTimeout(function() {
+                    var container = document.getElementById('oo-editor-block');
+                    if (container && typeof window.ooInitEditor === 'function') {
+                        // Simular clic en el tipo correspondiente
+                        var btn = container.querySelector('button[data-oo-type="' + type + '"]') || container.querySelector('button[onclick*="' + type + '"]');
+                        if (btn) btn.click();
+                    }
+                }, 400);
+            };
 
             // --- WIZARD MODAL DE CARGUE MASIVO Y DILIGENCIAMIENTO RÁPIDO DHF ---
             window.opShowBatchCreationModal = function() {
@@ -1698,38 +1825,49 @@
                         + '  <div class="modal-content" style="border-radius:12px; border:1px solid var(--op-border-strong); box-shadow:0 15px 50px rgba(0,0,0,0.35);">'
                         + '    <div class="modal-header" style="background:var(--op-surface-muted); border-bottom:1px solid var(--op-border-subtle);">'
                         + '      <h5 class="modal-title font-weight-bold text-primary"><i class="fas fa-bolt mr-2 text-warning"></i> Workspace Cargue Masivo DHF</h5>'
-                        + '      <button type="button" class="close" id="op-batch-close-btn">&times;</button>'
+                        + '      <button type="button" class="close" id="op-batch-close-btn" onclick="document.getElementById(\'op-batch-modal\').remove();">&times;</button>'
                         + '    </div>'
                         + '    <div class="modal-body" style="padding:20px;">'
-                        + '      <div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Registra múltiples actividades DHF en 1 solo paso sin abrir ventanas individuales.</div>'
+                        + '      <div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Registra múltiples actividades DHF en un solo clic. Los documentos se generarán automáticamente y se insertarán en la base de datos sin flujos manuales.</div>'
                         + '      <div class="form-group mb-3">'
                         + '        <label class="font-weight-bold" style="font-size:12px;">Selecciona la Etapa ISO 13485 Objetivo:</label>'
                         + '        <select class="form-control form-control-sm" id="op-batch-iso-stage">'
-                        + '          <option value="7.3.2 PLANIFICACIÓN DEL DISEÑO Y DESARROLLO">7.3.2 PLANIFICACIÓN DEL DISEÑO Y DESARROLLO</option>'
-                        + '          <option value="7.3.3 ENTRADAS DE DISEÑO Y DESARROLLO">7.3.3 ENTRADAS DE DISEÑO Y DESARROLLO</option>'
-                        + '          <option value="7.3.4 SALIDAS DE DISEÑO Y DESARROLLO">7.3.4 SALIDAS DE DISEÑO Y DESARROLLO</option>'
-                        + '          <option value="7.3.5 REVISIÓN DEL DISEÑO Y DESARROLLO">7.3.5 REVISIÓN DEL DISEÑO Y DESARROLLO</option>'
-                        + '          <option value="7.3.6 VERIFICACIÓN DEL DISEÑO Y DESARROLLO">7.3.6 VERIFICACIÓN DEL DISEÑO Y DESARROLLO</option>'
-                        + '          <option value="7.3.7 VALIDACIÓN DEL DISEÑO Y DESARROLLO">7.3.7 VALIDACIÓN DEL DISEÑO Y DESARROLLO</option>'
                         + '        </select>'
                         + '      </div>'
                         + '      <label class="font-weight-bold mb-2" style="font-size:12px;">Matriz de Actividades a Generar en Lote:</label>'
                         + '      <table class="table table-sm table-bordered" id="op-batch-table" style="font-size:12px;">'
                         + '        <thead class="bg-light"><tr><th>#</th><th>Nombre de la Actividad</th><th>Tipo de Documento OnlyOffice</th><th>Acción</th></tr></thead>'
                         + '        <tbody>'
-                        + '          <tr><td>1</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Matriz de Evaluación de Riesgos" value="Revisión Inicial de Requisitos"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger op-remove-row">&times;</button></td></tr>'
-                        + '          <tr><td>2</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Protocolo de Verificación" value="Protocolo de Verificación Técnica"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx" selected>Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger op-remove-row">&times;</button></td></tr>'
+                        + '          <tr><td>1</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Matriz de Evaluación de Riesgos" value="Revisión Inicial de Requisitos"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>'
+                        + '          <tr><td>2</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Protocolo de Verificación" value="Protocolo de Verificación Técnica"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx" selected>Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>'
                         + '        </tbody>'
                         + '      </table>'
-                        + '      <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="op-batch-add-btn"><i class="fas fa-plus mr-1"></i> Agregar Otra Actividad al Lote</button>'
+                        + '      <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="op-batch-add-btn" onclick="window.opAddBatchRow()"><i class="fas fa-plus mr-1"></i> Agregar Otra Actividad al Lote</button>'
                         + '    </div>'
                         + '    <div class="modal-footer" style="background:var(--op-surface-muted); border-top:1px solid var(--op-border-subtle); justify-content:space-between;">'
+                        + '      <span id="op-batch-progress" style="font-size:12px; font-weight:bold; color:var(--op-text-muted);"></span>'
                         + '      <button type="button" class="btn btn-success btn-sm font-weight-bold" onclick="opExecuteBatchSubmit()"><i class="fas fa-bolt mr-1"></i> ⚡ Generar Memoria en Lote</button>'
                         + '    </div>'
                         + '  </div>'
                         + '</div>';
 
                     document.body.appendChild(modal);
+
+                    // Poblar el select del lote con las opciones del select real
+                    var realSelect = document.querySelector('#Ventana1 select[name="numeral"]') || document.querySelector('select[name="numeral"]');
+                    var batchSelect = document.getElementById('op-batch-iso-stage');
+                    if (realSelect && batchSelect) {
+                        batchSelect.innerHTML = '';
+                        for (var i = 0; i < realSelect.options.length; i++) {
+                            var opt = realSelect.options[i];
+                            if (opt.value && !opt.disabled && opt.value !== '#' && opt.value !== '-') {
+                                var cloneOpt = document.createElement('option');
+                                cloneOpt.value = opt.value;
+                                cloneOpt.text = opt.text;
+                                batchSelect.appendChild(cloneOpt);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1738,23 +1876,132 @@
                 if (!tbody) return;
                 var count = tbody.querySelectorAll('tr').length + 1;
                 var tr = document.createElement('tr');
-                tr.innerHTML = '<td>' + count + '</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de la actividad ' + count + '"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>';
+                tr.innerHTML = '<td>' + count + '</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de la actividad ' + count + '"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>';
                 tbody.appendChild(tr);
             };
 
             window.opExecuteBatchSubmit = function() {
-                var titles = document.querySelectorAll('.op-batch-title');
-                var count = 0;
-                for (var i = 0; i < titles.length; i++) {
-                    if (titles[i].value.trim()) count++;
+                var btnSubmit = document.querySelector('#op-batch-modal .btn-success');
+                if (btnSubmit.disabled) return;
+
+                var titles = [];
+                var docs = [];
+                var titleInputs = document.querySelectorAll('.op-batch-title');
+                var docSelects = document.querySelectorAll('.op-batch-doc');
+                
+                for (var i = 0; i < titleInputs.length; i++) {
+                    var titleVal = titleInputs[i].value.trim();
+                    if (titleVal) {
+                        titles.push(titleVal);
+                        docs.push(docSelects[i].value);
+                    }
                 }
-                if (count === 0) {
+
+                if (titles.length === 0) {
                     alert('Por favor ingresa al menos un nombre de actividad.');
                     return;
                 }
-                alert('⚡ Generando lote de ' + count + ' actividades para la memoria DHF. Redirigiendo...');
-                document.getElementById('op-batch-modal').remove();
-                if (typeof mostrarConvencion === 'function') mostrarConvencion(1);
+
+                var stageSelect = document.getElementById('op-batch-iso-stage');
+                var selectedStage = stageSelect ? stageSelect.value : '';
+                if (!selectedStage) {
+                    alert('Por favor selecciona una etapa ISO objetivo.');
+                    return;
+                }
+
+                // Deshabilitar UI e iniciar spinner
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Creando lote...';
+                var progressLabel = document.getElementById('op-batch-progress');
+                
+                var ipyInput = document.querySelector('input[name="ipy"]');
+                var idUsuarioInput = document.querySelector('input[name="id_usuario"]');
+                var estadoInput = document.querySelector('input[name="estado"]');
+
+                var idProyecto = ipyInput ? ipyInput.value : '';
+                var idUsuario = idUsuarioInput ? idUsuarioInput.value : '';
+                var estadoM = estadoInput ? estadoInput.value : '1';
+                var todayYMD = new Date().toISOString().substring(0, 10);
+                
+                var OO_API_KEY = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0';
+                var OO_SERVER = 'http://localhost:8080';
+                
+                var s = document.querySelector('script[data-token]');
+                var token = s ? s.getAttribute('data-token') || '' : '';
+                var headers = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = 'Bearer ' + token;
+                else headers['X-Api-Key'] = OO_API_KEY;
+
+                var index = 0;
+                
+                function createNext() {
+                    if (index >= titles.length) {
+                        progressLabel.innerHTML = '<i class="fas fa-check-circle text-success"></i> ¡Lote completado!';
+                        if (typeof iziToast !== 'undefined') {
+                            iziToast.success({
+                                title: 'Éxito',
+                                message: 'Lote de ' + titles.length + ' actividades creado correctamente.'
+                            });
+                        } else {
+                            alert('Lote creado correctamente.');
+                        }
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1000);
+                        return;
+                    }
+                    
+                    var actTitle = titles[index];
+                    var actDocType = docs[index];
+                    
+                    progressLabel.innerHTML = 'Creando actividad ' + (index + 1) + ' de ' + titles.length + '...';
+
+                    var ooTypeMap = {
+                        docx: 'document',
+                        xlsx: 'spreadsheet',
+                        pptx: 'presentation'
+                    };
+                    var type = ooTypeMap[actDocType] || 'document';
+                    var newFileUrl = OO_SERVER + '/api/files/new';
+                    if (type === 'spreadsheet') newFileUrl += '/spreadsheet';
+                    if (type === 'presentation') newFileUrl += '/presentation';
+                    
+                    fetch(newFileUrl, { method: 'POST', headers: headers })
+                        .then(function(r) { return r.json(); })
+                        .then(function(resp) {
+                            if (!resp || !resp.data) throw new Error('Respuesta de OnlyOffice inválida');
+                            var fileId = resp.data.fileId || resp.data.id;
+                            var fileName = resp.data.originalFileName || (actTitle + '.' + actDocType);
+                            
+                            // Guardar en la base de datos
+                            var formData = new URLSearchParams();
+                            formData.append('estado', estadoM);
+                            formData.append('ipy', idProyecto);
+                            formData.append('id_usuario', idUsuario);
+                            formData.append('fecha_reg', todayYMD);
+                            formData.append('numeral', selectedStage);
+                            formData.append('personas', '[' + idUsuario + ']');
+                            formData.append('observacion', 'oo:' + fileId + ':' + fileName);
+                            
+                            return fetch('Proyecto?opc=9', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: formData.toString()
+                            });
+                        })
+                        .then(function() {
+                            index++;
+                            createNext();
+                        })
+                        .catch(function(err) {
+                            console.error('Error in batch creation:', err);
+                            alert('Error al crear la actividad "' + actTitle + '": ' + err.message);
+                            btnSubmit.disabled = false;
+                            btnSubmit.innerHTML = '<i class="fas fa-bolt mr-1"></i> Generar Memoria en Lote';
+                        });
+                }
+                
+                createNext();
             };
 
             // Observador global para detectar la apertura de ventanas/modales (Ventana1..Ventana8)
@@ -1784,10 +2031,14 @@
                 setTimeout(opInitStickyHeader, 180);
                 setTimeout(opInitSplitScreen, 250);
 
-                // Re-ejecutar expansión total al cambiar de tab ISO (7.3.2, 7.3.3, etc.)
+                // Re-inicializar al cambiar de tab
                 document.addEventListener('click', function(e) {
-                    if (e.target.closest('a[data-toggle="tab"], button[data-toggle="collapse"], .dropdown-item, .nav-link')) {
-                        setTimeout(opForceExpandAll, 200);
+                    var tabEl = e.target.closest('a[data-toggle="tab"], .nav-link');
+                    if (tabEl) {
+                        setTimeout(function() {
+                            opForceExpandAll();
+                            opInitSplitScreen();
+                        }, 300);
                     }
                 });
 
