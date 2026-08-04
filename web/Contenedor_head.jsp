@@ -1761,10 +1761,27 @@
                 if (typeof mostrarConvencion === 'function') mostrarConvencion(1);
             };
 
+            // Observador global para detectar la apertura de ventanas/modales (Ventana1..Ventana8)
+            // y desactivar los sticky headers mientras el modal de registro esté abierto.
+            function checkOpenVentanas() {
+                var anyOpen = false;
+                var ventanas = document.querySelectorAll('[id^="Ventana"], .sweet-local, .modal.show');
+                for (var i = 0; i < ventanas.length; i++) {
+                    var v = ventanas[i];
+                    var display = window.getComputedStyle(v).display;
+                    if (display !== 'none' && display !== '') {
+                        anyOpen = true;
+                        break;
+                    }
+                }
+                if (anyOpen) {
+                    document.body.classList.add('op-modal-open');
+                } else {
+                    document.body.classList.remove('op-modal-open');
+                }
+            }
+
             // --- SPRINT 7: ORQUESTADOR ÚNICO DE INICIALIZACIÓN DE LA CAPA .op-* ---
-            // Un solo punto de arranque para toda la capa de mejora. Los delays
-            // escalonados (100/150/180/250ms) se PRESERVAN: dejan que el DOM legacy y
-            // Bootstrap (tabs/collapse) se estabilicen antes de restaurar contexto.
             function opInit() {
                 setTimeout(restoreContext, 100);
                 setTimeout(opForceExpandAll, 150);
@@ -1778,27 +1795,7 @@
                     }
                 });
 
-                // Observador global para detectar la apertura de ventanas/modales (Ventana1..Ventana8)
-                // y desactivar los sticky headers mientras el modal de registro esté abierto.
-                function checkOpenVentanas() {
-                    var anyOpen = false;
-                    var ventanas = document.querySelectorAll('[id^="Ventana"], .sweet-local, .modal.show');
-                    for (var i = 0; i < ventanas.length; i++) {
-                        var v = ventanas[i];
-                        var display = window.getComputedStyle(v).display;
-                        if (display !== 'none' && display !== '') {
-                            anyOpen = true;
-                            break;
-                        }
-                    }
-                    if (anyOpen) {
-                        document.body.classList.add('op-modal-open');
-                    } else {
-                        document.body.classList.remove('op-modal-open');
-                    }
-                }
-
-                setInterval(checkOpenVentanas, 200);
+                setInterval(checkOpenVentanas, 300);
             }
 
             // Restaurar cuando el DOM esté listo
