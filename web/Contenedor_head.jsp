@@ -860,6 +860,89 @@
                 display: none !important;
             }
 
+            /* ═══════════════════════════════════════════════════════════════
+               EJE G: VISTA DE GESTIÓN — toolbar segmentado + índice con estado
+               ═══════════════════════════════════════════════════════════════ */
+            .op-seg-control {
+                display: inline-flex;
+                border: 1px solid var(--op-border-strong);
+                border-radius: var(--op-radius-md);
+                overflow: hidden;
+                background: var(--op-surface-base);
+            }
+            .op-seg-btn {
+                border: none;
+                background: transparent;
+                padding: 6px 14px;
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--op-text-secondary);
+                cursor: pointer;
+                transition: background 0.15s ease, color 0.15s ease;
+            }
+            .op-seg-btn + .op-seg-btn { border-left: 1px solid var(--op-border-strong); }
+            .op-seg-btn.op-active {
+                background: var(--op-surface-card);
+                color: var(--op-text-primary);
+                box-shadow: inset 0 -2px 0 var(--op-border-active);
+            }
+            .op-toolbar-actions { display: inline-flex; align-items: center; gap: 10px; }
+            .op-action-primary {
+                border: none;
+                background: var(--op-status-finalizado-dot);
+                color: #fff;
+                padding: 7px 16px;
+                border-radius: var(--op-radius-md);
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            .op-action-primary:hover { filter: brightness(0.95); }
+            .op-action-tertiary {
+                border: none;
+                background: transparent;
+                color: var(--op-text-secondary);
+                padding: 7px 10px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            .op-action-tertiary:hover { color: var(--op-text-primary); }
+            .op-activity-card { display: flex !important; align-items: flex-start; }
+            .op-status-dot {
+                display: inline-block;
+                width: 5px; height: 5px;
+                border-radius: 50%;
+                margin: 5px 8px 0 0;
+                flex-shrink: 0;
+            }
+            .op-activity-card-title {
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+                line-height: 1.3;
+            }
+            .op-progress-wrap {
+                height: 6px;
+                background: var(--op-border-subtle);
+                border-radius: var(--op-radius-full);
+                overflow: hidden;
+                margin-top: 8px;
+            }
+            .op-progress-bar {
+                height: 100%;
+                background: var(--op-status-finalizado-dot);
+                border-radius: var(--op-radius-full);
+                transition: width 0.3s ease;
+            }
+            .op-progress-label {
+                font-size: 11px;
+                color: var(--op-text-muted);
+                margin-top: 4px;
+            }
+
             /* Keyboard navigation hint */
             .op-kbd-hint {
                 font-size: 10px !important;
@@ -1664,12 +1747,16 @@
                                 activityElements.push(elem);
                                 
                                 var actTitle = 'Actividad DHF ' + (secActivities.length + 1);
-                                var titleMatch = textContent.match(/(Actividad\s*\d+[^:\|]*|7\.3\.\d[^\n\r\|]*|[A-Z]\s*-\s*[^:\|]*)/i);
-                                if (titleMatch && titleMatch[0]) {
-                                    actTitle = titleMatch[0].substring(0, 60);
-                                } else {
-                                    var firstRow = elem.querySelector('tr');
-                                    if (firstRow) actTitle = (firstRow.textContent || '').trim().substring(0, 60);
+                                // EJE G FIX G6: el textContent de una <table> concatena TODAS las celdas
+                                // sin separador (por eso el titulo se pegaba con "AUTOR:"). Leemos cada
+                                // celda por separado y tomamos la primera que parece titulo de actividad
+                                // y que NO sea el metadato AUTOR. textContent por-celda funciona aunque la
+                                // tabla este oculta (a diferencia de innerText, que devuelve '' si display:none).
+                                var _cells = elem.querySelectorAll('td, th');
+                                for (var _ci = 0; _ci < _cells.length; _ci++) {
+                                    var _ct = (_cells[_ci].textContent || '').trim();
+                                    if (!_ct || _ct.indexOf('AUTOR') !== -1) continue;
+                                    if (/^(ACTIVIDAD\s*\d+|7\.3\.\d|[A-Z]\s*[-–]\s)/i.test(_ct)) { actTitle = _ct.substring(0, 70); break; }
                                 }
                                 
                                 secActivities.push({
@@ -1755,13 +1842,13 @@
                 toolbar.style.cssText = 'background: #ffffff !important; padding: 12px 20px !important; border-radius: 10px !important; border: 1px solid var(--op-border-strong) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; margin-bottom: 24px !important; width: 100% !important; display: flex !important; justify-content: space-between !important; align-items: center !important; position: relative !important; z-index: 10 !important;';
 
                 toolbar.innerHTML = ''
-                    + '<div class="d-flex align-items-center gap-2 flex-wrap">'
-                    + '  <div class="btn-group btn-group-toggle mr-3" data-toggle="buttons" style="gap:6px;">'
-                    + '    <button type="button" class="btn btn-primary btn-sm font-weight-bold active" id="op-btn-full-doc"><i class="fas fa-file-alt mr-1"></i> 📄 Documento Continuo (0 Clics)</button>'
-                    + '    <button type="button" class="btn btn-info btn-sm font-weight-bold" id="op-btn-split"><i class="fas fa-columns mr-1"></i> 📊 Vista Dividida (IDE Notion)</button>'
-                    + '  </div>'
-                    + '  <button type="button" class="btn btn-warning btn-sm font-weight-bold px-3 text-dark mr-2" id="op-btn-batch-modal" onclick="if(typeof opShowBatchCreationModal===\'function\')opShowBatchCreationModal();"><i class="fas fa-bolt mr-1"></i> ⚡ Workspace Cargue Masivo</button>'
-                    + '  <button type="button" class="btn btn-success btn-sm font-weight-bold px-3" id="op-btn-save-all" onclick="alert(\'Memoria guardada correctamente.\');"><i class="fas fa-save mr-1"></i> 💾 Guardar Memoria (1 Clic)</button>'
+                    + '<div class="op-seg-control" role="group">'
+                    + '  <button type="button" class="op-seg-btn op-active" id="op-btn-full-doc" title="Vista de lectura continua (0 clics)"><i class="fas fa-file-alt mr-1"></i> Documento continuo</button>'
+                    + '  <button type="button" class="op-seg-btn" id="op-btn-split" title="Vista de gestion dividida (estilo IDE / Notion)"><i class="fas fa-columns mr-1"></i> Vista dividida</button>'
+                    + '</div>'
+                    + '<div class="op-toolbar-actions">'
+                    + '  <button type="button" class="op-action-tertiary" id="op-btn-batch-modal" onclick="if(typeof opShowBatchCreationModal===\'function\')opShowBatchCreationModal();"><i class="fas fa-bolt mr-1"></i> Cargue masivo</button>'
+                    + '  <button type="button" class="op-action-primary" id="op-btn-save-all" onclick="alert(\'Memoria guardada correctamente.\');"><i class="fas fa-save mr-1"></i> Guardar memoria</button>'
                     + '</div>';
 
                 // SPRINT 9 FIX: el toolbar va como hijo DIRECTO de #Formulario. Si queda
@@ -1781,9 +1868,17 @@
                 masterPanel.id = 'op-master-panel';
                 masterPanel.style.cssText = 'width:340px; min-width:300px; background:#f8fafc; border:1px solid var(--op-border-strong); border-radius:10px; padding:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04); height:auto; max-height:82vh; overflow-y:auto; position:sticky; top:20px;';
 
+                // EJE G: contar finalizadas para la barra de progreso del índice
+                var _opFinalized = 0;
+                for (var _fi = 0; _fi < activityElements.length; _fi++) {
+                    if (activityElements[_fi].querySelector('.text-success')) _opFinalized++;
+                }
+                var _opPct = activityElements.length ? Math.round(_opFinalized * 100 / activityElements.length) : 0;
                 var masterHeader = document.createElement('div');
                 masterHeader.className = 'op-master-header mb-3 pb-2 border-bottom';
-                masterHeader.innerHTML = '<h6 class="m-0 font-weight-bold text-primary" style="font-size:13px;"><i class="fas fa-project-diagram mr-1"></i> Índice DHF ISO 13485 (' + activityElements.length + ' act.)</h6>';
+                masterHeader.innerHTML = '<h6 class="m-0 font-weight-bold text-primary" style="font-size:13px;"><i class="fas fa-project-diagram mr-1"></i> Índice DHF ISO 13485</h6>'
+                    + '<div class="op-progress-wrap"><div class="op-progress-bar" style="width:' + _opPct + '%;"></div></div>'
+                    + '<div class="op-progress-label">' + _opFinalized + ' / ' + activityElements.length + ' actividades finalizadas</div>';
                 masterPanel.appendChild(masterHeader);
 
                 // Render Sections Tree in Master Panel
@@ -1807,7 +1902,14 @@
                         card.className = 'op-activity-card p-2 mb-1';
                         card.setAttribute('data-activity-index', act.globalIndex);
                         card.style.cssText = 'background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; color:#334155; transition:all 0.15s;';
-                        card.innerHTML = '<i class="fas fa-file-contract text-info mr-2"></i>' + act.title;
+                        // EJE G: estado real leido de act.element (no solo color → tambien en title, WCAG)
+                        var _stTok = 'muted', _stLbl = 'Sin iniciar';
+                        if (act.element.querySelector('.text-success')) { _stTok = 'finalizado'; _stLbl = 'Finalizada'; }
+                        else if (act.element.querySelector('.text-warning')) { _stTok = 'revision'; _stLbl = 'En revisión'; }
+                        else if (/EN PROCESO|PROCESO/i.test(act.element.textContent || '')) { _stTok = 'proceso'; _stLbl = 'En proceso'; }
+                        card.setAttribute('title', act.title + ' — ' + _stLbl);
+                        card.innerHTML = '<span class="op-status-dot" style="background:var(--op-status-' + _stTok + '-dot, var(--op-text-muted));"></span>'
+                            + '<span class="op-activity-card-title">' + act.title + '</span>';
                         secBody.appendChild(card);
                     });
                     
@@ -1841,8 +1943,8 @@
                     var btnSplit = document.getElementById('op-btn-split');
 
                     if (mode === 'full') {
-                        if (btnFull) { btnFull.classList.add('active', 'btn-primary'); btnFull.classList.remove('btn-outline-primary'); }
-                        if (btnSplit) { btnSplit.classList.remove('active', 'btn-info'); btnSplit.classList.add('btn-outline-info'); }
+                        if (btnFull) btnFull.classList.add('op-active');
+                        if (btnSplit) btnSplit.classList.remove('op-active');
                         
                         // Restore active activity to placeholder before hiding split
                         if (_opActiveActivityIndex !== null) {
@@ -1870,8 +1972,8 @@
                         var allEditors = cardBody.querySelectorAll('.op-fast-editor-block');
                         for (var e = 0; e < allEditors.length; e++) { allEditors[e].style.display = 'block'; }
                     } else if (mode === 'split') {
-                        if (btnSplit) { btnSplit.classList.add('active', 'btn-info'); btnSplit.classList.remove('btn-outline-info'); }
-                        if (btnFull) { btnFull.classList.remove('active', 'btn-primary'); btnFull.classList.add('btn-outline-primary'); }
+                        if (btnSplit) btnSplit.classList.add('op-active');
+                        if (btnFull) btnFull.classList.remove('op-active');
                         
                         document.body.classList.add('op-split-mode');
                         document.body.classList.remove('op-fullview-mode');
