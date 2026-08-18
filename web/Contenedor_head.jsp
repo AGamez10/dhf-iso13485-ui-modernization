@@ -992,6 +992,28 @@
             body.op-fullview-mode #myTab2Content th {
                 line-height: 1.75 !important;
             }
+            /* H-b: lista de adjuntos inyectada por AJAX en el documento continuo */
+            .op-attach-list {
+                margin: 6px 0 18px 0;
+                padding: 10px 14px;
+                border-left: 3px solid var(--op-border-active);
+                background: var(--op-surface-base);
+                border-radius: 0 var(--op-radius-sm) var(--op-radius-sm) 0;
+            }
+            .op-attach-title {
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.4px;
+                color: var(--op-text-muted);
+                margin-bottom: 6px;
+            }
+            .op-attach-ol {
+                margin: 0;
+                padding-left: 20px;
+                font-size: 13px;
+                line-height: 1.9;
+            }
+            .op-attach-loading { font-size: 12px; color: var(--op-text-muted); }
 
             /* H-d: impresión — lo que se ve es lo que sale */
             @media print {
@@ -2048,6 +2070,8 @@
                         }
                         var allEditors = cardBody.querySelectorAll('.op-fast-editor-block');
                         for (var e = 0; e < allEditors.length; e++) { allEditors[e].style.display = 'block'; }
+                        // H-b: inyectar listas de adjuntos (AJAX, gated en count>0)
+                        setTimeout(opInjectContinuousAttachments, 200);
                     } else if (mode === 'split') {
                         if (btnSplit) btnSplit.classList.add('op-active');
                         if (btnFull) btnFull.classList.remove('op-active');
@@ -2088,6 +2112,55 @@
                     var idx = parseInt(card.getAttribute('data-activity-index'), 10);
                     opShowActivityDetail(idx, activityElements, detailPanel, masterPanel);
                 });
+            }
+
+            // ═══ EJE H-b: adjuntos por AJAX en el documento continuo ═══
+            // Para cada actividad con adjuntos (count>0 en el clip, aunque este oculto por
+            // Eje H), hace fetch del view TempM=7&ver_adj=C, parsea el .cont_reg emitido por
+            // Tag_memoria y lista los archivos como texto. Gated: sin adjuntos, cero fetch.
+            // Solo lectura; no toca handlers legacy.
+            function opInjectContinuousAttachments() {
+                if (!document.body.classList.contains('op-fullview-mode')) return;
+                var clips = document.querySelectorAll('#myTab2Content a[href*="ver_adj"]');
+                for (var ci = 0; ci < clips.length; ci++) {
+                    var clip = clips[ci];
+                    var badge = clip.querySelector('.badge');
+                    var count = badge ? parseInt((badge.textContent || '0').trim(), 10) : 0;
+                    if (!count || count < 1) continue;
+                    var host = clip.closest('table.table-bordered');
+                    if (!host) continue;
+                    if (host.nextElementSibling && host.nextElementSibling.classList && host.nextElementSibling.classList.contains('op-attach-list')) continue;
+                    var box = document.createElement('div');
+                    box.className = 'op-attach-list';
+                    box.innerHTML = '<div class="op-attach-title">ADJUNTOS (' + count + ')</div><div class="op-attach-loading">Cargando adjuntos…</div>';
+                    host.parentNode.insertBefore(box, host.nextSibling);
+                    (function (url, target) {
+                        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                            .then(function (r) { return r.text(); })
+                            .then(function (htmlStr) {
+                                var doc = new DOMParser().parseFromString(htmlStr, 'text/html');
+                                var cont = doc.querySelector('.cont_reg');
+                                var links = cont ? cont.querySelectorAll('a[href*="Descargar?file_name"]') : [];
+                                var load = target.querySelector('.op-attach-loading');
+                                if (!links.length) { if (load) load.textContent = 'Sin archivos listados.'; return; }
+                                var listHtml = '<ol class="op-attach-ol">';
+                                for (var k = 0; k < links.length; k++) {
+                                    var name = (links[k].textContent || '').trim();
+                                    var row = links[k].closest('tr');
+                                    var cells = row ? row.querySelectorAll('td') : [];
+                                    var fecha = cells.length > 1 ? (cells[1].textContent || '').trim() : '';
+                                    listHtml += '<li>' + name + (fecha ? ' &middot; ' + fecha : '') + '</li>';
+                                }
+                                listHtml += '</ol>';
+                                if (load) load.remove();
+                                target.insertAdjacentHTML('beforeend', listHtml);
+                            })
+                            .catch(function () {
+                                var l = target.querySelector('.op-attach-loading');
+                                if (l) l.textContent = 'No se pudieron cargar los adjuntos.';
+                            });
+                    })(clip.getAttribute('href'), box);
+                }
             }
 
             // Render selected activity in Detail Panel (Cross-Section & Interactive)
