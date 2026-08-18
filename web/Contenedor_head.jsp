@@ -558,7 +558,7 @@
                Solo se activa en Memorias.jsp (detectado por #Formulario).
                ═══════════════════════════════════════════════════════════════ */
             .op-split-workspace {
-                display: flex !important;
+                display: none !important;
                 gap: var(--op-space-16) !important;
                 align-items: flex-start !important;
                 width: 100% !important;
@@ -834,14 +834,15 @@
                 color: var(--op-status-proceso-text) !important;
             }
 
-            /* When split is active, hide the original tables flow */
-            .op-split-active .op-original-table {
+            /* Hide all other elements of card-body / Formulario in split mode to avoid visual mix-up */
+            body.op-split-mode .card-body > *:not(#op-view-toolbar):not(#op-split-workspace),
+            body.op-split-mode #Formulario > *:not(#op-view-toolbar):not(#op-split-workspace) {
                 display: none !important;
             }
 
-            /* When split is inactive, hide the split workspace */
-            .op-split-inactive .op-split-workspace {
-                display: none !important;
+            /* When split mode is active, display the split workspace */
+            body.op-split-mode .op-split-workspace {
+                display: flex !important;
             }
 
             /* Keyboard navigation hint */
@@ -870,8 +871,12 @@
                SPRINT 9: CROSS-SECTION SPLIT VIEW, FULL DOCUMENT & BATCH WIZARD
                ═══════════════════════════════════════════════════════════════ */
             /* Full document 0-click continuous view mode */
-            .op-fullview-mode #myTab {
-                margin-bottom: 20px !important;
+            /* SPRINT 9 FIX #1: ocultar las pestañas ISO legacy (#myTab) en ambos
+               modos expandidos. Si ninguna clase de modo está presente (p.ej. el
+               JS no cargó), #myTab queda visible → degradación segura. */
+            body.op-fullview-mode #myTab,
+            body.op-split-mode #myTab {
+                display: none !important;
             }
             .op-fullview-mode .tab-pane {
                 display: block !important;
@@ -1805,7 +1810,7 @@
                 workspace.appendChild(detailPanel);
 
                 var firstElem = activityElements[0];
-                firstElem.parentNode.insertBefore(workspace, firstElem);
+                cardBody.appendChild(workspace);
 
                 var currentMode = sessionStorage.getItem('op_view_mode') || 'full';
 
@@ -1831,7 +1836,8 @@
                         }
                         
                         workspace.style.display = 'none';
-                        cardBody.classList.add('op-fullview-mode');
+                        document.body.classList.add('op-fullview-mode');
+                        document.body.classList.remove('op-split-mode');
 
                         // Un-hide all tab-panes and activity tables
                         for (var x = 0; x < activityElements.length; x++) {
@@ -1839,6 +1845,7 @@
                         }
                         for (var tp = 0; tp < tabPanes.length; tp++) {
                             tabPanes[tp].style.display = 'block';
+                            tabPanes[tp].style.removeProperty('display');
                             tabPanes[tp].style.opacity = '1';
                         }
                         var allEditors = cardBody.querySelectorAll('.op-fast-editor-block');
@@ -1847,11 +1854,16 @@
                         if (btnSplit) { btnSplit.classList.add('active', 'btn-info'); btnSplit.classList.remove('btn-outline-info'); }
                         if (btnFull) { btnFull.classList.remove('active', 'btn-primary'); btnFull.classList.add('btn-outline-primary'); }
                         
-                        cardBody.classList.remove('op-fullview-mode');
+                        document.body.classList.add('op-split-mode');
+                        document.body.classList.remove('op-fullview-mode');
 
                         // Hide all original activities
                         for (var y = 0; y < activityElements.length; y++) {
                             activityElements[y].style.display = 'none';
+                        }
+                        // Ocultar de forma estricta todos los tab-panes para que no se mezclen
+                        for (var tps = 0; tps < tabPanes.length; tps++) {
+                            tabPanes[tps].style.setProperty('display', 'none', 'important');
                         }
                         var allEditorsSplit = cardBody.querySelectorAll('.op-fast-editor-block');
                         for (var es = 0; es < allEditorsSplit.length; es++) { allEditorsSplit[es].style.display = 'none'; }
@@ -2013,7 +2025,20 @@
                 // Mostrar Ventana1
                 if (typeof mostrarConvencion === 'function') {
                     mostrarConvencion(1);
-                    
+
+                    // SPRINT 9: reiniciar el modal a "Solo Texto" por defecto al abrir
+                    var ta = document.getElementById("op-register-desc");
+                    if (ta) ta.value = "";
+                    var block = document.getElementById("oo-editor-block");
+                    if (block) block.style.display = "none";
+                    var btnToggle = document.getElementById("op-register-oo-toggle");
+                    if (btnToggle) btnToggle.style.display = "";
+                    window._ooCurrentFileId = null;
+                    var textInput = document.getElementById("textInput");
+                    if (textInput) textInput.value = "";
+                    var container = document.getElementById("oo-editor-container");
+                    if (container) container.innerHTML = "<div id='oo-editor-loading' style='display:flex;align-items:center;justify-content:center;height:100%;color:#aaa;font-size:14px;gap:10px;'><i class='fas fa-spinner fa-spin'> Cargando editor...";
+
                     // Buscar coincidencia en el select
                     if (realSelect && text) {
                         for (var i = 0; i < realSelect.options.length; i++) {
@@ -2032,11 +2057,13 @@
             window.opCreateOnlyOfficeForSelected = function(index, type) {
                 opOpenRegisterForActivity(index);
                 setTimeout(function() {
-                    var container = document.getElementById('oo-editor-block');
-                    if (container && typeof window.ooInitEditor === 'function') {
-                        // Simular clic en el tipo correspondiente
-                        var btn = container.querySelector('button[data-oo-type="' + type + '"]') || container.querySelector('button[onclick*="' + type + '"]');
-                        if (btn) btn.click();
+                    // SPRINT 9: mostrar el editor y ocultar el boton de anexar, luego crear el doc
+                    var block = document.getElementById('oo-editor-block');
+                    if (block) block.style.display = '';
+                    var btnToggle = document.getElementById('op-register-oo-toggle');
+                    if (btnToggle) btnToggle.style.display = 'none';
+                    if (typeof window.ooCreateDoc === 'function') {
+                        window.ooCreateDoc(type);
                     }
                 }, 400);
             };
@@ -2163,7 +2190,7 @@
                             + '      <tr>'
                             + '        <td>1</td>'
                             + '        <td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Matriz de Requisitos" value="Documento Técnico de ' + stg.text.substring(0, 25) + '"></td>'
-                            + '        <td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td>'
+                            + '        <td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option><option value="none">Ninguno (Solo texto)</option></select></td>'
                             + '        <td><textarea class="form-control form-control-sm op-batch-desc" rows="1" placeholder="Observación (opcional)" style="resize:vertical; min-height:31px;"></textarea></td>'
                             + '        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td>'
                             + '      </tr>'
@@ -2202,7 +2229,7 @@
                 var tbody = table.querySelector('tbody');
                 var count = tbody.querySelectorAll('tr').length + 1;
                 var tr = document.createElement('tr');
-                tr.innerHTML = '<td>' + count + '</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de actividad ' + count + '"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td><td><textarea class="form-control form-control-sm op-batch-desc" rows="1" placeholder="Observación (opcional)" style="resize:vertical; min-height:31px;"></textarea></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td>';
+                tr.innerHTML = '<td>' + count + '</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de actividad ' + count + '"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option><option value="none">Ninguno (Solo texto)</option></select></td><td><textarea class="form-control form-control-sm op-batch-desc" rows="1" placeholder="Observación (opcional)" style="resize:vertical; min-height:31px;"></textarea></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td>';
                 tbody.appendChild(tr);
             };
 
@@ -2315,6 +2342,33 @@
 
                     appendLog('Creando (' + (index + 1) + '/' + itemsToCreate.length + '): "' + item.title + '" en etapa ' + item.stage + '...');
 
+                    // SPRINT 9 FIX #3: opción "Ninguno (Solo texto)" — sin documento OnlyOffice.
+                    // Se omite la llamada a /api/files/new y se postea solo la observación de texto.
+                    if (item.docType === 'none') {
+                        var fdText = new URLSearchParams();
+                        fdText.append('estado', estadoM);
+                        fdText.append('ipy', idProyecto);
+                        fdText.append('id_usuario', idUsuario);
+                        fdText.append('fecha_reg', todayYMD);
+                        fdText.append('numeral', item.stage);
+                        fdText.append('personas', '[' + idUsuario + ']');
+                        fdText.append('observacion', item.desc || '');
+                        fetch('Proyecto?opc=9', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: fdText.toString()
+                        }).then(function() {
+                            appendLog('✔ Creado (solo texto): "' + item.title + '"');
+                            index++;
+                            createNext();
+                        }).catch(function(err) {
+                            appendLog('✖ Error en "' + item.title + '": ' + err.message, true);
+                            index++;
+                            createNext();
+                        });
+                        return;
+                    }
+
                     var ooTypeMap = { docx: 'document', xlsx: 'spreadsheet', pptx: 'presentation' };
                     var type = ooTypeMap[item.docType] || 'document';
                     var newFileUrl = OO_SERVER + '/api/files/new';
@@ -2379,12 +2433,58 @@
                 }
             }
 
+            // --- SPRINT 9 FIX #2: textarea + documento OnlyOffice OPCIONAL en "Registrar avance" ---
+            // Inyecta un textarea de observación y un botón para crear el documento OnlyOffice
+            // solo si el usuario lo pide. El bloque #oo-editor-block queda oculto por defecto.
+            function opSetupRegisterAvance() {
+                var block = document.getElementById('oo-editor-block');
+                if (!block || document.getElementById('op-register-desc')) return;
+
+                var ta = document.createElement('textarea');
+                ta.className = 'form-control mb-3';
+                ta.id = 'op-register-desc';
+                ta.setAttribute('placeholder', 'Escribe tu observación o avance aquí...');
+                ta.setAttribute('rows', '3');
+
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.id = 'op-register-oo-toggle';
+                btn.className = 'btn btn-outline-primary btn-sm mb-2';
+                btn.innerHTML = '➕ Anexar/Crear documento OnlyOffice';
+
+                block.parentNode.insertBefore(ta, block);
+                block.parentNode.insertBefore(btn, block);
+                block.style.display = 'none';
+
+                btn.addEventListener('click', function () {
+                    block.style.display = '';
+                    btn.style.display = 'none';
+                    if (typeof window.ooCreateDoc === 'function') { window.ooCreateDoc('document'); }
+                });
+            }
+
+            // Hook submit de "Registrar avance": combina el texto del textarea con el oo:ref
+            // en #textInput. Sin documento creado (#textInput sin "oo:"), envia solo el texto.
+            document.addEventListener('submit', function (e) {
+                var form = e.target;
+                if (!form || !form.querySelector) return;
+                var descEl = form.querySelector('#op-register-desc');
+                if (!descEl) return;
+                var textInput = form.querySelector('#textInput') || document.getElementById('textInput');
+                if (!textInput) return;
+                var desc = (descEl.value || '').trim();
+                var existing = (textInput.value || '').trim();
+                var ooRef = (existing.indexOf('oo:') === 0) ? existing : '';
+                textInput.value = ooRef ? (desc ? (desc + '\n' + ooRef) : ooRef) : desc;
+            }, true);
+
             // --- SPRINT 7: ORQUESTADOR ÚNICO DE INICIALIZACIÓN DE LA CAPA .op-* ---
             function opInit() {
                 setTimeout(restoreContext, 100);
                 setTimeout(opForceExpandAll, 150);
                 setTimeout(opInitStickyHeader, 180);
                 setTimeout(opInitSplitScreen, 250);
+                setTimeout(opSetupRegisterAvance, 200);
 
                 // Re-inicializar al cambiar de tab
                 document.addEventListener('click', function(e) {

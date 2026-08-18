@@ -260,9 +260,11 @@
                     var _observer = new MutationObserver(function (mutations) {
                         mutations.forEach(function (m) {
                             if (m.type === 'attributes' && m.attributeName === 'style') {
-                                if (ventana1.style.display !== 'none' && !_ooCurrentFileId) {
-                                    ooCreateDoc('document');
-                                }
+                                // SPRINT 9 FIX #2: auto-creacion deshabilitada a proposito.
+                                // El documento OnlyOffice se crea SOLO por accion explicita
+                                // del usuario (boton "Anexar/Crear documento" inyectado desde
+                                // Contenedor_head.jsp, que invoca ooCreateDoc). Ya NO se crea
+                                // al abrir Ventana1.
                             }
                         });
                     });
