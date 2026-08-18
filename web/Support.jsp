@@ -25,8 +25,8 @@
         <!-- Start GA -->
         <script async src="https://www.googletagmanager.com/gtag/js?id=UA-94034622-3"></script>
 
-        <script type="text/javascript" src="Interfaz/Alertas/dist/sweetalert.min.js"></script>
-        <link href="Interfaz/Alertas/dist/sweetalert.css" rel="stylesheet" type="text/css"/>
+        <script type="text/javascript" src="Interfaz/Contenido/assets/Alertas/dist/sweetalert.min.js"></script>
+        <link href="Interfaz/Contenido/assets/Alertas/dist/sweetalert.css" rel="stylesheet" type="text/css"/>
 
         <link rel="stylesheet" href="Interfaz/Contenido/assets/modules/datatables/datatables.min.css">
         <link rel="stylesheet" href="Interfaz/Contenido/assets/modules/datatables/DataTables-1.10.16/css/dataTables.bootstrap4.min.css">
@@ -38,7 +38,7 @@
         <link rel="stylesheet" href="Interfaz/Contenido/assets/modules/codemirror/theme/duotone-dark.css">
         <link rel="stylesheet" href="Interfaz/Contenido/assets/modules/jquery-selectric/selectric.css">
         <link rel="shortcut icon" href="Interfaz/Contenido/images/favicon.ico" type="image/x-icon" />
-        <!--<link href="Interfaz/Alertas/dist/sweetalert.css" rel="stylesheet" type="text/css"/>-->
+        <!--<link href="Interfaz/Contenido/assets/Alertas/dist/sweetalert.css" rel="stylesheet" type="text/css"/>-->
         <!--THIS FILE-->
         <link rel="stylesheet" href="Interfaz/Contenido/assets/modules/select2/dist/css/select2.min.css" >
         <!-------->
@@ -148,9 +148,9 @@
         <script src="Interfaz/Contenido/assets/modules/izitoast/js/iziToast.min.js"></script>
         <script src="Interfaz/Contenido/assets/js/page/modules-toastr.js"></script>
 
-        <script type="text/javascript" src="Interfaz/Alertas/dist/sweetalert.min.js"></script>
+        <script type="text/javascript" src="Interfaz/Contenido/assets/Alertas/dist/sweetalert.min.js"></script>
         <script src="Interfaz/Contenido/assets/js/page/modules-sweetalert.js"></script>
-        <link href="Interfaz/Alertas/dist/sweetalert.css" rel="stylesheet" type="text/css"/>
+        <link href="Interfaz/Contenido/assets/Alertas/dist/sweetalert.css" rel="stylesheet" type="text/css"/>
 
         <!--THIS FILE-->
         <script src="Interfaz/Contenido/assets/js/page/forms-advanced-forms.js"></script>
