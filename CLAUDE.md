@@ -78,13 +78,16 @@ Estado base sobre el que se construye. Respetar y no revertir.
 | `590347f` | `feat(memorias): sticky header de proyecto ISO en scroll` | Sticky del `.card-header` con CONSECUTIVO vía `.op-sticky-header` + `opInitStickyHeader()` (detección por texto). Sin POST ni AJAX |
 | `3ae5d51` | `fix(tokens): corregir --op-topbar-height a 70px real y advertir contra su uso como sticky top` | Token `--op-topbar-height` corregido de 48px a 70px (altura real de la navbar Stisla) con advertencia de no usarlo como `top` de sticky, porque la navbar es `position:absolute` y scrollea |
 | `38b9270` | `refactor(memorias): hardening de deteccion del sticky header (case-insensitive + break)` | `opInitStickyHeader()` insensible a mayúsculas (`toUpperCase`) + `break` al primer match |
+| `92e8a17` | `feat(ux): Sprint 9 vista continua + arbol cross-section + wizard cargue masivo multi-etapa con observacion` | Vista Continua (todos los `tab-pane` visibles de corrido), sidebar en árbol cross-section (`op-tree-section`), y wizard multi-etapa de Cargue Masivo con campo de observación por actividad (`op-wizard-*`) |
+| `e70d208` | `feat(ux): Sprint 9 - ocultar tabs ISO en modos expandidos, observacion opcional en Registrar avance y Cargue Masivo, mutualidad split/continuo y reset del modal` | Ocultar `#myTab` en full/split (clases en `body`); observación opcional (auto-creación OnlyOffice desactivada en `Memorias.jsp`, opción "Ninguno (Solo texto)" en el wizard); mutualidad split↔continuo; reset del modal "Registrar avance" al abrir. **Único cambio en `Memorias.jsp` bajo autorización explícita** (excepción a §4.2.1) |
 
-> NOTA DE TRAZABILIDAD: además de los sprints de UI listados arriba, el historial
-> git incluye dos commits de infraestructura NO reflejados en esta tabla por no
-> ser sprints de UI: `ab9ab3a` (feat onlyoffice — migración del editor de
-> observaciones Froala → OnlyOffice; tocó Tags backend preexistentes) y `5248354`
-> (chore — `.gitignore` + destrackeo de `build/`, `dist/` e IDE). Actualizar bajo
-> autorización explícita, no por iniciativa propia.
+> NOTA DE TRAZABILIDAD: esta tabla lista los commits de sprint UI formales. El
+> historial git incluye además, NO itemizados aquí por ser iteración de desarrollo
+> o infraestructura: `ab9ab3a` (feat onlyoffice — migración Froala → OnlyOffice) y
+> `5248354` (chore — `.gitignore`); el cluster iterativo de la Super-Memoria
+> Continua / Vista Dividida / Cargue Masivo (`2709307` … `0040317`, previos a
+> Sprint 9 y consolidados en él); y el fix del SweetAlert 404 (`2b9199e`,
+> documentado en §8.2). Actualizar bajo autorización explícita.
 
 ---
 
