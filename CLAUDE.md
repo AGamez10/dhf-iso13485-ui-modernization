@@ -280,5 +280,6 @@ hacerlo enmascararía el defecto y daría falsa confianza en un sistema regulado
   alcance de la regla §4.2.1** (único punto de intervención = `Contenedor_head.jsp`).
 - **Fix recomendado:** corregir el prefijo a `Interfaz/Contenido/assets/Alertas/dist/`
   en las 6 líneas activas de `Inicio.jsp` y `Support.jsp`.
-- **Estado:** ESCALADO. Requiere autorización explícita para editar `Inicio.jsp` y
-  `Support.jsp` (archivos distintos a `Contenedor_head.jsp`).
+- **Estado:** RESUELTO en `2b9199e` (fix autorizado explícitamente). Corregidas
+  las 6 líneas activas de `Inicio.jsp` y `Support.jsp` (más la comentada
+  `Support.jsp:41`) al prefijo `Interfaz/Contenido/assets/Alertas/dist/`.
