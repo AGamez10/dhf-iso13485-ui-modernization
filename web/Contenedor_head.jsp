@@ -972,6 +972,54 @@
                 color: var(--op-text-secondary);
             }
 
+            /* ═══════════════════════════════════════════════════════════════
+               EJE H: DOCUMENTO CONTINUO — reporte legible + impresión
+               ═══════════════════════════════════════════════════════════════ */
+            /* H: cero controles interactivos en la vista de lectura (pantalla).
+               Se ocultan links de accion (TempM=historial/adjuntos/numeral, opc=22
+               compartir, opc=13 estado), submits y toggles. Se conserva el texto y
+               las referencias a documentos (evidencia). */
+            body.op-fullview-mode #myTab2Content .card-header-action,
+            body.op-fullview-mode #myTab2Content a[href*="TempM="],
+            body.op-fullview-mode #myTab2Content a[href*="opc=22"],
+            body.op-fullview-mode #myTab2Content a[href*="opc=13"],
+            body.op-fullview-mode #myTab2Content input[type="submit"],
+            body.op-fullview-mode #myTab2Content .op-collapse-toggle-btn {
+                display: none !important;
+            }
+            /* H-c: ritmo de lectura */
+            body.op-fullview-mode #myTab2Content td,
+            body.op-fullview-mode #myTab2Content th {
+                line-height: 1.75 !important;
+            }
+
+            /* H-d: impresión — lo que se ve es lo que sale */
+            @media print {
+                @page { size: A4; margin: 1.5cm; }
+                body { background: #ffffff !important; }
+                .navbar, .navbar-bg, .main-sidebar, #sidebar-wrapper,
+                #op-view-toolbar, #myTab, #op-split-workspace,
+                #myTab2Content .card-header-action,
+                #myTab2Content a[href*="TempM="],
+                #myTab2Content a[href*="opc=22"],
+                #myTab2Content a[href*="opc=13"],
+                #myTab2Content input[type="submit"],
+                .op-collapse-toggle-btn, .op-editor-overlay, .iziToast, .sweet-overlay {
+                    display: none !important;
+                }
+                /* siempre imprimir el documento continuo, sin importar el modo en pantalla */
+                #myTab2Content { display: block !important; }
+                .main-content { padding: 0 !important; }
+                .card, .card-body { box-shadow: none !important; border: none !important; margin: 0 !important; }
+                /* expandir actividades colapsadas por smart collapse: el auditor necesita el registro completo */
+                .main-content table.table-bordered.op-activity-collapsed tbody tr { display: table-row !important; }
+                /* que una actividad no se parta entre paginas */
+                #myTab2Content table.table-bordered { page-break-inside: avoid !important; box-shadow: none !important; }
+                thead { display: table-header-group !important; }
+                /* conservar color de estados en papel (con print-color-adjust) */
+                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            }
+
             /* Keyboard navigation hint */
             .op-kbd-hint {
                 font-size: 10px !important;
