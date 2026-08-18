@@ -942,6 +942,35 @@
                 color: var(--op-text-muted);
                 margin-top: 4px;
             }
+            /* G-c: tarjeta de actividad en el panel de detalle (tabla emitida por Tag → SOLO CSS) */
+            .op-detail-content-wrapper table.table-bordered {
+                border: none !important;
+                box-shadow: none !important;
+                background: transparent !important;
+            }
+            .op-detail-content-wrapper table.table-bordered td,
+            .op-detail-content-wrapper table.table-bordered th {
+                border: none !important;
+                border-bottom: 1px solid var(--op-border-subtle) !important;
+                padding: 12px 14px !important;
+                font-size: 13px !important;
+                line-height: 1.65 !important;
+                vertical-align: top !important;
+                background: transparent !important;
+            }
+            .op-detail-content-wrapper table.table-bordered b {
+                color: var(--op-text-secondary);
+                font-weight: 600;
+                font-size: 11px;
+                letter-spacing: 0.3px;
+            }
+            .op-icon-label {
+                font-size: 12px;
+                font-weight: 600;
+                margin-left: 5px;
+                vertical-align: middle;
+                color: var(--op-text-secondary);
+            }
 
             /* Keyboard navigation hint */
             .op-kbd-hint {
@@ -2093,6 +2122,28 @@
 
                 // Move real node into detail wrapper
                 detailPanel.querySelector('.op-detail-content-wrapper').appendChild(realNode);
+
+                // G-c FIX G3: etiquetar los iconos de control legacy (historial/adjuntos/compartir)
+                // de forma ADITIVA — se agrega un <span> junto al icono sin tocar el innerHTML del
+                // <a> (eso mataria los handlers legacy emitidos por Tag_memoria).
+                (function () {
+                    var lblMap = [
+                        { sel: '.fa-history', txt: 'Historial' },
+                        { sel: '.fa-paperclip', txt: 'Adjuntos' },
+                        { sel: '.fa-envelope', txt: 'Compartir' }
+                    ];
+                    for (var mi = 0; mi < lblMap.length; mi++) {
+                        var icons = realNode.querySelectorAll(lblMap[mi].sel);
+                        for (var i = 0; i < icons.length; i++) {
+                            var ctrl = icons[i].closest('a, button');
+                            if (!ctrl || ctrl.querySelector('.op-icon-label')) continue;
+                            var span = document.createElement('span');
+                            span.className = 'op-icon-label';
+                            span.textContent = lblMap[mi].txt;
+                            ctrl.appendChild(span);
+                        }
+                    }
+                })();
 
                 // Detect OnlyOffice file link
                 var fileLink = realNode.querySelector('a[href*="/api/files/"]');
