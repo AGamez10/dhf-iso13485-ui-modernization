@@ -866,22 +866,146 @@
             }
 
             /* Responsive — disable split on narrow viewports */
-            @media (max-width: 900px) {
-                .op-split-workspace {
-                    flex-direction: column !important;
-                }
-                .op-master-panel {
-                    width: 100% !important;
-                    max-width: none !important;
-                    position: relative !important;
-                    top: auto !important;
-                    max-height: 300px !important;
-                }
-                .op-detail-panel {
-                    position: relative !important;
-                    top: auto !important;
-                    max-height: none !important;
-                }
+            /* ═══════════════════════════════════════════════════════════════
+               SPRINT 9: CROSS-SECTION SPLIT VIEW, FULL DOCUMENT & BATCH WIZARD
+               ═══════════════════════════════════════════════════════════════ */
+            /* Full document 0-click continuous view mode */
+            .op-fullview-mode #myTab {
+                margin-bottom: 20px !important;
+            }
+            .op-fullview-mode .tab-pane {
+                display: block !important;
+                opacity: 1 !important;
+                margin-bottom: 24px !important;
+            }
+            .op-section-divider {
+                background: linear-gradient(90deg, #f1f5f9, #ffffff);
+                border-left: 4px solid var(--op-border-active);
+                padding: 10px 16px;
+                border-radius: var(--op-radius-md);
+                margin: 24px 0 16px 0;
+                font-weight: 700;
+                color: #0369a1;
+                font-size: 14px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            }
+
+            /* Hierarchical Tree Navigation in Master Panel */
+            .op-tree-section {
+                margin-bottom: 8px;
+                border: 1px solid var(--op-border-subtle);
+                border-radius: var(--op-radius-md);
+                overflow: hidden;
+                background: #ffffff;
+            }
+            .op-tree-section-header {
+                background: #f8fafc;
+                padding: 8px 12px;
+                font-size: 12px;
+                font-weight: 700;
+                color: #1e293b;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                user-select: none;
+                transition: background 0.15s ease;
+            }
+            .op-tree-section-header:hover {
+                background: #e2e8f0;
+            }
+            .op-tree-section-body {
+                padding: 4px;
+                display: block;
+            }
+            .op-tree-section.collapsed .op-tree-section-body {
+                display: none;
+            }
+            .op-tree-section.collapsed .op-tree-icon {
+                transform: rotate(-90deg);
+            }
+            .op-tree-icon {
+                transition: transform 0.2s ease;
+                font-size: 10px;
+                color: #64748b;
+            }
+
+            /* Detail Breadcrumb & Navigation */
+            .op-detail-breadcrumb {
+                font-size: 12px;
+                color: var(--op-text-secondary);
+                background: #f8fafc;
+                padding: 6px 12px;
+                border-radius: var(--op-radius-sm);
+                border: 1px solid var(--op-border-subtle);
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                margin-bottom: 12px;
+            }
+            .op-detail-nav-footer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 24px;
+                padding-top: 16px;
+                border-top: 1px solid var(--op-border-subtle);
+            }
+
+            /* Multi-Stage Batch Wizard */
+            .op-wizard-stepper {
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                margin-bottom: 20px;
+                position: relative;
+            }
+            .op-wizard-stepper::before {
+                content: '';
+                position: absolute;
+                top: 18px;
+                left: 15%;
+                right: 15%;
+                height: 2px;
+                background: #cbd5e1;
+                z-index: 1;
+            }
+            .op-wizard-step-node {
+                position: relative;
+                z-index: 2;
+                background: #ffffff;
+                border: 2px solid #94a3b8;
+                border-radius: 50%;
+                width: 36px;
+                height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 13px;
+                color: #475569;
+                transition: all 0.2s ease;
+            }
+            .op-wizard-step-node.active {
+                border-color: #0284c7;
+                background: #e0f2fe;
+                color: #0369a1;
+                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+            }
+            .op-wizard-step-node.completed {
+                border-color: #16a34a;
+                background: #dcfce7;
+                color: #15803d;
+            }
+            .op-wizard-stage-card {
+                background: #ffffff;
+                border: 1px solid var(--op-border-subtle);
+                border-radius: var(--op-radius-md);
+                padding: 14px;
+                margin-bottom: 14px;
             }
         </style>
     </head>
@@ -1463,12 +1587,12 @@
                 }
             }
 
-            // --- SPRINT 8: MODERN IDE / NOTION STYLE NAVIGATION & SPLIT VIEW ENGINE ---
+            // --- SPRINT 9: ADVANCED CROSS-SECTION SPLIT VIEW, CONTINUOUS DOC & MULTI-STAGE WIZARD ---
             var _opPlaceholders = [];
             var _opActiveActivityIndex = null;
+            var _opActivitiesList = [];
 
             function opInitSplitScreen() {
-                // Ejecutar en vistas de Memorias DHF, Entradas DHF o Pruebas DHF
                 var isDHFPage = (
                     window.location.search.indexOf('opc=7') !== -1 ||
                     window.location.search.indexOf('opc=14') !== -1 ||
@@ -1486,7 +1610,7 @@
                 var cardBody = formulario.querySelector('.card-body') || formulario;
                 if (!cardBody) return;
 
-                // Si ya existe el workspace, no duplicarlo pero refrescarlo
+                // Cleanup existing workspace if present
                 var existingWorkspace = document.getElementById('op-split-workspace');
                 if (existingWorkspace) {
                     existingWorkspace.remove();
@@ -1495,21 +1619,94 @@
                     _opActiveActivityIndex = null;
                 }
 
-                // Recopilar tablas de actividades reales
+                // Detect sections and gather activities grouped by section
                 var activityElements = [];
-                var allTables = cardBody.querySelectorAll('table.table-bordered');
-                for (var i = 0; i < allTables.length; i++) {
-                    var elem = allTables[i];
-                    if (elem.closest('.card-header') || elem.id === 'op-view-toolbar' || elem.querySelector('img')) continue;
-                    var textContent = (elem.textContent || elem.innerText || '').trim();
-                    if (textContent.indexOf('AUTOR:') !== -1 || textContent.indexOf('ACTIVIDAD') !== -1 || textContent.indexOf('ESTADO:') !== -1 || textContent.indexOf('RESPUESTAS') !== -1) {
-                        activityElements.push(elem);
+                var sections = []; // [{ id, title, activities: [{ element, title, globalIndex }] }]
+                
+                var tabPanes = cardBody.querySelectorAll('.tab-pane');
+                
+                if (tabPanes.length > 0) {
+                    for (var t = 0; t < tabPanes.length; t++) {
+                        var pane = tabPanes[t];
+                        var paneId = pane.id || ('section_' + t);
+                        var tabLink = document.querySelector('a[href="#' + paneId + '"]') || document.querySelector('a[data-target="#' + paneId + '"]');
+                        var sectionTitle = tabLink ? (tabLink.textContent || tabLink.innerText || '').trim() : ('Etapa ISO ' + (t + 1));
+                        
+                        var paneTables = pane.querySelectorAll('table.table-bordered');
+                        var secActivities = [];
+                        
+                        for (var i = 0; i < paneTables.length; i++) {
+                            var elem = paneTables[i];
+                            if (elem.closest('.card-header') || elem.id === 'op-view-toolbar' || elem.querySelector('img')) continue;
+                            var textContent = (elem.textContent || elem.innerText || '').trim();
+                            if (textContent.indexOf('AUTOR:') !== -1 || textContent.indexOf('ACTIVIDAD') !== -1 || textContent.indexOf('ESTADO:') !== -1 || textContent.indexOf('RESPUESTAS') !== -1) {
+                                var globalIndex = activityElements.length;
+                                activityElements.push(elem);
+                                
+                                var actTitle = 'Actividad DHF ' + (secActivities.length + 1);
+                                var titleMatch = textContent.match(/(Actividad\s*\d+[^:\|]*|7\.3\.\d[^\n\r\|]*|[A-Z]\s*-\s*[^:\|]*)/i);
+                                if (titleMatch && titleMatch[0]) {
+                                    actTitle = titleMatch[0].substring(0, 60);
+                                } else {
+                                    var firstRow = elem.querySelector('tr');
+                                    if (firstRow) actTitle = (firstRow.textContent || '').trim().substring(0, 60);
+                                }
+                                
+                                secActivities.push({
+                                    element: elem,
+                                    title: actTitle,
+                                    globalIndex: globalIndex,
+                                    sectionTitle: sectionTitle
+                                });
+                            }
+                        }
+                        
+                        if (secActivities.length > 0) {
+                            sections.push({
+                                id: paneId,
+                                title: sectionTitle,
+                                activities: secActivities
+                            });
+                        }
+                    }
+                }
+                
+                // Fallback if no tab panes found or empty tab panes
+                if (sections.length === 0) {
+                    var allTables = cardBody.querySelectorAll('table.table-bordered');
+                    var flatActivities = [];
+                    for (var i = 0; i < allTables.length; i++) {
+                        var elem = allTables[i];
+                        if (elem.closest('.card-header') || elem.id === 'op-view-toolbar' || elem.querySelector('img')) continue;
+                        var textContent = (elem.textContent || elem.innerText || '').trim();
+                        if (textContent.indexOf('AUTOR:') !== -1 || textContent.indexOf('ACTIVIDAD') !== -1 || textContent.indexOf('ESTADO:') !== -1 || textContent.indexOf('RESPUESTAS') !== -1) {
+                            var globalIndex = activityElements.length;
+                            activityElements.push(elem);
+                            
+                            var actTitle = 'Actividad DHF ' + (flatActivities.length + 1);
+                            var firstRow = elem.querySelector('tr');
+                            if (firstRow) actTitle = (firstRow.textContent || '').trim().substring(0, 60);
+                            
+                            flatActivities.push({
+                                element: elem,
+                                title: actTitle,
+                                globalIndex: globalIndex,
+                                sectionTitle: 'Memoria DHF'
+                            });
+                        }
+                    }
+                    if (flatActivities.length > 0) {
+                        sections.push({
+                            id: 'section_main',
+                            title: 'Memoria DHF',
+                            activities: flatActivities
+                        });
                     }
                 }
 
                 if (activityElements.length === 0) return;
 
-                // Crear marcadores de posición (placeholders) para poder mover los nodos de vuelta
+                // Create placeholders for DOM movement
                 for (var j = 0; j < activityElements.length; j++) {
                     var el = activityElements[j];
                     var placeholder = document.createElement('div');
@@ -1519,30 +1716,15 @@
                     _opPlaceholders.push(placeholder);
                 }
 
-                // Extraer metadata para el listado del navegador lateral (Master Sidebar)
-                var activities = [];
-                for (var j = 0; j < activityElements.length; j++) {
-                    var el = activityElements[j];
-                    var title = 'Actividad DHF ' + (j + 1);
-                    var rawText = (el.textContent || el.innerText || '').replace(/\s+/g, ' ').trim();
-
-                    // Buscar títulos de la actividad o el numeral
-                    var titleMatch = rawText.match(/(Actividad\s*\d+[^:\|]*|7\.3\.\d[^\n\r\|]*|[A-Z]\s*-\s*[^:\|]*)/i);
-                    if (titleMatch && titleMatch[0]) {
-                        title = titleMatch[0].substring(0, 60);
-                    } else {
-                        var firstRow = el.querySelector('tr');
-                        if (firstRow) title = (firstRow.textContent || '').trim().substring(0, 60);
-                    }
-
-                    activities.push({
-                        element: el,
-                        title: title,
-                        index: j
+                // Build flat metadata array for lookup
+                _opActivitiesList = [];
+                sections.forEach(function(sec) {
+                    sec.activities.forEach(function(act) {
+                        _opActivitiesList[act.globalIndex] = act;
                     });
-                }
+                });
 
-                // Crear la barra de modos de vista Enterprise si no existe
+                // Insert enterprise view mode toolbar
                 var targetContainer = cardBody.querySelector('.contenedor') || cardBody.querySelector('.row') || cardBody.firstElementChild || cardBody;
                 var existingToolbar = document.getElementById('op-view-toolbar');
                 if (existingToolbar) existingToolbar.remove();
@@ -1566,35 +1748,53 @@
                     targetContainer.parentNode.insertBefore(toolbar, targetContainer);
                 }
 
-                // Crear el workspace split-screen estilo IDE / Notion
+                // Create workspace split-screen container
                 var workspace = document.createElement('div');
                 workspace.className = 'op-split-workspace';
                 workspace.id = 'op-split-workspace';
                 workspace.style.cssText = 'display:none; gap:20px; width:100%; min-height:650px; align-items:flex-start;';
 
-                // Master Panel (Navegador Lateral)
+                // Master Panel (Hierarchical Tree Sidebar)
                 var masterPanel = document.createElement('div');
                 masterPanel.className = 'op-master-panel';
                 masterPanel.id = 'op-master-panel';
-                masterPanel.style.cssText = 'width:320px; min-width:320px; background:#f8fafc; border:1px solid var(--op-border-strong); border-radius:10px; padding:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04); height:auto; max-height:80vh; overflow-y:auto; position:sticky; top:20px;';
+                masterPanel.style.cssText = 'width:340px; min-width:300px; background:#f8fafc; border:1px solid var(--op-border-strong); border-radius:10px; padding:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04); height:auto; max-height:82vh; overflow-y:auto; position:sticky; top:20px;';
 
                 var masterHeader = document.createElement('div');
                 masterHeader.className = 'op-master-header mb-3 pb-2 border-bottom';
-                masterHeader.innerHTML = '<h6 class="m-0 font-weight-bold text-primary" style="font-size:13px;"><i class="fas fa-project-diagram mr-1"></i> Índice DHF ISO 13485 (' + activities.length + ')</h6>';
+                masterHeader.innerHTML = '<h6 class="m-0 font-weight-bold text-primary" style="font-size:13px;"><i class="fas fa-project-diagram mr-1"></i> Índice DHF ISO 13485 (' + activityElements.length + ' act.)</h6>';
                 masterPanel.appendChild(masterHeader);
 
-                // Tarjetas del índice
-                for (var k = 0; k < activities.length; k++) {
-                    var act = activities[k];
-                    var card = document.createElement('div');
-                    card.className = 'op-activity-card p-2 mb-2';
-                    card.setAttribute('data-activity-index', k);
-                    card.style.cssText = 'background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; color:#334155; transition:all 0.2s;';
-                    card.innerHTML = '<i class="fas fa-file-contract text-info mr-2"></i>' + act.title;
-                    masterPanel.appendChild(card);
-                }
+                // Render Sections Tree in Master Panel
+                sections.forEach(function(sec) {
+                    var secCard = document.createElement('div');
+                    secCard.className = 'op-tree-section';
+                    secCard.innerHTML = ''
+                        + '<div class="op-tree-section-header" onclick="this.parentNode.classList.toggle(\'collapsed\')">'
+                        + '  <span class="text-truncate" style="max-width:220px;" title="' + sec.title + '"><i class="fas fa-folder-open text-warning mr-1"></i> ' + sec.title + '</span>'
+                        + '  <span class="d-flex align-items-center gap-1">'
+                        + '    <span class="badge badge-light border" style="font-size:10px;">' + sec.activities.length + '</span>'
+                        + '    <i class="fas fa-chevron-down op-tree-icon"></i>'
+                        + '  </span>'
+                        + '</div>';
+                    
+                    var secBody = document.createElement('div');
+                    secBody.className = 'op-tree-section-body';
+                    
+                    sec.activities.forEach(function(act) {
+                        var card = document.createElement('div');
+                        card.className = 'op-activity-card p-2 mb-1';
+                        card.setAttribute('data-activity-index', act.globalIndex);
+                        card.style.cssText = 'background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; color:#334155; transition:all 0.15s;';
+                        card.innerHTML = '<i class="fas fa-file-contract text-info mr-2"></i>' + act.title;
+                        secBody.appendChild(card);
+                    });
+                    
+                    secCard.appendChild(secBody);
+                    masterPanel.appendChild(secCard);
+                });
 
-                // Detail Panel (Lienzo Principal de Lectura y Edición)
+                // Detail Panel
                 var detailPanel = document.createElement('div');
                 detailPanel.className = 'op-detail-panel';
                 detailPanel.id = 'op-detail-panel';
@@ -1620,7 +1820,7 @@
                         if (btnFull) { btnFull.classList.add('active', 'btn-primary'); btnFull.classList.remove('btn-outline-primary'); }
                         if (btnSplit) { btnSplit.classList.remove('active', 'btn-info'); btnSplit.classList.add('btn-outline-info'); }
                         
-                        // Mover de vuelta la actividad activa a su posición original antes de ocultar
+                        // Restore active activity to placeholder before hiding split
                         if (_opActiveActivityIndex !== null) {
                             var node = activityElements[_opActiveActivityIndex];
                             var placeholder = document.getElementById('op-placeholder-' + _opActiveActivityIndex);
@@ -1631,9 +1831,15 @@
                         }
                         
                         workspace.style.display = 'none';
+                        cardBody.classList.add('op-fullview-mode');
 
+                        // Un-hide all tab-panes and activity tables
                         for (var x = 0; x < activityElements.length; x++) {
                             activityElements[x].style.display = '';
+                        }
+                        for (var tp = 0; tp < tabPanes.length; tp++) {
+                            tabPanes[tp].style.display = 'block';
+                            tabPanes[tp].style.opacity = '1';
                         }
                         var allEditors = cardBody.querySelectorAll('.op-fast-editor-block');
                         for (var e = 0; e < allEditors.length; e++) { allEditors[e].style.display = 'block'; }
@@ -1641,7 +1847,9 @@
                         if (btnSplit) { btnSplit.classList.add('active', 'btn-info'); btnSplit.classList.remove('btn-outline-info'); }
                         if (btnFull) { btnFull.classList.remove('active', 'btn-primary'); btnFull.classList.add('btn-outline-primary'); }
                         
-                        // Ocultar todas las actividades de su sitio original
+                        cardBody.classList.remove('op-fullview-mode');
+
+                        // Hide all original activities
                         for (var y = 0; y < activityElements.length; y++) {
                             activityElements[y].style.display = 'none';
                         }
@@ -1652,7 +1860,7 @@
 
                         if (activityElements.length > 0) {
                             var sel = parseInt(sessionStorage.getItem('op_split_selected') || '0', 10);
-                            opShowActivityDetail(sel, activityElements, detailPanel, masterPanel, activities);
+                            opShowActivityDetail(sel, activityElements, detailPanel, masterPanel);
                         }
                     }
                 }
@@ -1668,28 +1876,33 @@
                     var card = e.target.closest('.op-activity-card');
                     if (!card) return;
                     var idx = parseInt(card.getAttribute('data-activity-index'), 10);
-                    opShowActivityDetail(idx, activityElements, detailPanel, masterPanel, activities);
+                    opShowActivityDetail(idx, activityElements, detailPanel, masterPanel);
                 });
             }
 
-            // Renderizar la actividad seleccionada en el Lienzo Principal de Vista Dividida (100% Interactiva)
-            function opShowActivityDetail(index, activityElements, detailPanel, masterPanel, activities) {
+            // Render selected activity in Detail Panel (Cross-Section & Interactive)
+            function opShowActivityDetail(index, activityElements, detailPanel, masterPanel) {
                 if (index < 0 || index >= activityElements.length) return;
 
-                // Actualizar estilo en el menú lateral
+                // Update styles in Master Panel
                 var cards = masterPanel.querySelectorAll('.op-activity-card');
                 for (var i = 0; i < cards.length; i++) {
                     cards[i].style.background = '#ffffff';
                     cards[i].style.borderColor = '#e2e8f0';
                     cards[i].style.color = '#334155';
                 }
-                if (cards[index]) {
-                    cards[index].style.background = '#e0f2fe';
-                    cards[index].style.borderColor = '#0284c7';
-                    cards[index].style.color = '#0369a1';
+                var activeCard = masterPanel.querySelector('.op-activity-card[data-activity-index="' + index + '"]');
+                if (activeCard) {
+                    activeCard.style.background = '#e0f2fe';
+                    activeCard.style.borderColor = '#0284c7';
+                    activeCard.style.color = '#0369a1';
+                    
+                    // Auto expand parent section if collapsed
+                    var parentSec = activeCard.closest('.op-tree-section');
+                    if (parentSec) parentSec.classList.remove('collapsed');
                 }
 
-                // Mover de vuelta la actividad anterior
+                // Restore previous active activity to its placeholder
                 if (_opActiveActivityIndex !== null && _opActiveActivityIndex !== index) {
                     var prevNode = activityElements[_opActiveActivityIndex];
                     var prevPlaceholder = document.getElementById('op-placeholder-' + _opActiveActivityIndex);
@@ -1703,17 +1916,28 @@
                 var realNode = activityElements[index];
                 realNode.style.display = 'block';
 
-                // Asegurar que las respuestas y partes colapsadas estén abiertas y visibles
+                // Uncollapse internal collapses
                 var hiddenEls = realNode.querySelectorAll('.collapse');
                 for (var h = 0; h < hiddenEls.length; h++) {
                     hiddenEls[h].classList.add('show');
                     hiddenEls[h].style.display = 'block';
                 }
 
-                var title = activities && activities[index] ? activities[index].title : ('Sección ' + (index + 1));
+                var meta = _opActivitiesList[index] || {};
+                var title = meta.title || ('Actividad DHF ' + (index + 1));
+                var sectionTitle = meta.sectionTitle || 'Etapa ISO';
 
-                // Limpiar detailPanel y armar cabecera moderna
+                var prevDisabled = index === 0 ? 'disabled' : '';
+                var nextDisabled = index === (activityElements.length - 1) ? 'disabled' : '';
+
+                // Build Detail Panel HTML
                 detailPanel.innerHTML = ''
+                    + '<div class="op-detail-breadcrumb">'
+                    + '  <i class="fas fa-layer-group text-primary"></i>'
+                    + '  <span>' + sectionTitle + '</span>'
+                    + '  <i class="fas fa-chevron-right text-muted mx-1" style="font-size:10px;"></i>'
+                    + '  <span class="font-weight-bold text-dark">' + title + '</span>'
+                    + '</div>'
                     + '<div class="d-flex align-items-center justify-content-between pb-3 mb-4 border-bottom">'
                     + '  <div>'
                     + '    <span class="badge badge-primary px-2 py-1 mb-1">DHF ISO 13485</span>'
@@ -1721,16 +1945,23 @@
                     + '  </div>'
                     + '  <div class="d-flex align-items-center gap-2">'
                     + '    <button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" onclick="opOpenRegisterForActivity(' + index + ')"><i class="fas fa-edit"></i> Registrar Avance</button>'
-                    + '    <span class="text-muted font-weight-bold ml-3" style="font-size:12px;">Sección ' + (index + 1) + ' de ' + activityElements.length + '</span>'
+                    + '    <span class="text-muted font-weight-bold ml-3" style="font-size:12px;">Actividad ' + (index + 1) + ' de ' + activityElements.length + '</span>'
                     + '  </div>'
                     + '</div>'
                     + '<div class="op-detail-content-wrapper mb-4"></div>'
-                    + '<div class="op-onlyoffice-embedded-container" id="op-onlyoffice-embedded-' + index + '" style="margin-top:20px;"></div>';
+                    + '<div class="op-onlyoffice-embedded-container" id="op-onlyoffice-embedded-' + index + '" style="margin-top:20px;"></div>'
+                    + '<div class="op-detail-nav-footer">'
+                    + '  <button type="button" class="btn btn-sm btn-outline-secondary font-weight-bold" ' + prevDisabled + ' onclick="opShowActivityDetail(' + (index - 1) + ', _opActivityElements, document.getElementById(\'op-detail-panel\'), document.getElementById(\'op-master-panel\'))"><i class="fas fa-arrow-left mr-1"></i> Anterior Actividad</button>'
+                    + '  <span class="text-muted font-weight-bold" style="font-size:12px;">' + (index + 1) + ' / ' + activityElements.length + '</span>'
+                    + '  <button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" ' + nextDisabled + ' onclick="opShowActivityDetail(' + (index + 1) + ', _opActivityElements, document.getElementById(\'op-detail-panel\'), document.getElementById(\'op-master-panel\'))">Siguiente Actividad <i class="fas fa-arrow-right ml-1"></i></button>'
+                    + '</div>';
 
-                // Mover el nodo real de la actividad dentro del panel derecho
+                window._opActivityElements = activityElements;
+
+                // Move real node into detail wrapper
                 detailPanel.querySelector('.op-detail-content-wrapper').appendChild(realNode);
 
-                // Detectar si la actividad tiene un archivo OnlyOffice adjunto
+                // Detect OnlyOffice file link
                 var fileLink = realNode.querySelector('a[href*="/api/files/"]');
                 var ooContainer = document.getElementById('op-onlyoffice-embedded-' + index);
                 if (fileLink && ooContainer) {
@@ -1754,7 +1985,6 @@
                         }, 200);
                     }
                 } else if (ooContainer) {
-                    // Si no tiene OnlyOffice, darle la opción de crear uno directo en la actividad sin modales
                     ooContainer.innerHTML = ''
                         + '<div class="alert alert-light border p-3" style="border-radius:10px;">'
                         + '  <div class="font-weight-bold text-muted mb-2" style="font-size:12px;"><i class="fas fa-file-medical text-info mr-1"></i> Esta actividad no cuenta con un archivo OnlyOffice asociado. ¿Deseas iniciar uno?</div>'
@@ -1811,109 +2041,224 @@
                 }, 400);
             };
 
-            // --- WIZARD MODAL DE CARGUE MASIVO Y DILIGENCIAMIENTO RÁPIDO DHF ---
+            // --- MULTI-STAGE WIZARD DE CARGUE MASIVO DHF ---
+            window._opBatchWizardStep = 1;
+            window._opSelectedStages = [];
+
             window.opShowBatchCreationModal = function() {
                 var modal = document.getElementById('op-batch-modal');
-                if (!modal) {
-                    modal = document.createElement('div');
-                    modal.id = 'op-batch-modal';
-                    modal.className = 'modal fade show';
-                    modal.style.cssText = 'display:block !important; background:rgba(0,0,0,0.55); z-index:105000 !important;';
+                if (modal) modal.remove();
 
-                    modal.innerHTML = ''
-                        + '<div class="modal-dialog modal-lg" style="margin-top:60px !important;">'
-                        + '  <div class="modal-content" style="border-radius:12px; border:1px solid var(--op-border-strong); box-shadow:0 15px 50px rgba(0,0,0,0.35);">'
-                        + '    <div class="modal-header" style="background:var(--op-surface-muted); border-bottom:1px solid var(--op-border-subtle);">'
-                        + '      <h5 class="modal-title font-weight-bold text-primary"><i class="fas fa-bolt mr-2 text-warning"></i> Workspace Cargue Masivo DHF</h5>'
-                        + '      <button type="button" class="close" id="op-batch-close-btn" onclick="document.getElementById(\'op-batch-modal\').remove();">&times;</button>'
-                        + '    </div>'
-                        + '    <div class="modal-body" style="padding:20px;">'
-                        + '      <div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Registra múltiples actividades DHF en un solo clic. Los documentos se generarán automáticamente y se insertarán en la base de datos sin flujos manuales.</div>'
-                        + '      <div class="form-group mb-3">'
-                        + '        <label class="font-weight-bold" style="font-size:12px;">Selecciona la Etapa ISO 13485 Objetivo:</label>'
-                        + '        <select class="form-control form-control-sm" id="op-batch-iso-stage">'
-                        + '        </select>'
-                        + '      </div>'
-                        + '      <label class="font-weight-bold mb-2" style="font-size:12px;">Matriz de Actividades a Generar en Lote:</label>'
-                        + '      <table class="table table-sm table-bordered" id="op-batch-table" style="font-size:12px;">'
-                        + '        <thead class="bg-light"><tr><th>#</th><th>Nombre de la Actividad</th><th>Tipo de Documento OnlyOffice</th><th>Acción</th></tr></thead>'
-                        + '        <tbody>'
-                        + '          <tr><td>1</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Matriz de Evaluación de Riesgos" value="Revisión Inicial de Requisitos"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>'
-                        + '          <tr><td>2</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Protocolo de Verificación" value="Protocolo de Verificación Técnica"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx" selected>Hoja de Cálculo Excel (.xlsx)</option></select></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>'
-                        + '        </tbody>'
-                        + '      </table>'
-                        + '      <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="op-batch-add-btn" onclick="window.opAddBatchRow()"><i class="fas fa-plus mr-1"></i> Agregar Otra Actividad al Lote</button>'
-                        + '    </div>'
-                        + '    <div class="modal-footer" style="background:var(--op-surface-muted); border-top:1px solid var(--op-border-subtle); justify-content:space-between;">'
-                        + '      <span id="op-batch-progress" style="font-size:12px; font-weight:bold; color:var(--op-text-muted);"></span>'
-                        + '      <button type="button" class="btn btn-success btn-sm font-weight-bold" onclick="opExecuteBatchSubmit()"><i class="fas fa-bolt mr-1"></i> ⚡ Generar Memoria en Lote</button>'
-                        + '    </div>'
-                        + '  </div>'
-                        + '</div>';
+                modal = document.createElement('div');
+                modal.id = 'op-batch-modal';
+                modal.className = 'modal fade show';
+                modal.style.cssText = 'display:block !important; background:rgba(0,0,0,0.55); z-index:105000 !important;';
 
-                    document.body.appendChild(modal);
+                modal.innerHTML = ''
+                    + '<div class="modal-dialog modal-lg" style="margin-top:40px !important; max-width:900px !important;">'
+                    + '  <div class="modal-content" style="border-radius:12px; border:1px solid var(--op-border-strong); box-shadow:0 15px 50px rgba(0,0,0,0.35);">'
+                    + '    <div class="modal-header" style="background:var(--op-surface-muted); border-bottom:1px solid var(--op-border-subtle);">'
+                    + '      <h5 class="modal-title font-weight-bold text-primary"><i class="fas fa-bolt mr-2 text-warning"></i> Workspace Cargue Masivo DHF (Multi-Etapa)</h5>'
+                    + '      <button type="button" class="close" id="op-batch-close-btn" onclick="document.getElementById(\'op-batch-modal\').remove();">&times;</button>'
+                    + '    </div>'
+                    + '    <div class="modal-body" style="padding:24px;">'
+                    + '      <!-- Stepper Visual -->'
+                    + '      <div class="op-wizard-stepper">'
+                    + '        <div class="text-center">'
+                    + '          <div class="op-wizard-step-node active" id="op-wiz-node-1">1</div>'
+                    + '          <div class="font-weight-bold mt-1" style="font-size:11px;">Etapas ISO</div>'
+                    + '        </div>'
+                    + '        <div class="text-center">'
+                    + '          <div class="op-wizard-step-node" id="op-wiz-node-2">2</div>'
+                    + '          <div class="font-weight-bold mt-1" style="font-size:11px;">Matriz Actividades</div>'
+                    + '        </div>'
+                    + '        <div class="text-center">'
+                    + '          <div class="op-wizard-step-node" id="op-wiz-node-3">3</div>'
+                    + '          <div class="font-weight-bold mt-1" style="font-size:11px;">Ejecución</div>'
+                    + '        </div>'
+                    + '      </div>'
+                    + '      <div id="op-wiz-step-content"></div>'
+                    + '    </div>'
+                    + '    <div class="modal-footer" style="background:var(--op-surface-muted); border-top:1px solid var(--op-border-subtle); justify-content:space-between;">'
+                    + '      <span id="op-batch-progress" style="font-size:12px; font-weight:bold; color:var(--op-text-muted);"></span>'
+                    + '      <div id="op-wiz-footer-btns"></div>'
+                    + '    </div>'
+                    + '  </div>'
+                    + '</div>';
 
-                    // Poblar el select del lote con las opciones del select real
-                    var realSelect = document.querySelector('#Ventana1 select[name="numeral"]') || document.querySelector('select[name="numeral"]');
-                    var batchSelect = document.getElementById('op-batch-iso-stage');
-                    if (realSelect && batchSelect) {
-                        batchSelect.innerHTML = '';
-                        for (var i = 0; i < realSelect.options.length; i++) {
-                            var opt = realSelect.options[i];
-                            if (opt.value && !opt.disabled && opt.value !== '#' && opt.value !== '-') {
-                                var cloneOpt = document.createElement('option');
-                                cloneOpt.value = opt.value;
-                                cloneOpt.text = opt.text;
-                                batchSelect.appendChild(cloneOpt);
-                            }
+                document.body.appendChild(modal);
+                opRenderWizardStep(1);
+            };
+
+            function opRenderWizardStep(step) {
+                window._opBatchWizardStep = step;
+                var container = document.getElementById('op-wiz-step-content');
+                var footerBtns = document.getElementById('op-wiz-footer-btns');
+                if (!container || !footerBtns) return;
+
+                for (var i = 1; i <= 3; i++) {
+                    var n = document.getElementById('op-wiz-node-' + i);
+                    if (n) {
+                        n.classList.remove('active', 'completed');
+                        if (i < step) n.classList.add('completed');
+                        else if (i === step) n.classList.add('active');
+                    }
+                }
+
+                var realSelect = document.querySelector('#Ventana1 select[name="numeral"]') || document.querySelector('select[name="numeral"]');
+                var availableStages = [];
+                if (realSelect) {
+                    for (var s = 0; s < realSelect.options.length; s++) {
+                        var opt = realSelect.options[s];
+                        if (opt.value && !opt.disabled && opt.value !== '#' && opt.value !== '-') {
+                            availableStages.push({ value: opt.value, text: opt.text });
                         }
                     }
                 }
+
+                if (step === 1) {
+                    var html = '<div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Selecciona las Etapas ISO 13485 sobre las que deseas crear un lote de actividades.</div>'
+                        + '<div class="d-flex align-items-center justify-content-between mb-3">'
+                        + '  <label class="font-weight-bold m-0" style="font-size:13px;">Etapas ISO Disponibles en este Proyecto:</label>'
+                        + '  <button type="button" class="btn btn-sm btn-link text-primary font-weight-bold" onclick="opToggleSelectAllStages(true)"><i class="fas fa-check-square mr-1"></i> Seleccionar Todas</button>'
+                        + '</div>'
+                        + '<div class="row" id="op-wiz-stages-list">';
+
+                    availableStages.forEach(function(stg, idx) {
+                        var checked = (window._opSelectedStages.indexOf(stg.value) !== -1 || window._opSelectedStages.length === 0) ? 'checked' : '';
+                        html += '<div class="col-md-6 mb-2">'
+                            + '  <div class="p-2 border rounded bg-white d-flex align-items-center gap-2">'
+                            + '    <input type="checkbox" class="op-wiz-stage-chk" value="' + stg.value + '" data-text="' + stg.text.replace(/"/g, '&quot;') + '" id="chk_stg_' + idx + '" ' + checked + '>'
+                            + '    <label for="chk_stg_' + idx + '" class="m-0 font-weight-bold text-dark" style="font-size:12px; cursor:pointer;">' + stg.text + '</label>'
+                            + '  </div>'
+                            + '</div>';
+                    });
+
+                    html += '</div>';
+                    container.innerHTML = html;
+
+                    footerBtns.innerHTML = '<button type="button" class="btn btn-primary btn-sm font-weight-bold" onclick="opBatchNextToStep2()"><i class="fas fa-arrow-right mr-1"></i> Siguiente: Configurar Actividades</button>';
+                } else if (step === 2) {
+                    var chks = document.querySelectorAll('.op-wiz-stage-chk:checked');
+                    var selected = [];
+                    chks.forEach(function(c) {
+                        selected.push({ value: c.value, text: c.getAttribute('data-text') });
+                    });
+                    if (selected.length === 0) {
+                        alert('Debes seleccionar al menos una etapa ISO.');
+                        opRenderWizardStep(1);
+                        return;
+                    }
+                    window._opSelectedStagesList = selected;
+
+                    var html = '<div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Define las actividades y el tipo de documento OnlyOffice que se generará para cada Etapa ISO seleccionada.</div>'
+                        + '<div style="max-height: 50vh; overflow-y: auto; padding-right: 4px;">';
+
+                    selected.forEach(function(stg) {
+                        html += '<div class="op-wizard-stage-card">'
+                            + '  <div class="font-weight-bold text-primary mb-2" style="font-size:13px;"><i class="fas fa-folder text-warning mr-1"></i> ' + stg.text + '</div>'
+                            + '  <table class="table table-sm table-bordered op-wiz-stage-table" data-stage="' + stg.value + '" style="font-size:12px;">'
+                            + '    <thead class="bg-light"><tr><th>#</th><th>Nombre de la Actividad</th><th>Tipo de Documento OnlyOffice</th><th>Observación</th><th>Acción</th></tr></thead>'
+                            + '    <tbody>'
+                            + '      <tr>'
+                            + '        <td>1</td>'
+                            + '        <td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Matriz de Requisitos" value="Documento Técnico de ' + stg.text.substring(0, 25) + '"></td>'
+                            + '        <td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td>'
+                            + '        <td><textarea class="form-control form-control-sm op-batch-desc" rows="1" placeholder="Observación (opcional)" style="resize:vertical; min-height:31px;"></textarea></td>'
+                            + '        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td>'
+                            + '      </tr>'
+                            + '    </tbody>'
+                            + '  </table>'
+                            + '  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="opAddRowToStageTable(this)"><i class="fas fa-plus mr-1"></i> Agregar Actividad a esta Etapa</button>'
+                            + '</div>';
+                    });
+
+                    html += '</div>';
+                    container.innerHTML = html;
+
+                    footerBtns.innerHTML = ''
+                        + '<button type="button" class="btn btn-outline-secondary btn-sm font-weight-bold mr-2" onclick="opRenderWizardStep(1)"><i class="fas fa-arrow-left mr-1"></i> Volver a Etapas</button>'
+                        + '<button type="button" class="btn btn-success btn-sm font-weight-bold" onclick="opExecuteBatchSubmit()"><i class="fas fa-bolt mr-1"></i> ⚡ Generar Memoria Completa en Lote</button>';
+                }
             }
 
-            window.opAddBatchRow = function() {
-                var tbody = document.querySelector('#op-batch-table tbody');
-                if (!tbody) return;
+            window.opToggleSelectAllStages = function(select) {
+                var chks = document.querySelectorAll('.op-wiz-stage-chk');
+                chks.forEach(function(c) { c.checked = select; });
+            };
+
+            window.opBatchNextToStep2 = function() {
+                var chks = document.querySelectorAll('.op-wiz-stage-chk:checked');
+                if (chks.length === 0) {
+                    alert('Por favor selecciona al menos una etapa ISO.');
+                    return;
+                }
+                opRenderWizardStep(2);
+            };
+
+            window.opAddRowToStageTable = function(btn) {
+                var table = btn.parentNode.querySelector('.op-wiz-stage-table');
+                if (!table) return;
+                var tbody = table.querySelector('tbody');
                 var count = tbody.querySelectorAll('tr').length + 1;
                 var tr = document.createElement('tr');
-                tr.innerHTML = '<td>' + count + '</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de la actividad ' + count + '"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td></tr>';
+                tr.innerHTML = '<td>' + count + '</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de actividad ' + count + '"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td><td><textarea class="form-control form-control-sm op-batch-desc" rows="1" placeholder="Observación (opcional)" style="resize:vertical; min-height:31px;"></textarea></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td>';
                 tbody.appendChild(tr);
             };
 
             window.opExecuteBatchSubmit = function() {
-                var btnSubmit = document.querySelector('#op-batch-modal .btn-success');
-                if (btnSubmit.disabled) return;
+                var btnSubmit = document.querySelector('#op-wiz-footer-btns .btn-success');
+                if (btnSubmit && btnSubmit.disabled) return;
 
-                var titles = [];
-                var docs = [];
-                var titleInputs = document.querySelectorAll('.op-batch-title');
-                var docSelects = document.querySelectorAll('.op-batch-doc');
-                
-                for (var i = 0; i < titleInputs.length; i++) {
-                    var titleVal = titleInputs[i].value.trim();
-                    if (titleVal) {
-                        titles.push(titleVal);
-                        docs.push(docSelects[i].value);
-                    }
-                }
+                var itemsToCreate = []; // [{ stage, title, docType }]
+                var stageTables = document.querySelectorAll('.op-wiz-stage-table');
 
-                if (titles.length === 0) {
-                    alert('Por favor ingresa al menos un nombre de actividad.');
+                stageTables.forEach(function(tbl) {
+                    var stgVal = tbl.getAttribute('data-stage');
+                    var rows = tbl.querySelectorAll('tbody tr');
+                    rows.forEach(function(r) {
+                        var titleInput = r.querySelector('.op-batch-title');
+                        var docSelect = r.querySelector('.op-batch-doc');
+                        var descInput = r.querySelector('.op-batch-desc');
+                        if (titleInput && titleInput.value.trim()) {
+                            itemsToCreate.push({
+                                stage: stgVal,
+                                title: titleInput.value.trim(),
+                                docType: docSelect ? docSelect.value : 'docx',
+                                desc: descInput ? descInput.value.trim() : ''
+                            });
+                        }
+                    });
+                });
+
+                if (itemsToCreate.length === 0) {
+                    alert('Por favor ingresa al menos una actividad válida para generar.');
                     return;
                 }
 
-                var stageSelect = document.getElementById('op-batch-iso-stage');
-                var selectedStage = stageSelect ? stageSelect.value : '';
-                if (!selectedStage) {
-                    alert('Por favor selecciona una etapa ISO objetivo.');
-                    return;
-                }
+                opRenderWizardStep(3);
 
-                // Deshabilitar UI e iniciar spinner
-                btnSubmit.disabled = true;
-                btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Creando lote...';
-                var progressLabel = document.getElementById('op-batch-progress');
-                
+                var container = document.getElementById('op-wiz-step-content');
+                var pBar = null;
+                var logDiv = null;
+                var footerBtns = document.getElementById('op-wiz-footer-btns');
+
+                container.innerHTML = ''
+                    + '<div class="text-center p-4">'
+                    + '  <i class="fas fa-cog fa-spin fa-3x text-primary mb-3"></i>'
+                    + '  <h6 class="font-weight-bold text-dark">Generando Lote Multi-Etapa DHF...</h6>'
+                    + '  <p class="text-muted" style="font-size:12px;">Se están creando ' + itemsToCreate.length + ' actividades con sus respectivos documentos en el repositorio.</p>'
+                    + '  <div class="progress mb-3" style="height: 18px; border-radius:10px;">'
+                    + '    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" id="op-wiz-progress-bar" style="width: 0%;">0%</div>'
+                    + '  </div>'
+                    + '  <div id="op-wiz-status-log" class="text-left bg-light p-3 border rounded" style="font-size:11px; max-height:180px; overflow-y:auto; font-family:monospace;"></div>'
+                    + '</div>';
+
+                footerBtns.innerHTML = '<button type="button" class="btn btn-secondary btn-sm font-weight-bold" disabled>Procesando...</button>';
+
+                pBar = document.getElementById('op-wiz-progress-bar');
+                logDiv = document.getElementById('op-wiz-status-log');
+
                 var ipyInput = document.querySelector('input[name="ipy"]');
                 var idUsuarioInput = document.querySelector('input[name="id_usuario"]');
                 var estadoInput = document.querySelector('input[name="estado"]');
@@ -1922,10 +2267,10 @@
                 var idUsuario = idUsuarioInput ? idUsuarioInput.value : '';
                 var estadoM = estadoInput ? estadoInput.value : '1';
                 var todayYMD = new Date().toISOString().substring(0, 10);
-                
+
                 var OO_API_KEY = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0';
                 var OO_SERVER = 'http://localhost:8080';
-                
+
                 var s = document.querySelector('script[data-token]');
                 var token = s ? s.getAttribute('data-token') || '' : '';
                 var headers = { 'Content-Type': 'application/json' };
@@ -1933,56 +2278,66 @@
                 else headers['X-Api-Key'] = OO_API_KEY;
 
                 var index = 0;
-                
+
+                function appendLog(msg, isError) {
+                    if (!logDiv) return;
+                    var div = document.createElement('div');
+                    div.style.color = isError ? '#dc2626' : '#16a34a';
+                    div.innerHTML = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+                    logDiv.appendChild(div);
+                    logDiv.scrollTop = logDiv.scrollHeight;
+                }
+
                 function createNext() {
-                    if (index >= titles.length) {
-                        progressLabel.innerHTML = '<i class="fas fa-check-circle text-success"></i> ¡Lote completado!';
+                    if (index >= itemsToCreate.length) {
+                        if (pBar) {
+                            pBar.style.width = '100%';
+                            pBar.textContent = '100%';
+                        }
+                        appendLog('✔ ¡Lote multi-etapa completado exitosamente!');
+
                         if (typeof iziToast !== 'undefined') {
                             iziToast.success({
                                 title: 'Éxito',
-                                message: 'Lote de ' + titles.length + ' actividades creado correctamente.'
+                                message: 'Se crearon ' + itemsToCreate.length + ' actividades correctamente.'
                             });
-                        } else {
-                            alert('Lote creado correctamente.');
                         }
-                        setTimeout(function() {
-                            window.location.reload();
-                        }, 1000);
+                        footerBtns.innerHTML = '<button type="button" class="btn btn-success btn-sm font-weight-bold" onclick="window.location.reload()"><i class="fas fa-sync-alt mr-1"></i> Finalizar y Recargar Pagina</button>';
                         return;
                     }
-                    
-                    var actTitle = titles[index];
-                    var actDocType = docs[index];
-                    
-                    progressLabel.innerHTML = 'Creando actividad ' + (index + 1) + ' de ' + titles.length + '...';
 
-                    var ooTypeMap = {
-                        docx: 'document',
-                        xlsx: 'spreadsheet',
-                        pptx: 'presentation'
-                    };
-                    var type = ooTypeMap[actDocType] || 'document';
+                    var item = itemsToCreate[index];
+                    var pct = Math.round(((index + 1) / itemsToCreate.length) * 100);
+                    if (pBar) {
+                        pBar.style.width = pct + '%';
+                        pBar.textContent = pct + '% (' + (index + 1) + '/' + itemsToCreate.length + ')';
+                    }
+
+                    appendLog('Creando (' + (index + 1) + '/' + itemsToCreate.length + '): "' + item.title + '" en etapa ' + item.stage + '...');
+
+                    var ooTypeMap = { docx: 'document', xlsx: 'spreadsheet', pptx: 'presentation' };
+                    var type = ooTypeMap[item.docType] || 'document';
                     var newFileUrl = OO_SERVER + '/api/files/new';
                     if (type === 'spreadsheet') newFileUrl += '/spreadsheet';
                     if (type === 'presentation') newFileUrl += '/presentation';
-                    
+
                     fetch(newFileUrl, { method: 'POST', headers: headers })
                         .then(function(r) { return r.json(); })
                         .then(function(resp) {
                             if (!resp || !resp.data) throw new Error('Respuesta de OnlyOffice inválida');
                             var fileId = resp.data.fileId || resp.data.id;
-                            var fileName = resp.data.originalFileName || (actTitle + '.' + actDocType);
-                            
-                            // Guardar en la base de datos
+                            var fileName = resp.data.originalFileName || (item.title + '.' + item.docType);
+
                             var formData = new URLSearchParams();
                             formData.append('estado', estadoM);
                             formData.append('ipy', idProyecto);
                             formData.append('id_usuario', idUsuario);
                             formData.append('fecha_reg', todayYMD);
-                            formData.append('numeral', selectedStage);
+                            formData.append('numeral', item.stage);
                             formData.append('personas', '[' + idUsuario + ']');
-                            formData.append('observacion', 'oo:' + fileId + ':' + fileName);
-                            
+                            var ooRef = 'oo:' + fileId + ':' + fileName;
+                            formData.append('observacion', item.desc ? (item.desc + '\n' + ooRef) : ooRef);
+
                             return fetch('Proyecto?opc=9', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1990,17 +2345,17 @@
                             });
                         })
                         .then(function() {
+                            appendLog('✔ Creado: "' + item.title + '"');
                             index++;
                             createNext();
                         })
                         .catch(function(err) {
-                            console.error('Error in batch creation:', err);
-                            alert('Error al crear la actividad "' + actTitle + '": ' + err.message);
-                            btnSubmit.disabled = false;
-                            btnSubmit.innerHTML = '<i class="fas fa-bolt mr-1"></i> Generar Memoria en Lote';
+                            appendLog('✖ Error en "' + item.title + '": ' + err.message, true);
+                            index++;
+                            createNext();
                         });
                 }
-                
+
                 createNext();
             };
 
