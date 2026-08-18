@@ -260,3 +260,25 @@ hacerlo enmascararía el defecto y daría falsa confianza en un sistema regulado
 - **Impacto:** integridad del audit trail bajo ISO 13485 / 21 CFR Part 11. Un
   duplicado no se puede borrar.
 - **Estado:** ESCALADO al dueño del backend. Fuera de alcance de la capa `.op-*`.
+
+### 8.2 SweetAlert 404 — rutas de recurso mal escritas en Inicio.jsp / Support.jsp
+
+- **Qué:** referencias a SweetAlert con ruta incorrecta (falta el segmento
+  `Contenido/assets/`), que devuelven **404** y dejan `swal` sin cargar en esas
+  vistas.
+- **Ruta usada (incorrecta):** `Interfaz/Alertas/dist/sweetalert.min.js` y `.css`
+- **Ruta real del recurso:** `Interfaz/Contenido/assets/Alertas/dist/sweetalert.min.js` (y `.css`)
+- **Dónde:**
+  - `web/Inicio.jsp` — líneas **31** (js) y **32** (css)
+  - `web/Support.jsp` — líneas **28** (js), **29** (css), **151** (js), **153** (css); además la **41** comentada con el mismo error
+- **Contraste correcto:** `web/Contenedor_head.jsp:9` y `:472` ya usan la ruta
+  buena; `Support.jsp:152` también apunta bien a `modules-sweetalert.js`. La app
+  conoce la base correcta; solo las refs del dist en esas dos vistas están mal.
+- **Impacto:** en `Inicio` y `Support`, cualquier `swal(...)` falla en silencio
+  (404 del recurso). NO afecta Memorias (usa `Contenedor_head` con ruta correcta).
+- **Naturaleza:** NO es backend — es un typo de ruta en JSP. Pero está **fuera del
+  alcance de la regla §4.2.1** (único punto de intervención = `Contenedor_head.jsp`).
+- **Fix recomendado:** corregir el prefijo a `Interfaz/Contenido/assets/Alertas/dist/`
+  en las 6 líneas activas de `Inicio.jsp` y `Support.jsp`.
+- **Estado:** ESCALADO. Requiere autorización explícita para editar `Inicio.jsp` y
+  `Support.jsp` (archivos distintos a `Contenedor_head.jsp`).
