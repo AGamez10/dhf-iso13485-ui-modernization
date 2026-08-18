@@ -845,6 +845,21 @@
                 display: flex !important;
             }
 
+            /* MUTUALIDAD ESTRICTA: el índice/workspace de Vista Dividida SOLO es visible
+               con la clase op-split-mode en el body. En Documento Continuo (o cualquier
+               estado sin op-split-mode) queda oculto por completo. El selector con id da
+               mayor especificidad que la regla base .op-split-workspace. */
+            body:not(.op-split-mode) #op-split-workspace {
+                display: none !important;
+            }
+
+            /* En Vista Dividida, ocultar TODO el contenedor de secciones/tabs legacy
+               (#myTab2Content) para que no se filtre detrás del índice. La actividad
+               seleccionada se mueve al panel de detalle, no se pierde. */
+            body.op-split-mode #myTab2Content {
+                display: none !important;
+            }
+
             /* Keyboard navigation hint */
             .op-kbd-hint {
                 font-size: 10px !important;
@@ -1749,9 +1764,10 @@
                     + '  <button type="button" class="btn btn-success btn-sm font-weight-bold px-3" id="op-btn-save-all" onclick="alert(\'Memoria guardada correctamente.\');"><i class="fas fa-save mr-1"></i> 💾 Guardar Memoria (1 Clic)</button>'
                     + '</div>';
 
-                if (targetContainer.parentNode) {
-                    targetContainer.parentNode.insertBefore(toolbar, targetContainer);
-                }
+                // SPRINT 9 FIX: el toolbar va como hijo DIRECTO de #Formulario. Si queda
+                // dentro del .row/.card-body legacy, la regla body.op-split-mode #Formulario
+                // > *:not(#op-view-toolbar) oculta ese .row y se lleva el toolbar con él.
+                formulario.insertBefore(toolbar, formulario.firstChild);
 
                 // Create workspace split-screen container
                 var workspace = document.createElement('div');
@@ -1810,7 +1826,10 @@
                 workspace.appendChild(detailPanel);
 
                 var firstElem = activityElements[0];
-                cardBody.appendChild(workspace);
+                // SPRINT 9 FIX: el workspace va como hijo DIRECTO de #Formulario (no dentro
+                // del .card-body, que está anidado en el .row que se oculta en split). Así el
+                // :not(#op-split-workspace) lo protege y su ancestro no colapsa a 0x0.
+                formulario.appendChild(workspace);
 
                 var currentMode = sessionStorage.getItem('op_view_mode') || 'full';
 
