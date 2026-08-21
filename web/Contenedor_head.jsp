@@ -605,35 +605,18 @@
                 scrollbar-color: var(--op-border-subtle) transparent !important;
             }
 
-            /* ═══ P3: aprovechamiento 100% del ancho util en modos Gestion/Previsualizador ═══ */
+            /* ═══ P3 (layout profesional por modo): NO estirar el contenido al monitor.
+               Previsualizador = hoja ejecutiva centrada (1100px). Modo Gestion = paneles
+               equilibrados (master 340px fijo + detail con ancho de lectura acotado). ═══ */
+
+            /* El area disponible: quitar padding lateral muerto y liberar la columna wrapper
+               (col Bootstrap sin clase) que constrenia todo a ~1096px. Esto da el LIENZO;
+               cada vista decide cuanto de ese lienzo usa. */
             body.op-split-mode .main-content,
             body.op-fullview-mode .main-content {
                 padding-left: 16px !important;
                 padding-right: 16px !important;
             }
-            body.op-split-mode #Formulario,
-            body.op-fullview-mode #Formulario,
-            body.op-split-mode .card,
-            body.op-fullview-mode .card,
-            body.op-split-mode .card-body,
-            body.op-fullview-mode .card-body,
-            body.op-split-mode .section-body,
-            body.op-fullview-mode .section-body {
-                width: 100% !important;
-                max-width: 100% !important;
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-            }
-            body.op-split-mode .op-master-panel {
-                width: clamp(300px, 22vw, 440px) !important;
-                max-width: 460px !important;
-            }
-            body.op-fullview-mode .op-continuous-preview-container,
-            body.op-split-mode .op-split-workspace {
-                width: 100% !important;
-                max-width: 100% !important;
-            }
-            /* La fila y su columna wrapper (col Bootstrap sin clase) constrinen el ancho -> forzar 100% */
             body.op-split-mode #Formulario > .row,
             body.op-fullview-mode #Formulario > .row {
                 width: 100% !important;
@@ -647,10 +630,76 @@
                 max-width: 100% !important;
                 flex: 0 0 100% !important;
             }
-            /* P6: en Previsualizador ocultar el header legacy (.card-header sticky) para no duplicar
-               la cabecera del documento continuo (el preview ya incluye su propia cabecera limpia). */
+            body.op-split-mode .card,
+            body.op-fullview-mode .card,
+            body.op-split-mode .card-body,
+            body.op-fullview-mode .card-body {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            /* --- MODO GESTION (split): workspace equilibrado --- */
+            body.op-split-mode .op-split-workspace {
+                display: flex !important;
+                gap: 20px !important;
+                height: calc(100vh - 170px) !important;
+                min-height: 650px !important;
+                padding: 0 12px 16px !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                align-items: stretch !important;
+            }
+            body.op-split-mode .op-master-panel {
+                flex: 0 0 340px !important;
+                width: 340px !important;
+                min-width: 300px !important;
+                max-width: 360px !important;
+                position: static !important;
+                max-height: none !important;
+                background: #ffffff !important;
+                border: 1px solid #e2e8f0 !important;
+                border-radius: 8px !important;
+                overflow-y: auto !important;
+                padding: 16px 12px !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+            }
+            body.op-split-mode .op-detail-panel {
+                flex: 1 !important;
+                min-width: 0 !important;
+                position: static !important;
+                max-height: none !important;
+                overflow-y: auto !important;
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+                border-radius: 8px !important;
+                padding: 24px 32px !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+            }
+            /* Contenido interior del detail: ancho de lectura/edicion comodo, no un lienzo infinito */
+            body.op-split-mode .op-detail-panel > * {
+                max-width: 1150px !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+            }
+
+            /* --- PREVISUALIZADOR (fullview): hoja ejecutiva centrada, NO estirada --- */
+            body.op-fullview-mode .card-body {
+                background: #f1f5f9 !important;   /* escritorio gris detras de la hoja */
+                padding: 8px 8px 32px !important;
+            }
+            /* P6: ocultar el header legacy (.card-header sticky) para no duplicar la cabecera */
             body.op-fullview-mode .card-header {
                 display: none !important;
+            }
+            body.op-fullview-mode .op-continuous-preview-container {
+                max-width: 1100px !important;
+                width: auto !important;
+                margin: 24px auto !important;
+                background: #ffffff !important;
+                padding: 40px 48px !important;
+                border-radius: 8px !important;
+                box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08) !important;
+                border: 1px solid #e2e8f0 !important;
             }
 
             .op-master-panel::-webkit-scrollbar {
@@ -2874,11 +2923,12 @@
 
                                                     headerClone.setAttribute('border', '1');
                                                     headerClone.className = 'table table-bordered mb-4';
-                                                    headerClone.style.cssText = 'width:100% !important; border-collapse:collapse !important; border:1.5px solid #000000 !important; font-family:Arial,sans-serif !important; background:#ffffff !important; margin-bottom:24px !important;';
+                                                    headerClone.style.cssText = 'width:100% !important; border-collapse:collapse !important; border:1.5px solid #0f172a !important; font-family:Arial,sans-serif !important; background:#ffffff !important; margin-bottom:0 !important;';
 
                                                     var tds = headerClone.querySelectorAll('td, th');
                                                     for (var j = 0; j < tds.length; j++) {
-                                                        tds[j].style.cssText = 'border:1px solid #000000 !important; padding:6px 10px !important; text-align:center !important; font-size:11px !important; color:#000000 !important; background:#ffffff !important;';
+                                                        var _isTh = tds[j].tagName === 'TH';
+                                                        tds[j].style.cssText = 'border:1px solid #0f172a !important; padding:8px 12px !important; text-align:center !important; font-size:12px !important; line-height:1.4 !important; color:#0f172a !important; background:#ffffff !important; font-weight:' + (_isTh ? '700' : '400') + ' !important;';
                                                     }
                                                     headerHtml = headerClone.outerHTML;
 
@@ -2896,9 +2946,9 @@
                                                             });
                                                         });
                                                         if (_opRows) {
-                                                            headerHtml += '<div class="op-preview-distribution" style="border:1.5px solid #000000; border-top:none; padding:8px 12px; font-family:Arial,sans-serif; font-size:11px; color:#000000; background:#ffffff; margin-bottom:24px; page-break-inside:avoid;">'
-                                                                + '<div style="font-weight:bold; text-transform:uppercase; margin-bottom:5px; letter-spacing:0.3px;"><i class="fas fa-users mr-1"></i> Lista de Distribución / Responsables</div>'
-                                                                + '<ul style="margin:0; padding-left:18px; columns:2; -webkit-columns:2; list-style:disc;">' + _opRows + '</ul>'
+                                                            headerHtml += '<div class="op-preview-distribution" style="border:1px solid #e2e8f0; border-radius:8px; padding:14px 18px; font-family:Arial,sans-serif; font-size:12px; color:#1e293b; background:#f8fafc; margin:16px 0 24px; page-break-inside:avoid;">'
+                                                                + '<div style="font-weight:700; text-transform:uppercase; margin-bottom:8px; letter-spacing:0.4px; color:#0f172a; font-size:12px;"><i class="fas fa-users mr-1" style="color:#0284c7;"></i> Lista de Distribución / Responsables</div>'
+                                                                + '<ul style="margin:0; padding-left:18px; columns:2; -webkit-columns:2; column-gap:32px; list-style:disc; line-height:1.7;">' + _opRows + '</ul>'
                                                                 + '</div>';
                                                         }
                                                     }
@@ -2972,21 +3022,21 @@
 
                                                         var hasResponse = response && response.trim() !== '' && response.indexOf('SIN ATENDER') === -1;
 
-                                                        actHtml += '<div class="op-preview-activity-card mb-3 p-3 border rounded" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; page-break-inside:avoid;">'
-                                                            + '  <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom" style="font-size:11.5px; color:#475569; font-weight:600;">'
+                                                        actHtml += '<div class="op-preview-activity-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:18px 24px; margin-bottom:20px; page-break-inside:avoid;">'
+                                                            + '  <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="font-size:12px; color:#475569; font-weight:600;">'
                                                             + '    <span><span class="badge badge-primary mr-2" style="font-size:10px;">ACTIVIDAD ' + (aIdx + 1) + '</span> Autor: <b>' + author + '</b></span>'
                                                             + '    <span>Fecha: <b>' + date + '</b> &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '">' + estado + '</span></span>'
                                                             + '  </div>'
-                                                            + '  <div class="font-weight-bold text-dark mb-2" style="font-size:13px; line-height:1.5;">' + desc + '</div>'
-                                                            + '  <div class="p-3 bg-white rounded border" style="border-left:4px solid #0284c7 !important; border-radius:8px;">'
-                                                            + '    <div class="text-muted font-weight-bold mb-1" style="font-size:11px;"><i class="fas fa-reply text-primary mr-1"></i> REGISTRO DE AVANCE / OBSERVACIONES:</div>'
-                                                            + '    <div style="font-size:12.5px; color:#1e293b; line-height:1.6;">' + (hasResponse ? opFormatHyperlinksAndTags(response) : '<span class="text-muted font-italic">Sin respuesta registrada aún</span>') + '</div>'
+                                                            + '  <div class="font-weight-bold text-dark mb-2" style="font-size:13.5px; line-height:1.55; color:#0f172a;">' + desc + '</div>'
+                                                            + '  <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #0284c7; border-radius:6px; padding:14px 18px;">'
+                                                            + '    <div class="font-weight-bold mb-1" style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.3px;"><i class="fas fa-reply text-primary mr-1"></i> Registro de Avance / Observaciones</div>'
+                                                            + '    <div style="font-size:13.5px; color:#1e293b; line-height:1.6;">' + (hasResponse ? opFormatHyperlinksAndTags(response) : '<span class="text-muted font-italic">Sin respuesta registrada aún</span>') + '</div>'
                                                             + '  </div>'
                                                             + '</div>';
                                                     });
 
-                                                    stagesHtml += '<div class="op-preview-stage-block mb-4" style="page-break-inside:auto;">'
-                                                        + '  <div class="p-2 px-3 mb-3 text-white font-weight-bold rounded d-flex align-items-center justify-content-between" style="background:#0f172a; border-radius:8px; font-size:13px; letter-spacing:0.5px;">'
+                                                    stagesHtml += '<div class="op-preview-stage-block" style="page-break-inside:auto;">'
+                                                        + '  <div class="text-white font-weight-bold d-flex align-items-center justify-content-between" style="background:#0f172a; padding:12px 20px; border-radius:6px; font-size:14px; font-weight:700; letter-spacing:0.3px; margin-top:32px; margin-bottom:16px;">'
                                                         + '    <span><i class="fas fa-folder-open text-warning mr-2"></i> ' + stageTitle + '</span>'
                                                         + '    <span class="badge badge-secondary">' + sec.activities.length + ' Actividades</span>'
                                                         + '  </div>'
@@ -4117,7 +4167,7 @@
                                                         btn.innerHTML = '<i class="fas fa-file-pdf mr-1"></i> Descargar Memoria (PDF)';
                                                     }
                                                 }
-                                            }, 10000);
+                                            }, 45000); // fallback amplio: memorias grandes (20+ actividades, html2canvas scale:2) tardan ~20s; el camino de exito (.then) debe ganar la carrera
 
                                             function executePdfDownload() {
                                                 var opt = {
