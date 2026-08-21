@@ -609,24 +609,23 @@
                Previsualizador = hoja ejecutiva centrada (1100px). Modo Gestion = paneles
                equilibrados (master 340px fijo + detail con ancho de lectura acotado). ═══ */
 
-            /* El area disponible: quitar padding lateral muerto y liberar la columna wrapper
-               (col Bootstrap sin clase) que constrenia todo a ~1096px. Esto da el LIENZO;
-               cada vista decide cuanto de ese lienzo usa. */
-            body.op-split-mode .main-content,
-            body.op-fullview-mode .main-content {
-                padding-left: 16px !important;
-                padding-right: 16px !important;
+            /* IMPORTANTE: NO se toca .main-content. Su offset natural (~250px) despeja el
+               sidebar azul fijo de Stisla. Overridearlo metia el toolbar debajo del menu.
+               Solo liberamos la columna wrapper interna (col Bootstrap sin clase) que
+               constrenia el contenido a ~1096px, dentro del area ya despejada del sidebar. */
+            body.op-split-mode #Formulario,
+            body.op-fullview-mode #Formulario {
+                width: 100% !important;
+                box-sizing: border-box !important;
+                overflow-x: hidden !important;
             }
             body.op-split-mode #Formulario > .row,
             body.op-fullview-mode #Formulario > .row {
                 width: 100% !important;
                 max-width: 100% !important;
-                margin-left: 0 !important;
-                margin-right: 0 !important;
             }
             body.op-split-mode #Formulario > .row > div,
             body.op-fullview-mode #Formulario > .row > div {
-                width: 100% !important;
                 max-width: 100% !important;
                 flex: 0 0 100% !important;
             }
@@ -636,15 +635,26 @@
             body.op-fullview-mode .card-body {
                 width: 100% !important;
                 max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            /* Toolbar de vistas: siempre completo a la derecha del sidebar, sin desbordar */
+            #op-view-toolbar {
+                width: 100% !important;
+                box-sizing: border-box !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                position: relative !important;
+                z-index: 10 !important;
             }
 
             /* --- MODO GESTION (split): workspace equilibrado --- */
             body.op-split-mode .op-split-workspace {
                 display: flex !important;
-                gap: 20px !important;
-                height: calc(100vh - 170px) !important;
+                gap: 16px !important;
+                height: calc(100vh - 160px) !important;
                 min-height: 650px !important;
-                padding: 0 12px 16px !important;
+                padding: 0 4px 16px !important;
                 width: 100% !important;
                 box-sizing: border-box !important;
                 align-items: stretch !important;
@@ -693,8 +703,9 @@
             }
             body.op-fullview-mode .op-continuous-preview-container {
                 max-width: 1100px !important;
-                width: auto !important;
-                margin: 24px auto !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                margin: 20px auto !important;
                 background: #ffffff !important;
                 padding: 40px 48px !important;
                 border-radius: 8px !important;
