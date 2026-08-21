@@ -7,3 +7,7 @@ nbproject/private/
 
 # Agent tooling (local)
 .atl/
+
+# Runtime/build artifacts (externos)
+web/WEB-INF/classes/
+tomcat_output.txt

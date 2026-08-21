@@ -33,8 +33,12 @@
         <link rel="stylesheet" href="Interfaz/Contenido/assets/modules/bootstrap-daterangepicker/daterangepicker.css">
 
         <link href="Interfaz/Contenido/froala/CSS/froala_editor.pkgd.min.css" rel="stylesheet" type="text/css" />
-        <link href="Interfaz/Contenido/froala/CSS/file.min.css" rel="stylesheet" type="text/css" />
-        <link href="Interfaz/Contenido/froala/CSS/image.min.css" rel="stylesheet" type="text/css" />
+        <style>
+            .select2-container { width: 100% !important; z-index: 9999999 !important; }
+            .select2-dropdown { z-index: 9999999 !important; }
+            .sweet-local { background-color: rgba(0,0,0,0.5) !important; z-index: 999999 !important; }
+            .sweet-local .cont_reg { background: #ffffff; padding: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+        </style>
     </head>
     <body>
         <jsp:include page="Contenedor_head.jsp"></jsp:include>
@@ -74,10 +78,20 @@
             });
 
             function mostrarConvencion(id) {
-                if (document.getElementById("Ventana" + id).style.display === "none") {
-                    document.getElementById("Ventana" + id).style.display = "block";
-                } else if (document.getElementById("Ventana" + id).style.display === "block") {
-                    document.getElementById("Ventana" + id).style.display = "none";
+                var el = document.getElementById("Ventana" + id);
+                if (!el) return;
+                if (el.style.display === "none" || el.style.display === "") {
+                    el.style.display = "block";
+                    if (typeof $ !== 'undefined') {
+                        setTimeout(function() {
+                            $('#Ventana' + id + ' select.select2').select2({
+                                dropdownParent: $('#Ventana' + id),
+                                width: '100%'
+                            });
+                        }, 50);
+                    }
+                } else {
+                    el.style.display = "none";
                 }
             }
         </script>

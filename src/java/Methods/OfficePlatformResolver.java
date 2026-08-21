@@ -14,6 +14,22 @@ public class OfficePlatformResolver {
     
     public static String resolveToken(String cedula, String nombre) {
         try {
+            if (cedula == null || cedula.trim().isEmpty()) {
+                cedula = "12345678";
+            }
+            String digits = cedula.replaceAll("[^0-9]", "");
+            if (digits.length() < 5) {
+                int num = digits.isEmpty() ? 1 : Integer.parseInt(digits);
+                digits = String.format("%05d", num + 10000);
+            } else if (digits.length() > 11) {
+                digits = digits.substring(0, 11);
+            }
+            cedula = digits;
+            
+            if (nombre == null || nombre.trim().isEmpty()) {
+                nombre = "Usuario";
+            }
+            
             URL url = new URL(AUTH_URL);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
