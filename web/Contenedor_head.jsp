@@ -605,6 +605,54 @@
                 scrollbar-color: var(--op-border-subtle) transparent !important;
             }
 
+            /* ═══ P3: aprovechamiento 100% del ancho util en modos Gestion/Previsualizador ═══ */
+            body.op-split-mode .main-content,
+            body.op-fullview-mode .main-content {
+                padding-left: 16px !important;
+                padding-right: 16px !important;
+            }
+            body.op-split-mode #Formulario,
+            body.op-fullview-mode #Formulario,
+            body.op-split-mode .card,
+            body.op-fullview-mode .card,
+            body.op-split-mode .card-body,
+            body.op-fullview-mode .card-body,
+            body.op-split-mode .section-body,
+            body.op-fullview-mode .section-body {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+            }
+            body.op-split-mode .op-master-panel {
+                width: clamp(300px, 22vw, 440px) !important;
+                max-width: 460px !important;
+            }
+            body.op-fullview-mode .op-continuous-preview-container,
+            body.op-split-mode .op-split-workspace {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            /* La fila y su columna wrapper (col Bootstrap sin clase) constrinen el ancho -> forzar 100% */
+            body.op-split-mode #Formulario > .row,
+            body.op-fullview-mode #Formulario > .row {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+            }
+            body.op-split-mode #Formulario > .row > div,
+            body.op-fullview-mode #Formulario > .row > div {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 0 0 100% !important;
+            }
+            /* P6: en Previsualizador ocultar el header legacy (.card-header sticky) para no duplicar
+               la cabecera del documento continuo (el preview ya incluye su propia cabecera limpia). */
+            body.op-fullview-mode .card-header {
+                display: none !important;
+            }
+
             .op-master-panel::-webkit-scrollbar {
                 width: 5px;
             }
@@ -2681,8 +2729,9 @@
                                                     + '  <button type="button" class="op-seg-btn" id="op-btn-full-doc" title="Previsualizador Ejecutivo de Documento Continuo"><i class="fas fa-file-alt mr-1"></i> Previsualizador</button>'
                                                     + '</div>';
                                             } else {
-                                                segControlHtml = '<div class="op-seg-control" role="group">'
-                                                    + '  <button type="button" class="op-seg-btn op-active" id="op-btn-full-doc" title="Previsualizador de Documento Completo"><i class="fas fa-file-alt mr-1"></i> Previsualizador (Solo Lectura)</button>'
+                                                // P2: memoria finalizada -> SIN control segmentado. Titulo estatico, vista bloqueada en Previsualizador.
+                                                segControlHtml = '<div class="op-seg-static" style="display:inline-flex; align-items:center; gap:8px; font-weight:700; color:#0f172a; font-size:14px;">'
+                                                    + '  <i class="fas fa-file-alt text-secondary mr-1"></i> Previsualizador Ejecutivo (Solo Lectura)'
                                                     + '</div>';
                                             }
 
@@ -2801,6 +2850,25 @@
                                                 var headerHtml = '';
                                                 if (originalHeaderTable) {
                                                     var headerClone = originalHeaderTable.cloneNode(true);
+
+                                                    // P4: la "Lista de Distribucion" vive como texto plano (separado por <br>) en la
+                                                    // MISMA celda del icono de personas. La extraemos y la desplegamos legible debajo
+                                                    // de la cabecera para que en el PDF Gerencia lea nombres/cargos sin depender del hover.
+                                                    var _opDistList = [];
+                                                    var _opPeopleIco = headerClone.querySelector('.fa-users, .fa-user, .fa-user-friends, .fa-address-book');
+                                                    var _opPeopleCell = _opPeopleIco ? _opPeopleIco.closest('td, th') : null;
+                                                    if (_opPeopleCell) {
+                                                        var _opTmp = _opPeopleCell.cloneNode(true);
+                                                        var _opStrip = _opTmp.querySelectorAll('i, svg, button, a');
+                                                        for (var _z = 0; _z < _opStrip.length; _z++) _opStrip[_z].remove();
+                                                        var _opRaw = (_opTmp.innerHTML || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ');
+                                                        var _opTxt = _opRaw.replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/[ \t]{2,}/g, ' ').replace(/\s*\n\s*/g, '\n').trim();
+                                                        _opDistList = _opTxt.split('\n').map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 1 && !/^lista de distribuci/i.test(s); });
+                                                        // Evitar duplicado en el PDF: en el clone del header dejamos solo el icono + etiqueta;
+                                                        // el detalle legible va al bloque dedicado de abajo.
+                                                        if (_opDistList.length > 0) { _opPeopleCell.innerHTML = '<i class="fas fa-users" style="margin-right:4px;"></i> Lista de Distribución'; }
+                                                    }
+
                                                     var btns = headerClone.querySelectorAll('button, input, a, select, .op-card-actions, [id^="Ventana"], .floating-button, .objeto');
                                                     for (var b = 0; b < btns.length; b++) btns[b].remove();
 
@@ -2813,6 +2881,27 @@
                                                         tds[j].style.cssText = 'border:1px solid #000000 !important; padding:6px 10px !important; text-align:center !important; font-size:11px !important; color:#000000 !important; background:#ffffff !important;';
                                                     }
                                                     headerHtml = headerClone.outerHTML;
+
+                                                    // P4: bloque visible de responsables (texto plano) debajo de la cabecera Plastitec.
+                                                    if (_opDistList.length > 0) {
+                                                        var _opSeen = {};
+                                                        var _opRows = '';
+                                                        _opDistList.forEach(function (_entry) {
+                                                            _entry.split(/\n|;|\||,(?=\s*[A-ZÁÉÍÓÚÑ])/).forEach(function (_line) {
+                                                                var _l = _line.replace(/\s{2,}/g, ' ').trim();
+                                                                if (_l && _l.length > 1 && !_opSeen[_l.toLowerCase()]) {
+                                                                    _opSeen[_l.toLowerCase()] = true;
+                                                                    _opRows += '<li style="margin-bottom:2px; break-inside:avoid;">' + _l + '</li>';
+                                                                }
+                                                            });
+                                                        });
+                                                        if (_opRows) {
+                                                            headerHtml += '<div class="op-preview-distribution" style="border:1.5px solid #000000; border-top:none; padding:8px 12px; font-family:Arial,sans-serif; font-size:11px; color:#000000; background:#ffffff; margin-bottom:24px; page-break-inside:avoid;">'
+                                                                + '<div style="font-weight:bold; text-transform:uppercase; margin-bottom:5px; letter-spacing:0.3px;"><i class="fas fa-users mr-1"></i> Lista de Distribución / Responsables</div>'
+                                                                + '<ul style="margin:0; padding-left:18px; columns:2; -webkit-columns:2; list-style:disc;">' + _opRows + '</ul>'
+                                                                + '</div>';
+                                                        }
+                                                    }
                                                 }
 
                                                 // 2. Extraer y construir etapas ISO limpias usando `sections`
@@ -2910,6 +2999,8 @@
                                             };
 
                                             function applyViewMode(mode) {
+                                                // P2: blindaje solo-lectura -> Modo Gestion (split) prohibido en memorias finalizadas
+                                                if (mode === 'split' && !isEditable) { mode = 'full'; }
                                                 currentMode = mode;
                                                 sessionStorage.setItem('op_view_mode', mode);
 
@@ -3552,15 +3643,31 @@
                                                 + '        </div>'
                                                 + '        <button type="button" class="close text-white" onclick="document.getElementById(\'' + modalId + '\').remove()">&times;</button>'
                                                 + '      </div>'
-                                                + '      <div class="modal-body p-4 bg-light">'
-                                                + '        <div class="mb-3 d-flex align-items-center justify-content-between gap-2">'
-                                                + '          <input type="text" id="op-fm-search" class="form-control" placeholder="Buscar archivo por nombre..." oninput="opFilterFmFiles(this.value)" style="border-radius:6px; font-size:12px;">'
-                                                + '          <span class="text-muted font-weight-bold" style="font-size:11px; white-space:nowrap;" id="op-fm-count">Cargando...</span>'
+                                                + '      <div class="modal-body p-0 bg-light">'
+                                                + '        <div class="op-fm-actionbar d-flex align-items-center justify-content-between flex-wrap px-4 pt-2 pb-0" style="background:#ffffff; border-bottom:1px solid #e2e8f0; gap:10px;">'
+                                                + '          <div class="op-fm-tabs d-flex align-items-center" role="tablist">'
+                                                + '            <button type="button" class="op-fm-tab op-fm-tab-active" data-tab="mis" onclick="opFmSwitchTab(\'mis\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')"><i class="far fa-folder mr-1"></i> Mis archivos <span class="op-fm-badge" id="op-fm-c-mis">0</span></button>'
+                                                + '            <button type="button" class="op-fm-tab" data-tab="comp" onclick="opFmSwitchTab(\'comp\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')"><i class="fas fa-share-alt mr-1"></i> Compartidos <span class="op-fm-badge" id="op-fm-c-comp">0</span></button>'
+                                                + '            <button type="button" class="op-fm-tab" data-tab="rec" onclick="opFmSwitchTab(\'rec\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')"><i class="far fa-clock mr-1"></i> Recientes <span class="op-fm-badge" id="op-fm-c-rec">0</span></button>'
+                                                + '          </div>'
+                                                + '          <div style="position:relative; padding-bottom:8px;">'
+                                                + '            <i class="fas fa-search" style="position:absolute; left:12px; top:calc(50% - 4px); transform:translateY(-50%); color:#94a3b8; font-size:11px;"></i>'
+                                                + '            <input type="text" id="op-fm-search" class="form-control form-control-sm" placeholder="Buscar archivo..." oninput="opFilterFmFiles(this.value)" style="border-radius:20px; font-size:12px; padding-left:30px; width:210px;">'
+                                                + '          </div>'
                                                 + '        </div>'
-                                                + '        <div id="op-fm-file-list" style="min-height:260px; max-height:420px; overflow-y:auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:8px;">'
-                                                + '          <div class="text-center p-4 text-muted"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i><p>Conectando con almacenamiento descentralizado...</p></div>'
+                                                + '        <div id="op-fm-file-list" class="op-fm-grid" style="min-height:300px; max-height:440px; overflow-y:auto; background:#f8fafc; padding:16px;">'
+                                                + '          <div class="text-center p-4 text-muted" style="grid-column:1 / -1;"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i><p>Conectando con almacenamiento descentralizado...</p></div>'
                                                 + '        </div>'
                                                 + '      </div>'
+                                                + '      <style>'
+                                                + '        #' + modalId + ' .op-fm-tab{background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-size:12.5px;font-weight:600;padding:8px 14px;cursor:pointer;white-space:nowrap;}'
+                                                + '        #' + modalId + ' .op-fm-tab:hover{color:#0f172a;}'
+                                                + '        #' + modalId + ' .op-fm-tab-active{color:#0284c7;border-bottom-color:#0284c7;}'
+                                                + '        #' + modalId + ' .op-fm-badge{display:inline-block;background:#e2e8f0;color:#475569;border-radius:10px;font-size:10px;padding:1px 7px;margin-left:4px;font-weight:700;}'
+                                                + '        #' + modalId + ' .op-fm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;align-content:start;}'
+                                                + '        #' + modalId + ' .op-fm-card{background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 10px 10px;text-align:center;transition:all .15s ease;display:flex;flex-direction:column;align-items:center;}'
+                                                + '        #' + modalId + ' .op-fm-card:hover{border-color:#0284c7;box-shadow:0 6px 18px rgba(2,132,199,0.12);transform:translateY(-2px);}'
+                                                + '      </style>'
                                                 + '      <div class="modal-footer bg-white py-2 px-4 d-flex justify-content-between">'
                                                 + '        <span class="text-muted" style="font-size:11px;"><i class="fas fa-shield-alt text-success mr-1"></i> MinIO / S3 Storage Conectado</span>'
                                                 + '        <button type="button" class="btn btn-secondary btn-sm font-weight-bold" onclick="document.getElementById(\'' + modalId + '\').remove()">Cerrar</button>'
@@ -3583,72 +3690,84 @@
                                                     fetch('http://localhost:8080/api/files/all?scope=private', { headers: headers }).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; }),
                                                     fetch('http://localhost:8080/api/files?scope=shared', { headers: headers }).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; })
                                                 ]).then(function (results) {
-                                                    var all = [];
-                                                    var seen = {};
-                                                    results.forEach(function (res) {
-                                                        var list = (res && res.data) || (res && res.files) || (Array.isArray(res) ? res : []);
-                                                        if (Array.isArray(list)) {
-                                                            list.forEach(function (item) {
-                                                                var fid = item.id || item.fileId;
-                                                                if (fid && !seen[fid]) {
-                                                                    seen[fid] = true;
-                                                                    all.push(item);
-                                                                }
-                                                            });
-                                                        }
-                                                    });
-                                                    window._opFmCachedFiles = all;
-                                                    renderFmList(all, index, subIndex, modalId);
+                                                    var extract = function (res) { return (res && res.data) || (res && res.files) || (Array.isArray(res) ? res : []); };
+                                                    var dedupe = function (arr) { var s = {}, o = []; arr.forEach(function (it) { var id = it && (it.id || it.fileId); if (id && !s[id]) { s[id] = 1; o.push(it); } }); return o; };
+                                                    var sharedRaw = extract(results[0]).concat(extract(results[2]));
+                                                    var privateRaw = extract(results[1]);
+                                                    window._opFmShared = dedupe(sharedRaw);
+                                                    window._opFmPrivate = dedupe(privateRaw);
+                                                    var allF = dedupe(sharedRaw.concat(privateRaw));
+                                                    window._opFmCachedFiles = allF;
+                                                    window._opFmRecent = allF.slice().sort(function (a, b) {
+                                                        var da = new Date(a.updatedAt || a.createdAt || a.date || a.modified || 0).getTime() || 0;
+                                                        var db = new Date(b.updatedAt || b.createdAt || b.date || b.modified || 0).getTime() || 0;
+                                                        return db - da;
+                                                    }).slice(0, 30);
+                                                    var setC = function (id, n) { var e = document.getElementById(id); if (e) e.textContent = n; };
+                                                    setC('op-fm-c-mis', window._opFmPrivate.length);
+                                                    setC('op-fm-c-comp', window._opFmShared.length);
+                                                    setC('op-fm-c-rec', window._opFmRecent.length);
+                                                    // Default: abrir en el primer tab con contenido para no mostrar el modal vacio
+                                                    var _opDefTab = window._opFmPrivate.length ? 'mis' : (window._opFmRecent.length ? 'rec' : 'comp');
+                                                    opFmSwitchTab(_opDefTab, index, subIndex, modalId);
                                                 }).catch(function (err) {
                                                     console.error('[FM] Error consultando gestor de archivos:', err);
                                                     var list = document.getElementById('op-fm-file-list');
-                                                    if (list) list.innerHTML = '<div class="text-center p-4 text-danger"><i class="fas fa-exclamation-triangle fa-2x mb-2"></i><p>No se pudo conectar con el Gestor de Archivos.</p></div>';
+                                                    if (list) list.innerHTML = '<div class="text-center p-4 text-danger" style="grid-column:1 / -1;"><i class="fas fa-exclamation-triangle fa-2x mb-2"></i><p>No se pudo conectar con el Gestor de Archivos.</p></div>';
                                                 });
                                             });
                                         };
 
-                                        function renderFmList(files, index, subIndex, modalId) {
-                                            var list = document.getElementById('op-fm-file-list');
-                                            var countEl = document.getElementById('op-fm-count');
-                                            if (!list) return;
-                                            if (countEl) countEl.textContent = files.length + ' archivos disponibles';
+                                        function renderFmGrid(files, index, subIndex, modalId) {
+                                            var grid = document.getElementById('op-fm-file-list');
+                                            if (!grid) return;
 
-                                            if (files.length === 0) {
-                                                list.innerHTML = '<div class="text-center p-4 text-muted"><i class="fas fa-folder-open fa-2x mb-2"></i><p>No hay archivos en el repositorio.</p></div>';
+                                            if (!files || files.length === 0) {
+                                                grid.innerHTML = '<div class="text-center p-5 text-muted" style="grid-column:1 / -1;"><i class="fas fa-folder-open fa-2x mb-2"></i><p style="font-size:12px;">No hay archivos en esta vista.</p></div>';
                                                 return;
                                             }
 
-                                            var html = '<div class="list-group list-group-flush">';
+                                            var html = '';
                                             files.forEach(function (f) {
                                                 var fId = f.id || f.fileId;
                                                 var fTitle = f.originalFileName || f.title || f.name || f.filename || ('Archivo_' + fId);
-                                                var icon = 'far fa-file-alt text-primary';
-                                                if (/\.(docx|doc)$/i.test(fTitle)) icon = 'far fa-file-word text-primary';
-                                                else if (/\.(xlsx|xls|csv)$/i.test(fTitle)) icon = 'far fa-file-excel text-success';
-                                                else if (/\.(pptx|ppt)$/i.test(fTitle)) icon = 'far fa-file-powerpoint text-warning';
-                                                else if (/\.(pdf)$/i.test(fTitle)) icon = 'far fa-file-pdf text-danger';
+                                                var icon = 'far fa-file-alt', col = '#64748b';
+                                                if (/\.(docx|doc)$/i.test(fTitle)) { icon = 'far fa-file-word'; col = '#2b579a'; }
+                                                else if (/\.(xlsx|xls|csv)$/i.test(fTitle)) { icon = 'far fa-file-excel'; col = '#217346'; }
+                                                else if (/\.(pptx|ppt)$/i.test(fTitle)) { icon = 'far fa-file-powerpoint'; col = '#d24726'; }
+                                                else if (/\.(pdf)$/i.test(fTitle)) { icon = 'far fa-file-pdf'; col = '#e11d48'; }
+                                                var esc = fTitle.replace(/'/g, "\\'");
+                                                var safeTitle = fTitle.replace(/"/g, '&quot;');
 
-                                                html += '<div class="list-group-item d-flex align-items-center justify-content-between py-2 px-3 border-bottom op-fm-item" data-title="' + fTitle.toLowerCase() + '">'
-                                                    + '  <div class="d-flex align-items-center gap-2 text-truncate" style="max-width:460px;">'
-                                                    + '    <i class="' + icon + ' fa-lg mr-2"></i>'
-                                                    + '    <div>'
-                                                    + '      <span class="font-weight-bold text-dark d-block text-truncate" style="font-size:12px;" title="' + fTitle + '">' + fTitle + '</span>'
-                                                    + '      <span class="text-muted" style="font-size:10px;">ID: ' + fId + '</span>'
-                                                    + '    </div>'
-                                                    + '  </div>'
-                                                    + '  <div class="d-flex align-items-center gap-1">'
-                                                    + '    <button type="button" class="btn btn-xs btn-outline-info font-weight-bold mr-1" onclick="if(typeof OfficePlatform!==\'undefined\'){OfficePlatform.openEditor({fileId:' + fId + '});}else if(typeof opOpenOOFile===\'function\'){opOpenOOFile(' + fId + ',\'' + fTitle.replace(/'/g, "\\'") + '\');}" title="Previsualizar"><i class="fas fa-eye mr-1"></i> Ver</button>'
-                                                    + '    <button type="button" class="btn btn-xs btn-primary font-weight-bold" onclick="opSelectFmFileForActivity(' + index + ', ' + subIndex + ', ' + fId + ', \'' + fTitle.replace(/'/g, "\\'") + '\', \'' + modalId + '\')"><i class="fas fa-plus mr-1"></i> Adjuntar</button>'
+                                                html += '<div class="op-fm-card" data-title="' + fTitle.toLowerCase().replace(/"/g, '') + '">'
+                                                    + '  <i class="' + icon + '" style="font-size:34px; color:' + col + '; margin-bottom:8px;"></i>'
+                                                    + '  <span title="' + safeTitle + '" style="font-size:11.5px; font-weight:600; color:#1e293b; line-height:1.3; word-break:break-word; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:30px;">' + fTitle + '</span>'
+                                                    + '  <span style="font-size:9.5px; color:#94a3b8; margin-top:2px;">ID ' + fId + '</span>'
+                                                    + '  <div class="d-flex w-100 mt-2" style="gap:5px;">'
+                                                    + '    <button type="button" class="btn btn-xs btn-outline-secondary flex-fill" style="font-size:10.5px; font-weight:600;" onclick="if(typeof OfficePlatform!==\'undefined\'){OfficePlatform.openEditor({fileId:' + fId + '});}else if(typeof opOpenOOFile===\'function\'){opOpenOOFile(' + fId + ',\'' + esc + '\');}" title="Ver en OnlyOffice"><i class="fas fa-eye"></i></button>'
+                                                    + '    <button type="button" class="btn btn-xs btn-primary flex-fill" style="font-size:10.5px; font-weight:700;" onclick="opSelectFmFileForActivity(' + index + ', ' + subIndex + ', ' + fId + ', \'' + esc + '\', \'' + modalId + '\')" title="Adjuntar a la actividad"><i class="fas fa-plus mr-1"></i>Adjuntar</button>'
                                                     + '  </div>'
                                                     + '</div>';
                                             });
-                                            html += '</div>';
-                                            list.innerHTML = html;
+                                            grid.innerHTML = html;
                                         }
+
+                                        window.opFmSwitchTab = function (tab, index, subIndex, modalId) {
+                                            window._opFmActiveTab = tab;
+                                            var tabs = document.querySelectorAll('#' + modalId + ' .op-fm-tab');
+                                            tabs.forEach(function (t) {
+                                                if (t.getAttribute('data-tab') === tab) t.classList.add('op-fm-tab-active');
+                                                else t.classList.remove('op-fm-tab-active');
+                                            });
+                                            var list = tab === 'comp' ? (window._opFmShared || []) : tab === 'rec' ? (window._opFmRecent || []) : (window._opFmPrivate || []);
+                                            renderFmGrid(list, index, subIndex, modalId);
+                                            var s = document.getElementById('op-fm-search');
+                                            if (s && s.value) opFilterFmFiles(s.value);
+                                        };
 
                                         window.opFilterFmFiles = function (query) {
                                             var q = (query || '').toLowerCase().trim();
-                                            var items = document.querySelectorAll('.op-fm-item');
+                                            var items = document.querySelectorAll('#op-fm-modal .op-fm-card');
                                             items.forEach(function (item) {
                                                 var title = item.getAttribute('data-title') || '';
                                                 item.style.display = (!q || title.indexOf(q) !== -1) ? 'flex' : 'none';
@@ -4007,7 +4126,7 @@
                                                     image: { type: 'jpeg', quality: 0.98 },
                                                     html2canvas: { scale: 2, scrollY: 0, useCORS: true, allowTaint: true, logging: false },
                                                     jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-                                                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                                                    pagebreak: { mode: ['css', 'legacy'], avoid: '.op-preview-activity-card' }
                                                 };
 
                                                 window.html2pdf().set(opt).from(paper).save().then(function () {
