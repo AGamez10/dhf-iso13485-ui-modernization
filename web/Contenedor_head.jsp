@@ -4585,11 +4585,27 @@
                                            envuelve la confirmación con consentimiento informado. Ver CLAUDE.md §8.9.
                                            ═══════════════════════════════════════════════════════════════════ */
                                         window.opConfirmProjectClose = function (id, finalState) {
-                                            try { if (window.swal && swal.close) swal.close(); } catch (e) { }
+                                            // Navegación DIRECTA: no llamar swal.close() antes (la navegación desmonta la página).
                                             var tipoEl = document.getElementById('t_proyecto');
-                                            var tipo = tipoEl ? tipoEl.value : '';
-                                            window.location.href = 'Proyecto?opc=6&id_proyecto=' + id + '&Rdb_consulta=' + encodeURIComponent(tipo) + '&f_salida=' + finalState;
+                                            var tipo = (tipoEl && tipoEl.value) ? tipoEl.value : '0';
+                                            window.location.href = 'Proyecto?opc=6&id_proyecto=' + id + '&Rdb_consulta=' + encodeURIComponent(tipo) + '&f_salida=' + (finalState || 'TERMINADO');
                                         };
+                                        // Listener DELEGADO en fase de captura: corre antes de que SweetAlert v1 gestione el
+                                        // click, garantizando que los 3 botones del modal disparen aunque el inline falle.
+                                        (function opInstallCloseButtonsDelegate() {
+                                            if (window._opCloseBtnsDelegated) return;
+                                            window._opCloseBtnsDelegated = true;
+                                            document.addEventListener('click', function (e) {
+                                                var t = (e.target && e.target.closest) ? e.target.closest('#op-btn-autocomplete, #op-btn-close-pending, #op-btn-cancel') : null;
+                                                if (!t) return;
+                                                e.preventDefault();
+                                                e.stopImmediatePropagation();
+                                                if (t.id === 'op-btn-cancel') { try { if (window.swal) swal.close(); } catch (err) { } return; }
+                                                var ctx = window._opCloseCtx || {};
+                                                if (t.id === 'op-btn-close-pending') { opConfirmProjectClose(ctx.id, ctx.finalState || 'TERMINADO'); return; }
+                                                if (t.id === 'op-btn-autocomplete') { opAutocompleteAndFinalize(); return; }
+                                            }, true);
+                                        })();
                                         function opParseMemoriaMetrics(html) {
                                             try {
                                                 var doc = new DOMParser().parseFromString(html, 'text/html');
@@ -4637,9 +4653,9 @@
                                                     + '</div>'
                                                     + '<p style="font-size:12.5px; color:#b45309; margin-bottom:14px;"><i class="fas fa-exclamation-triangle mr-1"></i> Esta memoria cuenta con <b>' + m.pendientes + '</b> actividad(es) sin cerrar o sin registro de avance.</p>'
                                                     + '<div style="display:flex; flex-direction:column; gap:8px; width:100%;">'
-                                                    + '  <button type="button" onclick="opAutocompleteAndFinalize()" style="' + _bs + ' background:#16a34a;">Autocompletar observaciones y Finalizar</button>'
-                                                    + '  <button type="button" onclick="opConfirmProjectClose(' + id + ',\'' + finalState + '\')" style="' + _bs + ' background:#dc2626;">Finalizar dejando actividades pendientes</button>'
-                                                    + '  <button type="button" onclick="if(window.swal)swal.close();" style="' + _bs + ' background:#64748b;">Cancelar / Volver a Gestión</button>'
+                                                    + '  <button type="button" id="op-btn-autocomplete" onclick="opAutocompleteAndFinalize();return false;" style="' + _bs + ' background:#16a34a;">Autocompletar observaciones y Finalizar</button>'
+                                                    + '  <button type="button" id="op-btn-close-pending" data-id="' + id + '" data-fs="' + finalState + '" onclick="opConfirmProjectClose(' + id + ',\'' + finalState + '\');return false;" style="' + _bs + ' background:#dc2626;">Finalizar dejando actividades pendientes</button>'
+                                                    + '  <button type="button" id="op-btn-cancel" onclick="if(window.swal){swal.close();}return false;" style="' + _bs + ' background:#64748b;">Cancelar / Volver a Gestión</button>'
                                                     + '</div>';
                                                 swal({ title: 'Cierre con Actividades Pendientes', text: panel, type: 'warning', html: true, showConfirmButton: false });
                                             } else if (m && m.total === 0) {
@@ -4666,34 +4682,40 @@
                                            actividades pendientes con la observación técnica estándar y finalizar. ESCRIBE en el
                                            audit trail (opc=11 + opc=13). Atribuye al usuario de sesión que cierra (matiz ALCOA
                                            documentado). Se dispara por fetch (evita el F3 del forward de opc=11). */
+                                        // Overlay de progreso PROPIO (no swal) para no colisionar con el SweetAlert v1 abierto.
+                                        function opShowInlineProgress(title) {
+                                            try { if (window.swal) swal.close(); } catch (e) { }
+                                            var ov = document.getElementById('op-ac-overlay');
+                                            if (ov) ov.remove();
+                                            ov = document.createElement('div');
+                                            ov.id = 'op-ac-overlay';
+                                            ov.style.cssText = 'position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,0.55); z-index:2147483000; display:flex; align-items:center; justify-content:center;';
+                                            ov.innerHTML = '<div style="background:#ffffff; border-radius:12px; padding:28px 34px; box-shadow:0 15px 50px rgba(0,0,0,0.35); text-align:center; font-family:Arial,sans-serif; min-width:320px; max-width:440px;">'
+                                                + '<i class="fas fa-cog fa-spin fa-3x" style="color:#0284c7;"></i>'
+                                                + '<h6 style="font-weight:700; margin:14px 0 6px; color:#0f172a;">' + title + '</h6>'
+                                                + '<div id="op-ac-log" style="font-size:12px; color:#334155;"></div>'
+                                                + '</div>';
+                                            document.body.appendChild(ov);
+                                        }
                                         window.opAutocompleteAndFinalize = function () {
                                             var ctx = window._opCloseCtx;
                                             if (!ctx) return;
-                                            var n = (ctx.pendingIds || []).length;
-                                            // Solo se pueden autocompletar las actividades bajo la gestión del usuario que cierra
-                                            // (permiso [X]). Las de OTROS responsables no se tocan -> correcto por ALCOA.
-                                            if (n === 0) {
-                                                swal({
-                                                    title: 'Sin actividades gestionables',
-                                                    text: 'No hay actividades pendientes bajo tu gestión para autocompletar (las pendientes corresponden a otros responsables). ¿Deseas finalizar el proyecto de todas formas?',
-                                                    type: 'info', showCancelButton: true, confirmButtonColor: '#16a34a',
-                                                    confirmButtonText: 'Finalizar', cancelButtonText: 'Cancelar', closeOnConfirm: false
-                                                }, function () { opConfirmProjectClose(ctx.id, ctx.finalState); });
+                                            var ids = (ctx.pendingIds || []);
+                                            // Solo actividades bajo la gestión del usuario que cierra (permiso [X]); las de otros
+                                            // responsables no se tocan -> correcto por ALCOA. Progreso en overlay propio (sin swal).
+                                            opShowInlineProgress(ids.length > 0 ? ('Autocompletando ' + ids.length + ' actividad(es) y finalizando…') : 'Finalizando proyecto…');
+                                            if (ids.length === 0) {
+                                                setTimeout(function () { opConfirmProjectClose(ctx.id, ctx.finalState || 'TERMINADO'); }, 400);
                                                 return;
                                             }
-                                            swal({
-                                                title: 'Autocompletar y Finalizar',
-                                                text: '¿Desea autocompletar las ' + n + ' actividad(es) pendientes BAJO TU GESTIÓN con la observación técnica estándar y finalizar el proyecto? Las actividades de otros responsables NO se modifican.',
-                                                type: 'warning', showCancelButton: true, confirmButtonColor: '#16a34a',
-                                                confirmButtonText: 'Sí, autocompletar y finalizar', cancelButtonText: 'Cancelar', closeOnConfirm: false
-                                            }, function () { opRunAutocompleteSequence(ctx); });
+                                            opRunAutocompleteSequence(ctx);
                                         };
                                         function opRunAutocompleteSequence(ctx) {
                                             var STD = 'Actividad realizada y verificada satisfactoriamente según las especificaciones técnicas del proyecto.';
                                             var today = new Date().toISOString().substring(0, 10);
                                             var ids = ctx.pendingIds.slice();
                                             var i = 0, ok = 0, err = 0;
-                                            swal({ title: 'Procesando cierre…', text: '<i class="fas fa-spinner fa-spin fa-2x text-primary"></i><div id="op-ac-log" style="margin-top:10px; font-size:12px; color:#334155;"></div>', type: 'info', html: true, showConfirmButton: false });
+                                            // El overlay de progreso (#op-ac-log) ya lo mostró opShowInlineProgress (sin swal).
                                             function log(msg) { var l = document.getElementById('op-ac-log'); if (l) l.innerHTML = msg; }
                                             function body(obj) { var p = new URLSearchParams(); for (var k in obj) { if (obj.hasOwnProperty(k)) p.append(k, obj[k]); } return p.toString(); }
                                             var H = { 'Content-Type': 'application/x-www-form-urlencoded' };
