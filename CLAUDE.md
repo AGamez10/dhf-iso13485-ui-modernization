@@ -374,3 +374,23 @@ anti-doble-submit, ver commit de cierre), que NO reduce la latencia real.
   benchmark de creación escribe en la BD de producción — hacerlo en un entorno/instancia de
   pruebas, nunca contra `diseno_desarrollo_dos` (§7.C).
 - **Estado:** ESCALADO al dueño del backend como roadmap técnico prioritario.
+
+### 8.6 Enlaces legacy `UserFiles/...` → HTTP 404 (respaldo de archivos no servido)
+
+- **Qué:** actividades históricas contienen HTML con enlaces relativos como
+  `href="UserFiles/File/0001/RESPUESTAS/6985-28F14.pdf"`. Al hacer click, el navegador
+  resuelve `http://localhost:8085/DisenoDesarrollo/UserFiles/...` y Tomcat devuelve **404**:
+  la carpeta `UserFiles` no está servida estáticamente en esa ruta web, o el respaldo físico
+  de esos archivos (subidos ~2018) no está en el servidor local / migró a otro almacenamiento.
+- **Causa raíz (infra/backend, NO frontend):** falta el mapeo/servido estático de `UserFiles`
+  o el respaldo de esos binarios. Resolverlo es responsabilidad de TI/backend (servir la
+  carpeta, o migrar/re-vincular los archivos al gestor OnlyOffice/MinIO). NO se puede inventar
+  el mapeo desde el cliente.
+- **Mitigación frontend implementada (PE, commit de cierre):** interceptor delegado sobre
+  `a[href*="UserFiles"]` en `Contenedor_head.jsp` que hace un `HEAD` a la URL real; si el
+  recurso existe lo abre, y si da 404 muestra un aviso amigable ("Archivo Histórico Legacy…
+  contacte al administrador de TI") en vez del 404 crudo de Tomcat. Es solo lectura; NO
+  restaura los archivos.
+- **Fix real recomendado:** servir estáticamente `UserFiles` (o su respaldo) en el context
+  path, o re-vincular esos adjuntos históricos al gestor descentralizado.
+- **Estado:** ESCALADO a TI/backend para restauración del respaldo `UserFiles`.

@@ -4380,6 +4380,33 @@
                                                     clearTimeout(_opSubmitTimer);
                                                     _opSubmitTimer = setTimeout(function () { opResetSubmit(_b); }, 6000);
                                                 }, true);
+
+                                                /* ── Enlaces legacy UserFiles (evitar el 404 crudo de Tomcat) ──
+                                                   NO inventamos el mapeo real de esos archivos (es backend/almacenamiento).
+                                                   Verificamos existencia real (HEAD): si esta, se abre; si no, aviso amigable.
+                                                   Es SOLO LECTURA (no toca MemoriaDLog). */
+                                                function opLegacyFileAdvisory() {
+                                                    opAdvisory('Archivo Histórico Legacy',
+                                                        'El documento físico adjunto (enlace UserFiles antiguo) no se encuentra en el servidor local. Contacte al administrador de TI para restaurar el respaldo de archivos UserFiles.');
+                                                }
+                                                document.addEventListener('click', function (e) {
+                                                    var a = (e.target && e.target.closest) ? e.target.closest('a[href*="UserFiles"]') : null;
+                                                    if (!a) return;
+                                                    var href = a.getAttribute('href') || '';
+                                                    if (href.indexOf('UserFiles') === -1) return;
+                                                    e.preventDefault();
+                                                    e.stopImmediatePropagation();
+                                                    var resolved = a.href; // absoluto resuelto por el navegador
+                                                    try {
+                                                        fetch(resolved, { method: 'HEAD' }).then(function (r) {
+                                                            if (r && (r.ok || r.status === 405)) {
+                                                                window.open(resolved, '_blank', 'noopener'); // existe (o HEAD no soportado): abrir
+                                                            } else {
+                                                                opLegacyFileAdvisory();               // 404 u otro: degradar
+                                                            }
+                                                        }).catch(function () { opLegacyFileAdvisory(); });
+                                                    } catch (err) { opLegacyFileAdvisory(); }
+                                                }, true);
                                             } catch (e) { /* PE tolerante a fallos: nunca bloquear la pagina */ }
                                         })();
 
