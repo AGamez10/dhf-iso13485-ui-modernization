@@ -4303,18 +4303,82 @@
                                                     if (desc && !((desc.value || '').trim())) missing.push('la Descripción de la actividad');
                                                     return missing;
                                                 }
-                                                // Gate en fase de CAPTURA: corre antes del onclick inline; solo bloquea si hay
-                                                // campos vacios (pass-through total cuando el registro es valido -> no rompe el handler).
+                                                /* ── Seccion 4: feedback de envio + guard anti doble-submit ──
+                                                   El 1er click SIEMPRE pasa (no se toca el handler nativo). Solo se bloquean
+                                                   clicks EXTRA mientras hay un envio en curso (mitiga el F3 §8.1: duplicados
+                                                   del audit trail por doble-click). El visual/disabled se aplica DIFERIDO
+                                                   (setTimeout 0) para NO cancelar el submit nativo del primer click. */
+                                                var _opSubmitting = false, _opSubmitTimer = null;
+                                                function opSubmitToast(on) {
+                                                    var id = 'op-submit-toast', t = document.getElementById(id);
+                                                    if (on) {
+                                                        if (t) return;
+                                                        t = document.createElement('div');
+                                                        t.id = id;
+                                                        t.setAttribute('role', 'status');
+                                                        t.style.cssText = 'position:fixed; top:16px; right:16px; z-index:2147483000; background:#0f172a; color:#ffffff; font-family:Arial,sans-serif; font-size:13px; font-weight:600; padding:10px 16px; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.25); display:flex; align-items:center; gap:8px; pointer-events:none;';
+                                                        t.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando…';
+                                                        document.body.appendChild(t);
+                                                    } else if (t) { t.remove(); }
+                                                }
+                                                function opSubmitVisual(btn, on) {
+                                                    if (btn) {
+                                                        if (on) {
+                                                            btn.style.pointerEvents = 'none';
+                                                            btn.style.opacity = '0.6';
+                                                            if (btn.querySelector && !btn.querySelector('.op-submit-spin')) {
+                                                                var sp = document.createElement('span');
+                                                                sp.className = 'op-submit-spin';
+                                                                sp.innerHTML = ' <i class="fas fa-spinner fa-spin"></i>';
+                                                                try { btn.appendChild(sp); } catch (e) { }
+                                                            }
+                                                            if ('disabled' in btn) { try { btn.disabled = true; } catch (e) { } }
+                                                        } else {
+                                                            btn.style.pointerEvents = '';
+                                                            btn.style.opacity = '';
+                                                            var s = btn.querySelector ? btn.querySelector('.op-submit-spin') : null;
+                                                            if (s) s.remove();
+                                                            if ('disabled' in btn) { try { btn.disabled = false; } catch (e) { } }
+                                                        }
+                                                    }
+                                                    opSubmitToast(on);
+                                                }
+                                                function opResetSubmit(btn) { _opSubmitting = false; opSubmitVisual(btn, false); }
+
+                                                // Controles de ESCRITURA conocidos (submit de actividad / avance / respuesta).
+                                                var OP_WRITE_SEL = '[onclick*="uploadFiles"], [onclick*="Enviar_caso"], [onclick*="Enviar("]';
+
+                                                // Un solo listener en CAPTURA: (1) advisory de campos, (2) guard anti doble-submit.
                                                 document.addEventListener('click', function (e) {
-                                                    var btn = (e.target && e.target.closest) ? e.target.closest('[onclick*="uploadFiles"]') : null;
+                                                    var btn = (e.target && e.target.closest) ? e.target.closest(OP_WRITE_SEL) : null;
                                                     if (!btn) return;
-                                                    var missing = opValidateNewActivity(btn.closest('form'));
-                                                    if (missing.length > 0) {
+
+                                                    // (2) guard: si ya hay un envio en curso, bloquear clicks extra
+                                                    if (_opSubmitting) {
                                                         e.preventDefault();
                                                         e.stopImmediatePropagation();
-                                                        opAdvisory('Advertencia Normativa (ISO 13485 / 21 CFR Part 11)',
-                                                            'Para la trazabilidad del DHF, la actividad requiere: ' + missing.join(', ') + '. Complete estos campos antes de enviar.');
+                                                        return;
                                                     }
+
+                                                    // (1) advisory de campos obligatorios (solo el submit de actividad uploadFiles)
+                                                    if (/uploadFiles/.test(btn.getAttribute('onclick') || '')) {
+                                                        var missing = opValidateNewActivity(btn.closest('form'));
+                                                        if (missing.length > 0) {
+                                                            e.preventDefault();
+                                                            e.stopImmediatePropagation();
+                                                            opAdvisory('Advertencia Normativa (ISO 13485 / 21 CFR Part 11)',
+                                                                'Para la trazabilidad del DHF, la actividad requiere: ' + missing.join(', ') + '. Complete estos campos antes de enviar.');
+                                                            return; // no marca envio en curso (no se envio nada)
+                                                        }
+                                                    }
+
+                                                    // submit valido -> marcar en curso (bloquea el 2do click YA); visual DIFERIDO
+                                                    // (no cancela el submit nativo del 1er click) + reset de seguridad si no navega.
+                                                    _opSubmitting = true;
+                                                    var _b = btn;
+                                                    setTimeout(function () { opSubmitVisual(_b, true); }, 0);
+                                                    clearTimeout(_opSubmitTimer);
+                                                    _opSubmitTimer = setTimeout(function () { opResetSubmit(_b); }, 6000);
                                                 }, true);
                                             } catch (e) { /* PE tolerante a fallos: nunca bloquear la pagina */ }
                                         })();

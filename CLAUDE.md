@@ -344,3 +344,33 @@ los históricos (`estadoM == 0`) quedan intactos e inmutables (retrocompatibilid
   Verificación (7.3.5) o Validación (7.3.6 — IQ/OQ/PQ, ensayos de laboratorio) el servidor
   debe exigir ≥1 evidencia adjunta (archivo OnlyOffice `oo:<id>:<nombre>` o adjunto físico).
 - **Estado:** ESCALADO al dueño del backend como spec técnica requerida.
+
+### 8.5 Roadmap de RENDIMIENTO (backend / BD) — escalado, fuera de alcance `.op-*`
+
+Optimizaciones donde vive la ganancia REAL de performance. Todas son backend `.java`
+o esquema `.sql` (congelados §4.1.1) sobre la BD de producción `diseno_desarrollo_dos`
+(NO desechable §7.A). El frontend solo aporta percepción (spinner/toast + guard
+anti-doble-submit, ver commit de cierre), que NO reduce la latencia real.
+
+- **P1 — N+1 en onboarding (`Servlets.Proyecto` case 2 + `jpa_memoriac.Registrar_memoria_c`):**
+  hoy hay bucles anidados con `INSERT` individuales por etapa/fase (decenas de conexiones).
+  Consolidar en una sola transacción por lote (JPA `EntityManager` con `persist` en batch +
+  `flush`/`clear` por bloque, o `PreparedStatement.addBatch()/executeBatch()`). Meta: creación
+  de proyecto de varios segundos a **< 300 ms**. Requisito: NO alterar la integridad ni el
+  orden de siembra de `memoria_c`.
+- **P2 — I/O de avances (`opc=9/10/11/12`) y cargue masivo:** responder con confirmación
+  **AJAX/JSON ligera** en vez de `forward`/reload masivo; agrupar el wizard multi-etapa en un
+  **único payload transaccional** (single round-trip). OJO: al migrar de `forward` a respuesta
+  AJAX, aplicar además el patrón **PRG** que resuelve el riesgo F3 (§8.1) — un solo endpoint
+  transaccional evita tanto el N+1 como el duplicado del audit trail.
+- **P3 — Índices + lazy loading:** crear índices compuestos (evaluar cardinalidad/plan antes):
+  `proyecto(tipo_proyecto, estado)`, `memoria_c(id_proyecto, id_etapa, id_fase)`,
+  `memoria_d(id_memoria_c, estado)`, y revisar `memoria_d_log` por sus columnas de consulta.
+  No precargar binarios de adjuntos en la carga inicial (metadata ligera; diferir el contenido
+  pesado al abrir el archivo). El frontend ya difiere la lista de adjuntos por actividad
+  (Eje H-b, fetch a `TempM=7` bajo demanda).
+- **Validación exigida:** medir antes/después la creación de un proyecto con todas sus etapas
+  ISO; garantizar cero regresión en `MemoriaDLog` y retrocompatibilidad histórica. NOTA: el
+  benchmark de creación escribe en la BD de producción — hacerlo en un entorno/instancia de
+  pruebas, nunca contra `diseno_desarrollo_dos` (§7.C).
+- **Estado:** ESCALADO al dueño del backend como roadmap técnico prioritario.
