@@ -445,13 +445,19 @@ anti-doble-submit, ver commit de cierre), que NO reduce la latencia real.
     `fetch`: `opc=11` (observación estándar "Actividad realizada y verificada satisfactoriamente
     según las especificaciones técnicas del proyecto.", `Tipo_log=RESPONSABLE`) + `opc=13`
     (`estado=3` finalizar); al terminar, `opc=6` (cierre a TERMINADO).
-  * **Guardarraíl de cumplimiento (permisos [X]):** solo se autocompletan las actividades cuyo
-    control `ProyectoEstado*` está renderizado para el usuario que cierra (las que le pertenecen).
-    Las de OTROS responsables NO se tocan (verificado: proj 42 = 7 gestionables de 23 pendientes).
-    Esto es correcto — el que cierra no puede fabricar atestaciones de terceros.
-  * **Matiz ALCOA documentado (asumido por negocio):** la observación se atribuye vía `id_usuario`
-    al usuario de sesión que cierra, no necesariamente al responsable original; y es contemporánea
-    al cierre, no al trabajo. Es una escritura IRREVERSIBLE al `MemoriaDLog`.
+  * **Extracción de `id_memoria` (corregida):** la 1ª versión buscaba solo `ProyectoEstado\d(...)`,
+    presente únicamente en actividades con control renderizado (permission-gated) — por eso en
+    memorias como 0034 (actividades SIN ATENDER, sin ese radio) `pendingIds` quedaba `[]` y no se
+    escribía nada (el proyecto cerraba pero las actividades quedaban intactas). CORREGIDO: se extrae
+    de `cba_num=<id>` de los links historial/modificar/adjuntos, presente en TODA actividad
+    (`Tag_memoria`: `id_memoria = getAttribute("cba_num")`), con fallbacks a `ProyectoEstado\d` y a
+    `id_memoria/id_memoria_d`. Cubre el 100% de las pendientes.
+  * **Alcance por ORDEN DE NEGOCIO:** se removió el filtro de permisos — "Autocompletar y Finalizar"
+    autocompleta TODAS las actividades pendientes de la memoria (no solo las del usuario que cierra).
+  * **Matiz ALCOA documentado (asumido por negocio, AMPLIFICADO):** la observación estándar se
+    atribuye vía `id_usuario` al usuario de sesión que cierra, NO al responsable original de cada
+    actividad — incluidas ahora las de OTROS responsables. Es contemporánea al cierre, no al trabajo,
+    y es una escritura IRREVERSIBLE al `MemoriaDLog`. Riesgo asumido por decisión de negocio.
   * **Verificación:** el desarrollador NO auto-testeó la escritura (§7.C + incidente §8.3); el
     diálogo/flujo se validó SOLO LECTURA (3 botones verde/rojo/gris 311px, `pendingIds` poblado,
     confirmación honesta). La **verificación funcional de la escritura la realiza el usuario** en

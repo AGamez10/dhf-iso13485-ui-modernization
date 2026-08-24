@@ -4620,9 +4620,14 @@
                                                         if (t.querySelector('.text-success') || /FINALIZAD/i.test(txt)) {
                                                             fin++;
                                                         } else {
-                                                            // pendiente -> id_memoria desde CUALQUIER control ProyectoEstado1/2/3 de ESA
-                                                            // tabla (3er arg). Las "SIN ATENDER" usan ProyectoEstado2 (no el 3).
-                                                            var oc = (t.innerHTML || '').match(/ProyectoEstado\d\(\s*\d+\s*,\s*\d+\s*,\s*(\d+)/);
+                                                            // pendiente -> id_memoria. Fuente AUTORITATIVA presente en TODA actividad
+                                                            // (no permission-gated): el param cba_num de los links historial/modificar/
+                                                            // adjuntos = id_memoria (Tag_memoria: id_memoria = getAttribute("cba_num")).
+                                                            // Fallbacks: radios ProyectoEstado, o id_memoria/id_memoria_d explicitos.
+                                                            var _ih = (t.innerHTML || '');
+                                                            var oc = _ih.match(/cba_num=(\d+)/i)
+                                                                || _ih.match(/ProyectoEstado\d\(\s*\d+\s*,\s*\d+\s*,\s*(\d+)/)
+                                                                || _ih.match(/(?:id_memoria|id_memoria_d|idm)\s*[:=]\s*['"]?(\d+)/i);
                                                             if (oc && !seen[oc[1]]) { seen[oc[1]] = 1; pendingIds.push(oc[1]); }
                                                         }
                                                     }
