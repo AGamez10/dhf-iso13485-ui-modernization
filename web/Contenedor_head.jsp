@@ -3072,10 +3072,13 @@
                                                             + '    <span>Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '">' + estado + '</span></span>'
                                                             + '  </div>'
                                                             + '  <div class="font-weight-bold text-dark mb-2" style="font-size:13.5px; line-height:1.55; color:#0f172a;">' + desc + '</div>'
-                                                            + '  <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #0284c7; border-radius:6px; padding:14px 18px;">'
-                                                            + '    <div class="font-weight-bold mb-1" style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.3px;"><i class="fas fa-reply text-primary mr-1"></i> Registro de Avance / Observaciones</div>'
-                                                            + '    <div style="font-size:13.5px; color:#1e293b; line-height:1.6;">' + (hasResponse ? opFormatHyperlinksAndTags(response) : '<span class="text-muted font-italic">Sin respuesta registrada aún</span>') + '</div>'
-                                                            + '  </div>'
+                                                            // Tarea 1: solo mostrar el recuadro de avance si HAY respuesta real; nunca la caja vacía.
+                                                            + (hasResponse
+                                                                ? ('  <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #0284c7; border-radius:6px; padding:14px 18px;">'
+                                                                    + '    <div class="font-weight-bold mb-1" style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.3px;"><i class="fas fa-reply text-primary mr-1"></i> Registro de Avance / Observaciones</div>'
+                                                                    + '    <div style="font-size:13.5px; color:#1e293b; line-height:1.6;">' + opFormatHyperlinksAndTags(response) + '</div>'
+                                                                    + '  </div>')
+                                                                : '')
                                                             + '</div>';
                                                     });
 
@@ -4715,34 +4718,39 @@
                                             }
                                             opRunAutocompleteSequence(ctx);
                                         };
-                                        function opRunAutocompleteSequence(ctx) {
+                                        async function opRunAutocompleteSequence(ctx) {
                                             var STD = 'Actividad realizada y verificada satisfactoriamente según las especificaciones técnicas del proyecto.';
                                             var today = new Date().toISOString().substring(0, 10);
                                             var ids = ctx.pendingIds.slice();
-                                            var i = 0, ok = 0, err = 0;
+                                            var ok = 0, fail = 0;
                                             // El overlay de progreso (#op-ac-log) ya lo mostró opShowInlineProgress (sin swal).
                                             function log(msg) { var l = document.getElementById('op-ac-log'); if (l) l.innerHTML = msg; }
                                             function body(obj) { var p = new URLSearchParams(); for (var k in obj) { if (obj.hasOwnProperty(k)) p.append(k, obj[k]); } return p.toString(); }
                                             var H = { 'Content-Type': 'application/x-www-form-urlencoded' };
-                                            function next() {
-                                                if (i >= ids.length) {
-                                                    log('✔ ' + ok + ' completada(s)' + (err ? (', ' + err + ' con error') : '') + '. Cerrando proyecto…');
-                                                    setTimeout(function () { opConfirmProjectClose(ctx.id, ctx.finalState); }, 700);
-                                                    return;
-                                                }
+                                            // async/await ESTRICTO: cada opc=11 y opc=13 debe COMPLETAR (ok) antes del siguiente.
+                                            for (var i = 0; i < ids.length; i++) {
                                                 var idm = ids[i];
                                                 log('Autocompletando actividad ' + (i + 1) + ' / ' + ids.length + '…');
-                                                // 1) opc=11: observación estándar
-                                                fetch('Proyecto?opc=11', { method: 'POST', headers: H, credentials: 'same-origin',
-                                                    body: body({ ipy: ctx.id, estado: ctx.estadoM, id_memoria: idm, id_usuario: ctx.idUsuario, usuario: ctx.usuario, fecha_reg: today, observacion: STD, Tipo_log: 'RESPONSABLE' })
-                                                }).then(function () {
-                                                    // 2) opc=13: finalizar (estado=3)
-                                                    return fetch('Proyecto?opc=13', { method: 'POST', headers: H, credentials: 'same-origin',
+                                                try {
+                                                    // 1) opc=11: observación estándar -> esperar respuesta ok
+                                                    var r11 = await fetch('Proyecto?opc=11', { method: 'POST', headers: H, credentials: 'same-origin',
+                                                        body: body({ ipy: ctx.id, estado: ctx.estadoM, id_memoria: idm, id_usuario: ctx.idUsuario, usuario: ctx.usuario, fecha_reg: today, observacion: STD, Tipo_log: 'RESPONSABLE' }) });
+                                                    if (!r11 || !(r11.ok || r11.status === 302)) throw new Error('opc=11 ' + (r11 && r11.status));
+                                                    // 2) opc=13: finalizar (estado=3) -> esperar respuesta ok
+                                                    var r13 = await fetch('Proyecto?opc=13', { method: 'POST', headers: H, credentials: 'same-origin',
                                                         body: body({ ipy: ctx.id, id_memoria: idm, estado: 3, estadoM: ctx.estadoM }) });
-                                                }).then(function () { ok++; i++; next(); })
-                                                    .catch(function () { err++; i++; next(); });
+                                                    if (!r13 || !(r13.ok || r13.status === 302)) throw new Error('opc=13 ' + (r13 && r13.status));
+                                                    ok++;
+                                                } catch (e) { fail++; }
                                             }
-                                            next();
+                                            // Cerrar el proyecto SOLO si el 100% se completó; si algo falló, NO cerrar (evita cierre inconsistente).
+                                            if (fail === 0 && ok === ids.length) {
+                                                log('✔ ' + ok + ' actividad(es) finalizada(s). Cerrando proyecto…');
+                                                setTimeout(function () { opConfirmProjectClose(ctx.id, ctx.finalState || 'TERMINADO'); }, 700);
+                                            } else {
+                                                log('<span style="color:#dc2626; font-weight:700;">⚠ ' + ok + ' completada(s), ' + fail + ' con error.</span><br>El proyecto NO se cerró para evitar un cierre inconsistente. Revise el servidor e intente nuevamente.'
+                                                    + '<div style="margin-top:12px;"><button type="button" onclick="var o=document.getElementById(\'op-ac-overlay\');if(o)o.remove();" style="background:#64748b;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;">Cerrar</button></div>');
+                                            }
                                         }
 
                                         function opEnrichedProjectClose(id, finalState) {
@@ -4765,6 +4773,57 @@
                                             // DOMContentLoaded corre DESPUES de los <script> inline de Proyecto.jsp -> gana el override.
                                             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
                                             else install();
+                                        })();
+
+                                        /* ═══════════════════════════════════════════════════════════════════
+                                           Autocorrector nativo (Parte 1): habilita spellcheck/gramática del navegador
+                                           en español en todos los campos de texto libre, sin puente con Word. Aditivo y
+                                           tolerante a fallos; cubre campos dinámicos vía focusin. NO altera el value
+                                           (salvo limpiar caracteres de control al pegar, preservando acentos).
+                                           ═══════════════════════════════════════════════════════════════════ */
+                                        (function opInitTextUX() {
+                                            try {
+                                                var SEL = 'textarea, input[type="text"], input:not([type])';
+                                                function enhance(el) {
+                                                    if (!el || el.getAttribute('data-op-textux')) return;
+                                                    el.setAttribute('spellcheck', 'true');
+                                                    el.setAttribute('lang', 'es');
+                                                    el.setAttribute('autocorrect', 'on');
+                                                    el.setAttribute('autocapitalize', 'sentences');
+                                                    try { el.style.textTransform = 'none'; } catch (e) { } // anular mayúsculas sostenidas visuales
+                                                    el.setAttribute('data-op-textux', '1');
+                                                }
+                                                function enhanceAll(scope) {
+                                                    var n = (scope || document).querySelectorAll(SEL);
+                                                    for (var i = 0; i < n.length; i++) enhance(n[i]);
+                                                }
+                                                // cubre campos dinámicos (modales/wizard) al enfocarlos
+                                                document.addEventListener('focusin', function (e) {
+                                                    if (e.target && e.target.matches && e.target.matches(SEL)) enhance(e.target);
+                                                });
+                                                setTimeout(enhanceAll, 400);
+                                                // Pegado desde Word/portapapeles: limpiar SOLO caracteres de control y NBSP,
+                                                // preservando acentos y el texto limpio (no se tocan letras ni tildes).
+                                                document.addEventListener('paste', function (e) {
+                                                    var el = e.target;
+                                                    if (!el || !el.matches || !el.matches(SEL)) return;
+                                                    setTimeout(function () {
+                                                        try {
+                                                            var v = el.value;
+                                                            if (typeof v === 'string') {
+                                                                var out = '';
+                                                                for (var _c = 0; _c < v.length; _c++) {
+                                                                    var cc = v.charCodeAt(_c);
+                                                                    if (cc === 160) { out += ' '; }
+                                                                    else if (cc < 32 && cc !== 9 && cc !== 10 && cc !== 13) { /* drop control */ }
+                                                                    else { out += v.charAt(_c); }
+                                                                }
+                                                                if (out !== v) el.value = out;
+                                                            }
+                                                        } catch (err) { }
+                                                    }, 0);
+                                                });
+                                            } catch (e) { /* PE tolerante a fallos */ }
                                         })();
 
                                         window.opShowBatchCreationModal = function () {
@@ -4892,7 +4951,7 @@
                                                         + '        <td>1</td>'
                                                         + '        <td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Matriz de Requisitos" value="Documento Técnico de ' + stg.text.substring(0, 25) + '"></td>'
                                                         + '        <td><select class="form-control form-control-sm op-batch-doc"><option value="none" selected>Ninguno (Solo Texto / Observación)</option><option value="docx">Documento Word (.docx) - Opcional</option><option value="docx_req">Documento Word (.docx) - Obligatorio</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td>'
-                                                        + '        <td><textarea class="form-control form-control-sm op-batch-desc" rows="1" placeholder="Observación (opcional)" style="resize:vertical; min-height:31px;"></textarea></td>'
+                                                        + '        <td><textarea class="form-control form-control-sm op-batch-desc" rows="2" placeholder="Observación (opcional)" spellcheck="true" lang="es" style="resize:vertical; min-height:31px;">Actividad planificada, ejecutada y verificada de acuerdo con las especificaciones de la norma ISO 13485</textarea></td>'
                                                         + '        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td>'
                                                         + '      </tr>'
                                                         + '    </tbody>'
@@ -4930,7 +4989,7 @@
                                             var tbody = table.querySelector('tbody');
                                             var count = tbody.querySelectorAll('tr').length + 1;
                                             var tr = document.createElement('tr');
-                                            tr.innerHTML = '<td>' + count + '</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de actividad ' + count + '"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="none" selected>Ninguno (Solo Texto / Observación)</option><option value="docx">Documento Word (.docx) - Opcional</option><option value="docx_req">Documento Word (.docx) - Obligatorio</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td><td><textarea class="form-control form-control-sm op-batch-desc" rows="1" placeholder="Observación (opcional)" style="resize:vertical; min-height:31px;"></textarea></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td>';
+                                            tr.innerHTML = '<td>' + count + '</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de actividad ' + count + '"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="none" selected>Ninguno (Solo Texto / Observación)</option><option value="docx">Documento Word (.docx) - Opcional</option><option value="docx_req">Documento Word (.docx) - Obligatorio</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td><td><textarea class="form-control form-control-sm op-batch-desc" rows="2" placeholder="Observación (opcional)" spellcheck="true" lang="es" style="resize:vertical; min-height:31px;">Actividad planificada, ejecutada y verificada de acuerdo con las especificaciones de la norma ISO 13485</textarea></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td>';
                                             tbody.appendChild(tr);
                                         };
 
@@ -5052,7 +5111,8 @@
                                                     fdText.append('id_usuario', idUsuario);
                                                     fdText.append('fecha_reg', todayYMD);
                                                     fdText.append('numeral', item.stage);
-                                                    fdText.append('personas', '[' + idUsuario + ']');
+                                                    // Tarea 3: SIN personas -> el servlet registra la actividad en estado 3 (FINALIZADO)
+                                                    // (opc=9: Registrar_memoria_d(...,3) cuando participe==""). Nace formalmente completada.
                                                     fdText.append('observacion', item.desc || '');
                                                     fetch('Proyecto?opc=9', {
                                                         method: 'POST',
@@ -5089,7 +5149,7 @@
                                                         formData.append('id_usuario', idUsuario);
                                                         formData.append('fecha_reg', todayYMD);
                                                         formData.append('numeral', item.stage);
-                                                        formData.append('personas', '[' + idUsuario + ']');
+                                                        // Tarea 3: SIN personas -> actividad nace en estado 3 (FINALIZADO) via opc=9.
                                                         var ooRef = 'oo:' + fileId + ':' + fileName;
                                                         formData.append('observacion', item.desc ? (item.desc + '\n' + ooRef) : ooRef);
 
