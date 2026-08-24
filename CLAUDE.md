@@ -410,3 +410,26 @@ anti-doble-submit, ver commit de cierre), que NO reduce la latencia real.
   real del proyecto en BD. Mientras tanto, la detección dual del frontend lo cubre de forma robusta.
 - **Estado:** SÍNTOMA RESUELTO en frontend (detección dual); causa raíz (URL siempre `estadoM=1`)
   ESCALADA al dueño del backend.
+
+### 8.8 Cargue Masivo: filtrado de etapas previas (NO factible sin backend) + save secuencial (N+1)
+
+- **Parte 1 — Filtrar etapas ya registradas en el wizard: NO IMPLEMENTABLE de forma fiable
+  solo con el DOM.** El modelo de datos no da una clave común (verificado en ipy=42):
+  * El select del wizard (`select[name="numeral"]`) usa `value` = **id de catálogo de numeral**
+    (`1462…1488`) y textos descriptivos ("A - LAS ETAPAS…", "B - LAS REVISIONES…").
+  * Los tabs/paneles existentes usan `id="item_<N>"` (`item_9`, `item_34` = id de instancia de
+    etapa) y títulos ISO ("7.3.2 …", "7.3.5 …") — **otro espacio de ids**, sin linkage.
+  * Las actividades del DOM **no exponen su numeral** (sin `[name="numeral"]` ni `data-numeral`).
+  * El wizard opera a granularidad más fina (sub-numerales A/B/C/D del catálogo) que los tabs ISO
+    (7.3.x) → no hay correspondencia 1:1. Matchear por texto/numeral daría falsos positivos y
+    ocultaría/duplicaría etapas mal (se descartó por parche frágil).
+  * **Requisito para el backend:** exponer qué numeral ids ya tienen actividades (p.ej. el
+    servlet devuelve el set de numerales usados, o emitir `data-numeral-id` en cada actividad
+    del DOM). Con esa señal, el frontend filtra por id exacto de forma robusta.
+- **Parte 2 — Save del cargue masivo < 2s:** el UI del wizard (abrir/navegar/matriz) ya es
+  instantáneo (~1 ms, string-based; verificado). La latencia real está en `opExecuteBatchSubmit`,
+  que hace **N POSTs SECUENCIALES a `opc=9`** (un round-trip por actividad = N+1 del lado
+  cliente). El `< 2s` del guardado requiere el **endpoint transaccional por lote** del backend
+  (§8.5-P2). NO se paralelizan los POSTs en cliente (cambiaría el orden/semántica del audit
+  trail en un sistema regulado). Ya tiene barra de progreso y guard anti-doble-click.
+- **Estado:** Parte 1 y save de Parte 2 ESCALADOS al backend; UI del wizard confirmado rápido.
