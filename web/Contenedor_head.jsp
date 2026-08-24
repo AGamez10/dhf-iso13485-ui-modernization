@@ -3033,10 +3033,19 @@
 
                                                         var hasResponse = response && response.trim() !== '' && response.indexOf('SIN ATENDER') === -1;
 
+                                                        // C (retrocompatibilidad): saneo elegante de registros historicos incompletos.
+                                                        // NO se altera el dato original en BD; es solo presentacion en preview/PDF.
+                                                        var _authMissing = (!author || author === 'No especificado');
+                                                        var _dateMissing = (!date || date === 'No especificada');
+                                                        var _isLegacy = _authMissing || _dateMissing;
+                                                        var _authorDisp = _authMissing ? '<span class="text-muted font-italic">Registro Histórico Legacy</span>' : ('<b>' + author + '</b>');
+                                                        var _dateDisp = _dateMissing ? '<span class="text-muted">s/f</span>' : ('<b>' + date + '</b>');
+                                                        var _legacyBadge = _isLegacy ? ' <span class="badge badge-light border text-muted" style="font-size:9px; font-weight:600;" title="Registro anterior a la captura obligatoria de autoria/fecha; se preserva intacto en BD"><i class="fas fa-archive mr-1"></i>Legacy</span>' : '';
+
                                                         actHtml += '<div class="op-preview-activity-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:18px 24px; margin-bottom:20px; page-break-inside:avoid;">'
                                                             + '  <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="font-size:12px; color:#475569; font-weight:600;">'
-                                                            + '    <span><span class="badge badge-primary mr-2" style="font-size:10px;">ACTIVIDAD ' + (aIdx + 1) + '</span> Autor: <b>' + author + '</b></span>'
-                                                            + '    <span>Fecha: <b>' + date + '</b> &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '">' + estado + '</span></span>'
+                                                            + '    <span><span class="badge badge-primary mr-2" style="font-size:10px;">ACTIVIDAD ' + (aIdx + 1) + '</span> Autor: ' + _authorDisp + _legacyBadge + '</span>'
+                                                            + '    <span>Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '">' + estado + '</span></span>'
                                                             + '  </div>'
                                                             + '  <div class="font-weight-bold text-dark mb-2" style="font-size:13.5px; line-height:1.55; color:#0f172a;">' + desc + '</div>'
                                                             + '  <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #0284c7; border-radius:6px; padding:14px 18px;">'
@@ -4231,6 +4240,85 @@
                                                 document.head.appendChild(script);
                                             }
                                         };
+
+                                        /* ═══════════════════════════════════════════════════════════════════
+                                           QUALITY GATES (Progressive Enhancement / Asistencia UX)
+                                           IMPORTANTE: esto NO es control normativo. Se bypassea desde URL/POST/
+                                           devtools. El enforcement REAL debe vivir en el backend (Proyecto.java),
+                                           congelado y escalado en CLAUDE.md §8 (gates A/B/C/D). Aqui solo guiamos
+                                           al usuario y prevenimos errores honestos, sin romper handlers legacy.
+                                           ═══════════════════════════════════════════════════════════════════ */
+                                        (function opInitQualityGates() {
+                                            try {
+                                                var _opStartISO = null, _opStartResolved = false;
+                                                function opTodayISO() {
+                                                    var d = new Date();
+                                                    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+                                                }
+                                                function opGetProjectStartISO() {
+                                                    if (_opStartResolved) return _opStartISO;
+                                                    _opStartResolved = true;
+                                                    try {
+                                                        var m = (document.body.innerText || '').match(/INICIO[:\s]+(\d{4}-\d{2}-\d{2})/i);
+                                                        _opStartISO = m ? m[1] : null;
+                                                    } catch (e) { _opStartISO = null; }
+                                                    return _opStartISO;
+                                                }
+                                                // B: acotar fechas -> min = inicio de proyecto, max = hoy (evita viajes en el tiempo desde la UI)
+                                                function opApplyDateGuardsTo(el) {
+                                                    if (!el) return;
+                                                    var nm = (el.name || '') + ' ' + (el.id || '');
+                                                    if (nm.indexOf('fecha_reg') === -1) return;
+                                                    el.setAttribute('max', opTodayISO());
+                                                    var start = opGetProjectStartISO();
+                                                    if (start) el.setAttribute('min', start);
+                                                    el.setAttribute('data-op-dateguard', '1');
+                                                }
+                                                function opApplyAllDateGuards() {
+                                                    var inputs = document.querySelectorAll('input[type="date"]');
+                                                    for (var i = 0; i < inputs.length; i++) opApplyDateGuardsTo(inputs[i]);
+                                                }
+                                                // cubre inputs dinamicos (modales/responder) al enfocarlos
+                                                document.addEventListener('focusin', function (e) {
+                                                    var el = e.target;
+                                                    if (el && el.matches && el.matches('input[type="date"]')) opApplyDateGuardsTo(el);
+                                                });
+                                                setTimeout(opApplyAllDateGuards, 300);
+
+                                                // C: advisory NO destructivo de campos obligatorios en el submit de actividad (uploadFiles).
+                                                function opAdvisory(title, msg) {
+                                                    if (typeof window.swal === 'function') {
+                                                        try { window.swal(title, msg, 'warning'); return; } catch (e) { }
+                                                    }
+                                                    alert(title + '\n\n' + msg);
+                                                }
+                                                function opValidateNewActivity(form) {
+                                                    var missing = [];
+                                                    if (!form) return missing;
+                                                    var pers = form.querySelector('select[name="personas"]');
+                                                    if (pers && pers.selectedOptions && pers.selectedOptions.length === 0) missing.push('al menos un Responsable');
+                                                    var fch = form.querySelector('[name="fecha_reg"]');
+                                                    if (fch && !((fch.value || '').trim())) missing.push('la Fecha del registro');
+                                                    var desc = form.querySelector('#op-register-desc, textarea[name="descripcion"], [name="descripcion"]');
+                                                    if (desc && !((desc.value || '').trim())) missing.push('la Descripción de la actividad');
+                                                    return missing;
+                                                }
+                                                // Gate en fase de CAPTURA: corre antes del onclick inline; solo bloquea si hay
+                                                // campos vacios (pass-through total cuando el registro es valido -> no rompe el handler).
+                                                document.addEventListener('click', function (e) {
+                                                    var btn = (e.target && e.target.closest) ? e.target.closest('[onclick*="uploadFiles"]') : null;
+                                                    if (!btn) return;
+                                                    var missing = opValidateNewActivity(btn.closest('form'));
+                                                    if (missing.length > 0) {
+                                                        e.preventDefault();
+                                                        e.stopImmediatePropagation();
+                                                        opAdvisory('Advertencia Normativa (ISO 13485 / 21 CFR Part 11)',
+                                                            'Para la trazabilidad del DHF, la actividad requiere: ' + missing.join(', ') + '. Complete estos campos antes de enviar.');
+                                                    }
+                                                }, true);
+                                            } catch (e) { /* PE tolerante a fallos: nunca bloquear la pagina */ }
+                                        })();
+
                                         window.opOpenRegisterForActivity = function (index, subIndex) {
                                             var realSelect = document.querySelector('#Ventana1 select[name="numeral"]') || document.querySelector('select[name="numeral"]');
                                             var activityEl = opGetActivityElement(index);

@@ -286,3 +286,61 @@ hacerlo enmascararía el defecto y daría falsa confianza en un sistema regulado
 - **Estado:** RESUELTO en `2b9199e` (fix autorizado explícitamente). Corregidas
   las 6 líneas activas de `Inicio.jsp` y `Support.jsp` (más la comentada
   `Support.jsp:41`) al prefijo `Interfaz/Contenido/assets/Alertas/dist/`.
+
+### 8.3 INCIDENTE — Registro de prueba escrito en el Audit Trail (memoria 0034)
+
+- **Qué:** durante la verificación en navegador del advisory de campos obligatorios
+  (Quality Gate C, ver §8.4), se despachó un click sintético sobre el control de
+  submit real de "Registrar actividad" (`uploadFiles()`). Para "proteger" la prueba
+  se stubbeó `window.uploadFiles`, pero ese handler es quien hace el `preventDefault`
+  del submit nativo; al reemplazarlo, **el formulario ejecutó su POST nativo a
+  `opc=9`** y muy probablemente insertó una fila en `MemoriaD` + `MemoriaDLog`.
+- **Registro presuntamente creado (a verificar por Calidad contra el timestamp real de BD):**
+  - **Memoria:** CONSECUTIVO **0034** (PROYECTO `1.2.3.4.5.6.7`, USO PREVISTO `7.7.7.`).
+  - **Fecha del registro:** `2026-08-24`.
+  - **Autor:** `PROGRAMADOR / ADMINISTRADOR D&D` (usuario de sesión).
+  - **Responsable asignado:** `DIEGO OROZCO / DIRECTOR MANTENIMIENTO` (era `personas.options[0]`).
+  - **Estado:** `EN PROCESO`. **Descripción:** vacía / por defecto (el campo `#op-register-desc` no tiene `name`, no viajó en el POST).
+  - **Numeral:** no determinable desde el DOM; identificar por el `Id_memoria_D` de mayor
+    timestamp de inserción del `2026-08-24` en la memoria 0034.
+  - NOTA: en la vista había **2** actividades idénticas fechadas `2026-08-24` con ese
+    responsable; solo **una** corresponde a la prueba (se hizo un único submit). El
+    discriminador definitivo es el **timestamp de creación en BD**.
+- **Regla violada:** `§7.C` (prohibido cualquier submit que escriba en `MemoriaDLog`
+  para verificar UI). El método de prueba fue incorrecto: nunca debe dispararse un
+  control de escritura; la verificación de UI es solo lectura/navegación (`§7.D`).
+- **Remediación correcta (NO borrar):** `MemoriaDLog` es inmutable. La fila NO se
+  elimina ni se corrige (eso sería una segunda violación). Calidad debe **anular/anotar
+  administrativamente** el registro vía el SOP de control de registros, dejando
+  constancia de que fue un registro de prueba erróneo.
+- **Acción correctiva de proceso (adoptada):** cero clicks sintéticos sobre controles
+  de escritura; toda verificación futura de UI es 100% lectura/navegación (`§7.D`).
+- **Estado:** ESCALADO a Calidad para anotación/anulación por SOP.
+
+### 8.4 Quality Gates regulatorios — especificación OBLIGATORIA para la fase de backend
+
+Estos 4 gates son **reglas de negocio que DEBEN vivir en el backend** (`Servlets.Proyecto`
+/ capa de validación / constraints de BD), porque un control solo-navegador se bypassea
+y da falsa confianza (`§8` principio). En el frontend (`Contenedor_head.jsp`) solo existen
+como **Progressive Enhancement / asistencia UX** (ver commit de cierre), NO como control
+normativo. Aplican a nuevos registros (`estadoM == 1`, `opc=2`, cambios de estado en curso);
+los históricos (`estadoM == 0`) quedan intactos e inmutables (retrocompatibilidad).
+
+- **Gate A — Cierre sin pendientes (máquina de estados):** un Proyecto/Memoria NO puede
+  transicionar a `FINALIZADO`/`TERMINADO` si existe ≥1 actividad en `EN PROCESO` /
+  `EN REVISION` / `SIN ATENDER`. Validar en servidor antes de persistir el estado de
+  salida (relacionado con `opc=13`, cambio de estado). NOTA: el control de "finalizar"
+  NO existe en la vista Memorias (`opc=7`); vive en otra vista/opc → sin punto de enganche
+  frontend, es puramente backend.
+- **Gate B — Integridad cronológica (server-side):** la fecha de una actividad/avance debe
+  acotarse `>= fch_entrada` (inicio del proyecto) y `<= CURRENT_DATE` (sin fechas futuras
+  ni anteriores a la creación). Validar en servidor en el guardado (`opc=9/10/11/12`).
+  Frontend hace `min`/`max` en los `input[type=date]` (`fecha_reg`), pero NO es control.
+- **Gate C — Auditoría inmutable de autor (21 CFR Part 11):** toda actividad/avance debe
+  capturar de forma OBLIGATORIA el `Id_usuario` + nombre de sesión y el timestamp real, y
+  rechazar en servidor un registro sin responsable ni descripción. Frontend solo avisa
+  (advisory no bloqueante sobre `uploadFiles`).
+- **Gate D — Evidencia en V&V (7.3.5 / 7.3.6):** para marcar `FINALIZADA` una actividad de
+  Verificación (7.3.5) o Validación (7.3.6 — IQ/OQ/PQ, ensayos de laboratorio) el servidor
+  debe exigir ≥1 evidencia adjunta (archivo OnlyOffice `oo:<id>:<nombre>` o adjunto físico).
+- **Estado:** ESCALADO al dueño del backend como spec técnica requerida.
