@@ -4576,6 +4576,97 @@
                                         window._opBatchWizardStep = 1;
                                         window._opSelectedStages = [];
 
+                                        /* ═══════════════════════════════════════════════════════════════════
+                                           Diálogo enriquecido de CIERRE de proyecto (consentimiento informado).
+                                           Override diferido de ProyectoProceso (definido en Proyecto.jsp -> TERMINADO):
+                                           consulta métricas por FETCH DE LECTURA (opc=7) y muestra el desglose real.
+                                           NO autocompleta ni fabrica registros (Opción 1 descartada por ALCOA/21 CFR
+                                           Part 11). El cambio de estado sigue siendo el backend (opc=6); aquí solo se
+                                           envuelve la confirmación con consentimiento informado. Ver CLAUDE.md §8.9.
+                                           ═══════════════════════════════════════════════════════════════════ */
+                                        window.opConfirmProjectClose = function (id, finalState) {
+                                            try { if (window.swal && swal.close) swal.close(); } catch (e) { }
+                                            var tipoEl = document.getElementById('t_proyecto');
+                                            var tipo = tipoEl ? tipoEl.value : '';
+                                            window.location.href = 'Proyecto?opc=6&id_proyecto=' + id + '&Rdb_consulta=' + encodeURIComponent(tipo) + '&f_salida=' + finalState;
+                                        };
+                                        function opParseMemoriaMetrics(html) {
+                                            try {
+                                                var doc = new DOMParser().parseFromString(html, 'text/html');
+                                                var tables = doc.querySelectorAll('table.table-bordered');
+                                                var total = 0, fin = 0;
+                                                for (var i = 0; i < tables.length; i++) {
+                                                    var t = tables[i];
+                                                    if (t.querySelector('img') || t.classList.contains('op-wiz-stage-table')) continue;
+                                                    var txt = (t.textContent || '');
+                                                    if (/AUTOR/i.test(txt)) {
+                                                        total++;
+                                                        if (t.querySelector('.text-success') || /FINALIZAD/i.test(txt)) fin++;
+                                                    }
+                                                }
+                                                return { total: total, finalizadas: fin, pendientes: total - fin };
+                                            } catch (e) { return null; }
+                                        }
+                                        function opShowCloseDialog(m, id, finalState) {
+                                            if (m && m.pendientes === 0 && m.total > 0) {
+                                                // Escenario B: todas finalizadas
+                                                swal({
+                                                    title: 'Cierre de Proyecto',
+                                                    text: '✅ Todas las actividades (' + m.total + ') se encuentran finalizadas satisfactoriamente. ¿Confirmar cierre del proyecto?',
+                                                    type: 'success', showCancelButton: true, confirmButtonColor: 'green',
+                                                    confirmButtonText: 'Confirmar Cierre', cancelButtonText: 'Cancelar', closeOnConfirm: false
+                                                }, function () { opConfirmProjectClose(id, finalState); });
+                                            } else if (m && m.pendientes > 0) {
+                                                // Escenario A: hay pendientes -> decisión informada (SIN autocompletar)
+                                                var panel = '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:12px; font-size:13px; color:#0f172a;">'
+                                                    + '<div style="font-weight:700; margin-bottom:6px;">📊 Resumen de Actividades DHF</div>'
+                                                    + '<b>' + m.total + '</b> Total &nbsp;|&nbsp; <span style="color:#16a34a;"><b>' + m.finalizadas + '</b> Finalizadas</span> &nbsp;|&nbsp; <span style="color:#d97706;"><b>' + m.pendientes + '</b> Pendientes</span>'
+                                                    + '</div>'
+                                                    + '<p style="font-size:12.5px; color:#b45309; margin-bottom:14px;"><i class="fas fa-exclamation-triangle mr-1"></i> Esta memoria cuenta con <b>' + m.pendientes + '</b> actividad(es) sin cerrar o sin registro de avance.</p>'
+                                                    + '<button type="button" onclick="opConfirmProjectClose(' + id + ',\'' + finalState + '\')" style="background:#dc2626; color:#fff; border:none; border-radius:6px; padding:9px 14px; font-weight:600; font-size:12.5px; margin:3px; cursor:pointer;">Finalizar dejando actividades pendientes</button>'
+                                                    + '<button type="button" onclick="if(window.swal)swal.close();" style="background:#64748b; color:#fff; border:none; border-radius:6px; padding:9px 14px; font-weight:600; font-size:12.5px; margin:3px; cursor:pointer;">Cancelar / Volver a Gestión</button>';
+                                                swal({ title: 'Cierre con Actividades Pendientes', text: panel, type: 'warning', html: true, showConfirmButton: false });
+                                            } else if (m && m.total === 0) {
+                                                // Memoria sin actividades registradas (métricas cargadas pero vacías)
+                                                swal({
+                                                    title: 'Cierre de Proyecto',
+                                                    text: 'Esta memoria no tiene actividades registradas. ¿Confirmar el cambio de estado a ' + finalState + '?',
+                                                    type: 'warning', showCancelButton: true, confirmButtonColor: 'green',
+                                                    confirmButtonText: 'Confirmar', cancelButtonText: 'Cancelar', closeOnConfirm: false
+                                                }, function () { opConfirmProjectClose(id, finalState); });
+                                            } else {
+                                                // Fallback real: el fetch/parse de métricas falló -> confirmación simple, sin bloquear
+                                                swal({
+                                                    title: 'Cambio de Estado del Proyecto',
+                                                    text: 'No se pudieron cargar las métricas de la memoria. ¿Confirmar el cambio de estado a ' + finalState + '?',
+                                                    type: 'warning', showCancelButton: true, confirmButtonColor: 'green',
+                                                    confirmButtonText: 'Aceptar', cancelButtonText: 'Cancelar', closeOnConfirm: false
+                                                }, function () { opConfirmProjectClose(id, finalState); });
+                                            }
+                                        }
+                                        window.opShowCloseDialog = opShowCloseDialog; // expuesto para verificación controlada (solo lectura)
+                                        function opEnrichedProjectClose(id, finalState) {
+                                            try {
+                                                if (window.swal) swal({ title: 'Consultando métricas…', text: '<i class="fas fa-spinner fa-spin fa-2x text-primary"></i>', type: 'info', html: true, showConfirmButton: false });
+                                            } catch (e) { }
+                                            fetch('Proyecto?opc=7&ipy=' + id + '&estadoM=1', { credentials: 'same-origin' })
+                                                .then(function (r) { return r.text(); })
+                                                .then(function (html) { opShowCloseDialog(opParseMemoriaMetrics(html), id, finalState); })
+                                                .catch(function () { opShowCloseDialog(null, id, finalState); });
+                                        }
+                                        (function opInstallCloseOverride() {
+                                            function install() {
+                                                // Solo en el listado (Proyecto.jsp), donde ProyectoProceso existe.
+                                                if (typeof window.ProyectoProceso === 'function' && !window._opOrigProyectoProceso) {
+                                                    window._opOrigProyectoProceso = window.ProyectoProceso;
+                                                    window.ProyectoProceso = function (id_proyecto) { opEnrichedProjectClose(id_proyecto, 'TERMINADO'); };
+                                                }
+                                            }
+                                            // DOMContentLoaded corre DESPUES de los <script> inline de Proyecto.jsp -> gana el override.
+                                            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
+                                            else install();
+                                        })();
+
                                         window.opShowBatchCreationModal = function () {
                                             var urlParams = new URLSearchParams(window.location.search);
                                             var estadoM = urlParams.get('estadoM') || '1';

@@ -433,3 +433,33 @@ anti-doble-submit, ver commit de cierre), que NO reduce la latencia real.
   (§8.5-P2). NO se paralelizan los POSTs en cliente (cambiaría el orden/semántica del audit
   trail en un sistema regulado). Ya tiene barra de progreso y guard anti-doble-click.
 - **Estado:** Parte 1 y save de Parte 2 ESCALADOS al backend; UI del wizard confirmado rápido.
+
+### 8.9 Diálogo de cierre de proyecto: consentimiento informado (SÍ) vs autocompletado enlatado (NO)
+
+- **Opción RECHAZADA (autocompletar y finalizar):** se descartó por decisión técnica/ética. Auto-
+  llenar las actividades pendientes con texto enlatado ("Actividad realizada satisfactoriamente…")
+  y cerrar es **fabricación de registros del DHF**: genera evidencia de calidad que ningún
+  responsable real redactó/verificó, en el `MemoriaDLog` inmutable → viola **ALCOA / 21 CFR
+  Part 11** (Attributable, Contemporaneous, Accurate). Es además escritura de backend. NO se
+  implementa desde ninguna capa.
+- **Implementado (consentimiento informado, `Contenedor_head.jsp`):** override diferido de
+  `ProyectoProceso` (listado `Proyecto.jsp`, cierre a TERMINADO). Antes de cerrar, consulta las
+  métricas reales por **fetch de LECTURA** (`opc=7&ipy=<id>`), parsea y muestra:
+  * Escenario A (pendientes > 0): panel "📊 X Total | Y Finalizadas | Z Pendientes" + advertencia
+    + 2 opciones informadas: "Finalizar dejando actividades pendientes" (acción normal `opc=6`) y
+    "Cancelar / Volver a Gestión". SIN autocompletar.
+  * Escenario B (pendientes = 0, total > 0): "✅ Todas las actividades finalizadas
+    satisfactoriamente. ¿Confirmar cierre?" → Confirmar / Cancelar.
+  * total = 0: "Esta memoria no tiene actividades registradas. ¿Confirmar…?".
+  * fallback: si el fetch/parse falla, confirmación simple sin bloquear.
+  Verificado en navegador SOLO LECTURA (proj 42=Escenario A 23/0/23; sintético=Escenario B;
+  proj 2=total 0). Modal visible 478×512, CSS de swal cargado. Cero writes (no se confirmó
+  ningún cierre; todos los fetch fueron GET de lectura).
+- **Alcance:** el cambio de estado en sí (`opc=6`, f_salida=TERMINADO/FINALIZADO) es del backend;
+  el frontend solo envuelve la confirmación. El enforcement real del cierre (Gate A §8.4) sigue
+  siendo backend. FINALIZADO vía `ProyectoRevision` (picker multi-estado legacy) queda como está.
+- **Nota:** el listado `Proyecto.jsp` tiene un error legacy pre-existente de `LiveValidation.js`
+  (`Cannot read properties of undefined (reading 'push')`) ajeno a esta capa; documentado por
+  trazabilidad, fuera de alcance `.op-*`.
+- **Estado:** RESUELTO en frontend (UX de consentimiento informado); Opción 1 RECHAZADA por
+  cumplimiento; cierre real permanece en backend.
