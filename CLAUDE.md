@@ -436,12 +436,29 @@ anti-doble-submit, ver commit de cierre), que NO reduce la latencia real.
 
 ### 8.9 Diálogo de cierre de proyecto: consentimiento informado (SÍ) vs autocompletado enlatado (NO)
 
-- **Opción RECHAZADA (autocompletar y finalizar):** se descartó por decisión técnica/ética. Auto-
-  llenar las actividades pendientes con texto enlatado ("Actividad realizada satisfactoriamente…")
-  y cerrar es **fabricación de registros del DHF**: genera evidencia de calidad que ningún
-  responsable real redactó/verificó, en el `MemoriaDLog` inmutable → viola **ALCOA / 21 CFR
-  Part 11** (Attributable, Contemporaneous, Accurate). Es además escritura de backend. NO se
-  implementa desde ninguna capa.
+- **Opción 1 (autocompletar y finalizar) — inicialmente RECHAZADA, luego AUTORIZADA por negocio:**
+  Se rechazó de entrada por riesgo ALCOA/21 CFR Part 11 (autollenar texto enlatado = fabricación
+  de registros del DHF). Posteriormente el dueño del negocio la **autorizó expresamente** como
+  excepción operativa de Plastitec, con conocimiento pleno del matiz ALCOA (excepción avalada por
+  el precedente §4.2.1). Implementada en frontend (Opción 2 elegida: el usuario verifica manualmente):
+  * Al confirmar, por cada actividad pendiente **bajo la gestión del usuario** se dispara por
+    `fetch`: `opc=11` (observación estándar "Actividad realizada y verificada satisfactoriamente
+    según las especificaciones técnicas del proyecto.", `Tipo_log=RESPONSABLE`) + `opc=13`
+    (`estado=3` finalizar); al terminar, `opc=6` (cierre a TERMINADO).
+  * **Guardarraíl de cumplimiento (permisos [X]):** solo se autocompletan las actividades cuyo
+    control `ProyectoEstado*` está renderizado para el usuario que cierra (las que le pertenecen).
+    Las de OTROS responsables NO se tocan (verificado: proj 42 = 7 gestionables de 23 pendientes).
+    Esto es correcto — el que cierra no puede fabricar atestaciones de terceros.
+  * **Matiz ALCOA documentado (asumido por negocio):** la observación se atribuye vía `id_usuario`
+    al usuario de sesión que cierra, no necesariamente al responsable original; y es contemporánea
+    al cierre, no al trabajo. Es una escritura IRREVERSIBLE al `MemoriaDLog`.
+  * **Verificación:** el desarrollador NO auto-testeó la escritura (§7.C + incidente §8.3); el
+    diálogo/flujo se validó SOLO LECTURA (3 botones verde/rojo/gris 311px, `pendingIds` poblado,
+    confirmación honesta). La **verificación funcional de la escritura la realiza el usuario** en
+    un proyecto de prueba (su decisión autorizada).
+  * **Forma robusta (recomendada, escalada):** para cubrir TODAS las pendientes (incl. las de
+    otros responsables) con atribución correcta y transaccionalidad testeable, el batch-autocomplete
+    debe vivir en el backend. El frontend solo cubre las gestionables por el usuario que cierra.
 - **Implementado (consentimiento informado, `Contenedor_head.jsp`):** override diferido de
   `ProyectoProceso` (listado `Proyecto.jsp`, cierre a TERMINADO). Antes de cerrar, consulta las
   métricas reales por **fetch de LECTURA** (`opc=7&ipy=<id>`), parsea y muestra:
@@ -461,5 +478,6 @@ anti-doble-submit, ver commit de cierre), que NO reduce la latencia real.
 - **Nota:** el listado `Proyecto.jsp` tiene un error legacy pre-existente de `LiveValidation.js`
   (`Cannot read properties of undefined (reading 'push')`) ajeno a esta capa; documentado por
   trazabilidad, fuera de alcance `.op-*`.
-- **Estado:** RESUELTO en frontend (UX de consentimiento informado); Opción 1 RECHAZADA por
-  cumplimiento; cierre real permanece en backend.
+- **Estado:** RESUELTO en frontend (consentimiento informado + Opción 1 autocompletar AUTORIZADA
+  por negocio, con guardarraíl de permisos y matiz ALCOA documentado; verificación de escritura a
+  cargo del usuario). Cobertura total de pendientes y cierre real permanecen como trabajo de backend.

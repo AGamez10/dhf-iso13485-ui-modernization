@@ -4594,17 +4594,27 @@
                                             try {
                                                 var doc = new DOMParser().parseFromString(html, 'text/html');
                                                 var tables = doc.querySelectorAll('table.table-bordered');
-                                                var total = 0, fin = 0;
+                                                var total = 0, fin = 0, pendingIds = [], seen = {};
                                                 for (var i = 0; i < tables.length; i++) {
                                                     var t = tables[i];
                                                     if (t.querySelector('img') || t.classList.contains('op-wiz-stage-table')) continue;
                                                     var txt = (t.textContent || '');
                                                     if (/AUTOR/i.test(txt)) {
                                                         total++;
-                                                        if (t.querySelector('.text-success') || /FINALIZAD/i.test(txt)) fin++;
+                                                        if (t.querySelector('.text-success') || /FINALIZAD/i.test(txt)) {
+                                                            fin++;
+                                                        } else {
+                                                            // pendiente -> id_memoria desde CUALQUIER control ProyectoEstado1/2/3 de ESA
+                                                            // tabla (3er arg). Las "SIN ATENDER" usan ProyectoEstado2 (no el 3).
+                                                            var oc = (t.innerHTML || '').match(/ProyectoEstado\d\(\s*\d+\s*,\s*\d+\s*,\s*(\d+)/);
+                                                            if (oc && !seen[oc[1]]) { seen[oc[1]] = 1; pendingIds.push(oc[1]); }
+                                                        }
                                                     }
                                                 }
-                                                return { total: total, finalizadas: fin, pendientes: total - fin };
+                                                var idU = (doc.querySelector('[name="id_usuario"]') || {}).value || '';
+                                                var usr = (doc.querySelector('[name="usuario"]') || {}).value || '';
+                                                var em = (doc.querySelector('[name="estadoM"]') || {}).value || (doc.querySelector('[name="estado"]') || {}).value || '1';
+                                                return { total: total, finalizadas: fin, pendientes: total - fin, pendingIds: pendingIds, idUsuario: idU, usuario: usr, estadoM: em };
                                             } catch (e) { return null; }
                                         }
                                         function opShowCloseDialog(m, id, finalState) {
@@ -4617,14 +4627,20 @@
                                                     confirmButtonText: 'Confirmar Cierre', cancelButtonText: 'Cancelar', closeOnConfirm: false
                                                 }, function () { opConfirmProjectClose(id, finalState); });
                                             } else if (m && m.pendientes > 0) {
-                                                // Escenario A: hay pendientes -> decisión informada (SIN autocompletar)
+                                                // Escenario A: hay pendientes -> decisión informada del usuario (3 opciones).
+                                                // Contexto de escritura para la Opción 1 (autocompletar) — autorizado, ver §8.9.
+                                                window._opCloseCtx = { id: id, finalState: finalState, pendingIds: (m.pendingIds || []), idUsuario: m.idUsuario, usuario: m.usuario, estadoM: m.estadoM || '1' };
+                                                var _bs = 'width:100%; box-sizing:border-box; border:none; border-radius:6px; padding:10px 16px; font-weight:700; font-size:12.5px; margin:0; cursor:pointer; color:#ffffff; text-align:center;';
                                                 var panel = '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:12px; font-size:13px; color:#0f172a;">'
                                                     + '<div style="font-weight:700; margin-bottom:6px;">📊 Resumen de Actividades DHF</div>'
                                                     + '<b>' + m.total + '</b> Total &nbsp;|&nbsp; <span style="color:#16a34a;"><b>' + m.finalizadas + '</b> Finalizadas</span> &nbsp;|&nbsp; <span style="color:#d97706;"><b>' + m.pendientes + '</b> Pendientes</span>'
                                                     + '</div>'
                                                     + '<p style="font-size:12.5px; color:#b45309; margin-bottom:14px;"><i class="fas fa-exclamation-triangle mr-1"></i> Esta memoria cuenta con <b>' + m.pendientes + '</b> actividad(es) sin cerrar o sin registro de avance.</p>'
-                                                    + '<button type="button" onclick="opConfirmProjectClose(' + id + ',\'' + finalState + '\')" style="background:#dc2626; color:#fff; border:none; border-radius:6px; padding:9px 14px; font-weight:600; font-size:12.5px; margin:3px; cursor:pointer;">Finalizar dejando actividades pendientes</button>'
-                                                    + '<button type="button" onclick="if(window.swal)swal.close();" style="background:#64748b; color:#fff; border:none; border-radius:6px; padding:9px 14px; font-weight:600; font-size:12.5px; margin:3px; cursor:pointer;">Cancelar / Volver a Gestión</button>';
+                                                    + '<div style="display:flex; flex-direction:column; gap:8px; width:100%;">'
+                                                    + '  <button type="button" onclick="opAutocompleteAndFinalize()" style="' + _bs + ' background:#16a34a;">Autocompletar observaciones y Finalizar</button>'
+                                                    + '  <button type="button" onclick="opConfirmProjectClose(' + id + ',\'' + finalState + '\')" style="' + _bs + ' background:#dc2626;">Finalizar dejando actividades pendientes</button>'
+                                                    + '  <button type="button" onclick="if(window.swal)swal.close();" style="' + _bs + ' background:#64748b;">Cancelar / Volver a Gestión</button>'
+                                                    + '</div>';
                                                 swal({ title: 'Cierre con Actividades Pendientes', text: panel, type: 'warning', html: true, showConfirmButton: false });
                                             } else if (m && m.total === 0) {
                                                 // Memoria sin actividades registradas (métricas cargadas pero vacías)
@@ -4645,6 +4661,63 @@
                                             }
                                         }
                                         window.opShowCloseDialog = opShowCloseDialog; // expuesto para verificación controlada (solo lectura)
+
+                                        /* OPCIÓN 1 AUTORIZADA (excepción de negocio, ver CLAUDE.md §8.9): autocompletar las
+                                           actividades pendientes con la observación técnica estándar y finalizar. ESCRIBE en el
+                                           audit trail (opc=11 + opc=13). Atribuye al usuario de sesión que cierra (matiz ALCOA
+                                           documentado). Se dispara por fetch (evita el F3 del forward de opc=11). */
+                                        window.opAutocompleteAndFinalize = function () {
+                                            var ctx = window._opCloseCtx;
+                                            if (!ctx) return;
+                                            var n = (ctx.pendingIds || []).length;
+                                            // Solo se pueden autocompletar las actividades bajo la gestión del usuario que cierra
+                                            // (permiso [X]). Las de OTROS responsables no se tocan -> correcto por ALCOA.
+                                            if (n === 0) {
+                                                swal({
+                                                    title: 'Sin actividades gestionables',
+                                                    text: 'No hay actividades pendientes bajo tu gestión para autocompletar (las pendientes corresponden a otros responsables). ¿Deseas finalizar el proyecto de todas formas?',
+                                                    type: 'info', showCancelButton: true, confirmButtonColor: '#16a34a',
+                                                    confirmButtonText: 'Finalizar', cancelButtonText: 'Cancelar', closeOnConfirm: false
+                                                }, function () { opConfirmProjectClose(ctx.id, ctx.finalState); });
+                                                return;
+                                            }
+                                            swal({
+                                                title: 'Autocompletar y Finalizar',
+                                                text: '¿Desea autocompletar las ' + n + ' actividad(es) pendientes BAJO TU GESTIÓN con la observación técnica estándar y finalizar el proyecto? Las actividades de otros responsables NO se modifican.',
+                                                type: 'warning', showCancelButton: true, confirmButtonColor: '#16a34a',
+                                                confirmButtonText: 'Sí, autocompletar y finalizar', cancelButtonText: 'Cancelar', closeOnConfirm: false
+                                            }, function () { opRunAutocompleteSequence(ctx); });
+                                        };
+                                        function opRunAutocompleteSequence(ctx) {
+                                            var STD = 'Actividad realizada y verificada satisfactoriamente según las especificaciones técnicas del proyecto.';
+                                            var today = new Date().toISOString().substring(0, 10);
+                                            var ids = ctx.pendingIds.slice();
+                                            var i = 0, ok = 0, err = 0;
+                                            swal({ title: 'Procesando cierre…', text: '<i class="fas fa-spinner fa-spin fa-2x text-primary"></i><div id="op-ac-log" style="margin-top:10px; font-size:12px; color:#334155;"></div>', type: 'info', html: true, showConfirmButton: false });
+                                            function log(msg) { var l = document.getElementById('op-ac-log'); if (l) l.innerHTML = msg; }
+                                            function body(obj) { var p = new URLSearchParams(); for (var k in obj) { if (obj.hasOwnProperty(k)) p.append(k, obj[k]); } return p.toString(); }
+                                            var H = { 'Content-Type': 'application/x-www-form-urlencoded' };
+                                            function next() {
+                                                if (i >= ids.length) {
+                                                    log('✔ ' + ok + ' completada(s)' + (err ? (', ' + err + ' con error') : '') + '. Cerrando proyecto…');
+                                                    setTimeout(function () { opConfirmProjectClose(ctx.id, ctx.finalState); }, 700);
+                                                    return;
+                                                }
+                                                var idm = ids[i];
+                                                log('Autocompletando actividad ' + (i + 1) + ' / ' + ids.length + '…');
+                                                // 1) opc=11: observación estándar
+                                                fetch('Proyecto?opc=11', { method: 'POST', headers: H, credentials: 'same-origin',
+                                                    body: body({ ipy: ctx.id, estado: ctx.estadoM, id_memoria: idm, id_usuario: ctx.idUsuario, usuario: ctx.usuario, fecha_reg: today, observacion: STD, Tipo_log: 'RESPONSABLE' })
+                                                }).then(function () {
+                                                    // 2) opc=13: finalizar (estado=3)
+                                                    return fetch('Proyecto?opc=13', { method: 'POST', headers: H, credentials: 'same-origin',
+                                                        body: body({ ipy: ctx.id, id_memoria: idm, estado: 3, estadoM: ctx.estadoM }) });
+                                                }).then(function () { ok++; i++; next(); })
+                                                    .catch(function () { err++; i++; next(); });
+                                            }
+                                            next();
+                                        }
+
                                         function opEnrichedProjectClose(id, finalState) {
                                             try {
                                                 if (window.swal) swal({ title: 'Consultando métricas…', text: '<i class="fas fa-spinner fa-spin fa-2x text-primary"></i>', type: 'info', html: true, showConfirmButton: false });
