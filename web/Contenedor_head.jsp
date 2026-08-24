@@ -4877,6 +4877,20 @@
                                             opRenderWizardStep(1);
                                         };
 
+                                        // Smart Card row para el Paso 2 del wizard (reutilizada por render inicial y "Agregar Actividad").
+                                        // Conserva las clases que lee opExecuteBatchSubmit: .op-batch-title / .op-batch-doc / .op-batch-desc.
+                                        function opWizRowHtml(titleVal) {
+                                            var tv = (titleVal || '').replace(/"/g, '&quot;');
+                                            return '<div class="op-wiz-act-row" style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; background:#ffffff;">'
+                                                + '  <div style="display:flex; gap:10px; align-items:center;">'
+                                                + '    <input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de la Actividad" spellcheck="true" lang="es" style="flex:1 1 auto; min-width:0; font-weight:600;" value="' + tv + '">'
+                                                + '    <select class="form-control form-control-sm op-batch-doc" style="flex:0 0 30%; max-width:230px;"><option value="none" selected>Ninguno (Solo Texto / Observación)</option><option value="docx">Documento Word (.docx) - Opcional</option><option value="docx_req">Documento Word (.docx) - Obligatorio</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select>'
+                                                + '    <button type="button" class="btn btn-sm btn-outline-danger" title="Eliminar actividad" onclick="this.closest(\'.op-wiz-act-row\').remove()" style="flex:0 0 auto;">&times;</button>'
+                                                + '  </div>'
+                                                + '  <textarea class="form-control form-control-sm op-batch-desc mt-2" rows="2" placeholder="Descripción / Observación Técnica" spellcheck="true" lang="es" style="width:100%; min-height:52px; resize:vertical;">Actividad planificada, ejecutada y verificada de acuerdo con las especificaciones de la norma ISO 13485</textarea>'
+                                                + '</div>';
+                                        }
+
                                         function opRenderWizardStep(step) {
                                             window._opBatchWizardStep = step;
                                             var container = document.getElementById('op-wiz-step-content');
@@ -4942,21 +4956,14 @@
                                                     + '<div style="max-height: 50vh; overflow-y: auto; padding-right: 4px;">';
 
                                                 selected.forEach(function (stg) {
-                                                    html += '<div class="op-wizard-stage-card">'
-                                                        + '  <div class="font-weight-bold text-primary mb-2" style="font-size:13px;"><i class="fas fa-folder text-warning mr-1"></i> ' + stg.text + '</div>'
-                                                        + '  <table class="table table-sm table-bordered op-wiz-stage-table" data-stage="' + stg.value + '" style="font-size:12px;">'
-                                                        + '    <thead class="bg-light"><tr><th>#</th><th>Nombre de la Actividad</th><th>Tipo de Documento OnlyOffice</th><th>Observación</th><th>Acción</th></tr></thead>'
-                                                        + '    <tbody>'
-                                                        + '      <tr>'
-                                                        + '        <td>1</td>'
-                                                        + '        <td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Ej. Matriz de Requisitos" value="Documento Técnico de ' + stg.text.substring(0, 25) + '"></td>'
-                                                        + '        <td><select class="form-control form-control-sm op-batch-doc"><option value="none" selected>Ninguno (Solo Texto / Observación)</option><option value="docx">Documento Word (.docx) - Opcional</option><option value="docx_req">Documento Word (.docx) - Obligatorio</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td>'
-                                                        + '        <td><textarea class="form-control form-control-sm op-batch-desc" rows="2" placeholder="Observación (opcional)" spellcheck="true" lang="es" style="resize:vertical; min-height:31px;">Actividad planificada, ejecutada y verificada de acuerdo con las especificaciones de la norma ISO 13485</textarea></td>'
-                                                        + '        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td>'
-                                                        + '      </tr>'
-                                                        + '    </tbody>'
-                                                        + '  </table>'
-                                                        + '  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="opAddRowToStageTable(this)"><i class="fas fa-plus mr-1"></i> Agregar Actividad a esta Etapa</button>'
+                                                    html += '<div class="op-wizard-stage-card" style="border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:16px; background:#ffffff;">'
+                                                        + '  <div class="op-wiz-stage-head" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px;">'
+                                                        + '    <div class="font-weight-bold text-dark" style="font-size:13px;"><i class="fas fa-folder text-warning mr-2" style="color:#f59e0b;"></i> ' + stg.text + '</div>'
+                                                        + '    <button type="button" class="btn btn-sm btn-outline-secondary font-weight-bold" onclick="opAddRowToStageTable(this)" style="white-space:nowrap;"><i class="fas fa-plus mr-1"></i> Agregar Actividad</button>'
+                                                        + '  </div>'
+                                                        + '  <div class="op-wiz-stage-table" data-stage="' + stg.value + '" style="display:flex; flex-direction:column; gap:12px;">'
+                                                        + opWizRowHtml('Documento Técnico de ' + stg.text.substring(0, 25))
+                                                        + '  </div>'
                                                         + '</div>';
                                                 });
 
@@ -4984,13 +4991,13 @@
                                         };
 
                                         window.opAddRowToStageTable = function (btn) {
-                                            var table = btn.parentNode.querySelector('.op-wiz-stage-table');
-                                            if (!table) return;
-                                            var tbody = table.querySelector('tbody');
-                                            var count = tbody.querySelectorAll('tr').length + 1;
-                                            var tr = document.createElement('tr');
-                                            tr.innerHTML = '<td>' + count + '</td><td><input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de actividad ' + count + '"></td><td><select class="form-control form-control-sm op-batch-doc"><option value="none" selected>Ninguno (Solo Texto / Observación)</option><option value="docx">Documento Word (.docx) - Opcional</option><option value="docx_req">Documento Word (.docx) - Obligatorio</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select></td><td><textarea class="form-control form-control-sm op-batch-desc" rows="2" placeholder="Observación (opcional)" spellcheck="true" lang="es" style="resize:vertical; min-height:31px;">Actividad planificada, ejecutada y verificada de acuerdo con las especificaciones de la norma ISO 13485</textarea></td><td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()">&times;</button></td>';
-                                            tbody.appendChild(tr);
+                                            var card = btn.closest ? btn.closest('.op-wizard-stage-card') : null;
+                                            var cont = card ? card.querySelector('.op-wiz-stage-table') : null;
+                                            if (!cont) return;
+                                            var wrap = document.createElement('div');
+                                            wrap.innerHTML = opWizRowHtml('');
+                                            var row = wrap.firstElementChild;
+                                            if (row) cont.appendChild(row);
                                         };
 
                                         window.opExecuteBatchSubmit = function () {
@@ -5002,7 +5009,7 @@
 
                                             stageTables.forEach(function (tbl) {
                                                 var stgVal = tbl.getAttribute('data-stage');
-                                                var rows = tbl.querySelectorAll('tbody tr');
+                                                var rows = tbl.querySelectorAll('.op-wiz-act-row');
                                                 rows.forEach(function (r) {
                                                     var titleInput = r.querySelector('.op-batch-title');
                                                     var docSelect = r.querySelector('.op-batch-doc');
