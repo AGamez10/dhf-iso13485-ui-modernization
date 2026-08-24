@@ -2602,6 +2602,29 @@
                                         var _opActiveActivityIndex = null;
                                         var _opActivitiesList = [];
 
+                                        // Deteccion DUAL de editabilidad: el listado legacy SIEMPRE genera la URL con
+                                        // estadoM=1, incluso para proyectos TERMINADO/FINALIZADO. Por eso cruzamos el
+                                        // parametro de URL con el ESTADO real leido de la cabecera Plastitec del DOM;
+                                        // si el proyecto esta cerrado, NO es editable aunque la URL diga estadoM=1.
+                                        window.opDetectProjectClosed = function () {
+                                            try {
+                                                var candidates = document.querySelectorAll('.card-header table, #Formulario table');
+                                                var headerTxt = '';
+                                                for (var i = 0; i < candidates.length; i++) {
+                                                    var tt = candidates[i].innerText || candidates[i].textContent || '';
+                                                    if (/CONSECUTIVO|MEMORIAS DE DISE|DOCUMENTO CONFIDENCIAL/i.test(tt) && /ESTADO/i.test(tt)) { headerTxt = tt; break; }
+                                                }
+                                                if (!headerTxt) return false; // sin cabecera identificable -> no forzar cierre (cae al gate de URL)
+                                                var m = headerTxt.match(/ESTADO\s*:?\s*([A-ZÁÉÍÓÚÑ ]{2,25})/i);
+                                                if (m) {
+                                                    var v = m[1].toUpperCase();
+                                                    if (/TERMINAD|FINALIZAD|CERRAD/.test(v)) return true;   // proyecto cerrado
+                                                    if (/PROCESO|ABIERT|ACTIV|CURSO|REVISION/.test(v)) return false; // en curso
+                                                }
+                                                return /\b(TERMINAD[OA]|FINALIZAD[OA])\b/.test(headerTxt);
+                                            } catch (e) { return false; }
+                                        };
+
                                         function opInitSplitScreen() {
                                             var isDHFPage = (
                                                 window.location.search.indexOf('opc=7') !== -1 ||
@@ -2767,7 +2790,8 @@
 
                                             var urlParams = new URLSearchParams(window.location.search);
                                             var estadoM = urlParams.get('estadoM') || '1';
-                                            var isEditable = (estadoM === '1');
+                                            // Deteccion dual: URL estadoM=1 Y el proyecto NO cerrado en la cabecera del DOM.
+                                            var isEditable = (estadoM === '1') && !window.opDetectProjectClosed();
 
                                             var toolbar = document.createElement('div');
                                             toolbar.id = 'op-view-toolbar';
@@ -3256,7 +3280,7 @@
 
                                             var urlParams = new URLSearchParams(window.location.search);
                                             var estadoM = urlParams.get('estadoM') || '1';
-                                            var isEditable = (estadoM === '1' || estadoM === 1);
+                                            var isEditable = (estadoM === '1' || estadoM === 1) && !window.opDetectProjectClosed();
 
                                             var meta = _opActivitiesList[index] || {};
                                             var title = meta.title || ('Actividad DHF ' + (index + 1));

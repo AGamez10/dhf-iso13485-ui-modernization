@@ -394,3 +394,19 @@ anti-doble-submit, ver commit de cierre), que NO reduce la latencia real.
 - **Fix real recomendado:** servir estáticamente `UserFiles` (o su respaldo) en el context
   path, o re-vincular esos adjuntos históricos al gestor descentralizado.
 - **Estado:** ESCALADO a TI/backend para restauración del respaldo `UserFiles`.
+
+### 8.7 Quirk backend: el listado genera SIEMPRE `&estadoM=1` (aun en proyectos cerrados)
+
+- **Qué:** el listado de proyectos (backend legacy) arma los enlaces con `&estadoM=1`
+  SIEMPRE, incluso cuando el proyecto en BD ya está `TERMINADO`/`FINALIZADO` (p.ej. 0001-0004,
+  ipy=5). Confiar solo en `estadoM` de la URL hacía que proyectos cerrados abrieran en Modo
+  Gestión (editable) en vez del Previsualizador (Solo Lectura).
+- **Compensación frontend (resuelta, commit de cierre):** `isEditable` ahora usa **detección
+  dual** — `estadoM === '1'` **Y** el ESTADO real leído de la cabecera Plastitec del DOM
+  (`window.opDetectProjectClosed()`): si la cabecera dice `TERMINADO`/`FINALIZADO`, el proyecto
+  NO es editable aunque la URL diga `estadoM=1`. Verificado: ipy=5 (FINALIZADO, URL estadoM=1)
+  abre en `op-fullview-mode` sin control de conmutación; ipy=45 (PROCESO) abre en `op-split-mode`.
+- **Fix real recomendado (backend):** que el listado emita el `estadoM` correcto según el estado
+  real del proyecto en BD. Mientras tanto, la detección dual del frontend lo cubre de forma robusta.
+- **Estado:** SÍNTOMA RESUELTO en frontend (detección dual); causa raíz (URL siempre `estadoM=1`)
+  ESCALADA al dueño del backend.
