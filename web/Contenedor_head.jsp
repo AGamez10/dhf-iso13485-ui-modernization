@@ -3272,22 +3272,63 @@
                                         }
 
                                         // Render selected activity in Detail Panel (Cross-Section & Interactive)
-                                        // Punto 2: control directo de estado de la actividad en el Panel Detalle (Split View).
-                                        // opc=13 (cambiar estado). Escritura al audit trail -> recarga para reflejar el badge.
+                                        // Toast discreto no bloqueante (reactividad en vivo).
+                                        window.opToast = function (msg, ok) {
+                                            var t = document.createElement('div');
+                                            t.setAttribute('role', 'status');
+                                            t.style.cssText = 'position:fixed; bottom:20px; right:20px; z-index:2147483000; background:' + (ok === false ? '#dc2626' : '#16a34a') + '; color:#fff; font-family:Arial,sans-serif; font-size:13px; font-weight:600; padding:11px 18px; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.25); opacity:0; transition:opacity .2s ease;';
+                                            t.innerHTML = msg;
+                                            document.body.appendChild(t);
+                                            requestAnimationFrame(function () { t.style.opacity = '1'; });
+                                            setTimeout(function () { t.style.opacity = '0'; setTimeout(function () { if (t.parentNode) t.remove(); }, 250); }, 2600);
+                                        };
+                                        // Actualiza EN VIVO (sin reload) el badge del detalle, el punto del arbol y el contador.
+                                        function opReflectActivityState(index, idMemoria, estadoNum) {
+                                            var isFin = (estadoNum === 3 || estadoNum === '3');
+                                            var card = idMemoria ? document.querySelector('.op-activity-item-card[data-id-memoria="' + idMemoria + '"]') : null;
+                                            if (card) {
+                                                var badge = card.querySelector('.op-estado-badge');
+                                                if (badge) {
+                                                    badge.className = 'badge op-estado-badge ' + (isFin ? 'badge-success' : 'badge-warning');
+                                                    badge.setAttribute('style', isFin ? 'background:#16a34a;color:#fff;font-weight:700;' : '');
+                                                    badge.textContent = isFin ? 'FINALIZADO' : 'EN PROCESO';
+                                                }
+                                            }
+                                            var mc = document.querySelector('#op-master-panel .op-activity-card[data-activity-index="' + index + '"]');
+                                            if (mc) {
+                                                var dot = mc.querySelector('.op-status-dot');
+                                                if (dot) dot.style.background = 'var(--op-status-' + (isFin ? 'finalizado' : 'proceso') + '-dot, var(--op-text-muted))';
+                                                var ttl = mc.getAttribute('title') || '';
+                                                mc.setAttribute('title', ttl.replace(/—.*/, '— ' + (isFin ? 'Finalizada' : 'En proceso')));
+                                            }
+                                            try {
+                                                var dots = document.querySelectorAll('#op-master-panel .op-status-dot');
+                                                var total = dots.length, fin = 0;
+                                                dots.forEach(function (d) { if ((d.style.background || '').indexOf('finalizado') !== -1) fin++; });
+                                                var lbl = document.querySelector('#op-master-panel .op-progress-label');
+                                                if (lbl) lbl.textContent = fin + ' / ' + total + ' actividades finalizadas';
+                                                var bar = document.querySelector('#op-master-panel .op-progress-bar');
+                                                if (bar) bar.style.width = (total ? Math.round(fin * 100 / total) : 0) + '%';
+                                            } catch (e) { }
+                                        }
+                                        // Punto 1: control directo de estado — opc=13 via fetch, SIN reload, reflejo en vivo del DOM.
                                         window.opSetActivityState = function (index, subIndex, idMemoria, estado) {
                                             idMemoria = ('' + idMemoria).trim();
                                             if (!idMemoria) { alert('No se pudo identificar la actividad (id_memoria).'); return; }
                                             var up = new URLSearchParams(window.location.search);
                                             var ipy = up.get('ipy') || (document.querySelector('[name="ipy"]') || {}).value || '';
                                             var estadoM = up.get('estadoM') || '1';
-                                            var label = (estado === 3 || estado === '3') ? 'FINALIZADO' : 'EN PROCESO';
-                                            if (typeof window.swal === 'function') { try { swal({ title: 'Cambiar estado', text: '<i class="fas fa-spinner fa-spin fa-2x text-primary"></i>', html: true, showConfirmButton: false }); } catch (e) { } }
+                                            var isFin = (estado === 3 || estado === '3');
+                                            var label = isFin ? 'FINALIZADO' : 'EN PROCESO';
                                             fetch('Proyecto?opc=13', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, credentials: 'same-origin',
                                                 body: 'ipy=' + ipy + '&id_memoria=' + idMemoria + '&estado=' + estado + '&estadoM=' + estadoM })
                                                 .then(function (r) {
-                                                    if (r && (r.ok || r.status === 302)) { window.location.reload(); }
-                                                    else { try { if (window.swal) swal.close(); } catch (e) { } alert('No se pudo cambiar el estado a ' + label + '.'); }
-                                                }).catch(function () { try { if (window.swal) swal.close(); } catch (e) { } alert('Error de red al cambiar el estado.'); });
+                                                    try { if (window.swal) swal.close(); } catch (e) { }
+                                                    if (r && (r.ok || r.status === 302)) {
+                                                        opReflectActivityState(index, idMemoria, estado);
+                                                        opToast('<i class="fas fa-check mr-1"></i> Actividad marcada como ' + label);
+                                                    } else { opToast('<i class="fas fa-exclamation-triangle mr-1"></i> No se pudo cambiar el estado', false); }
+                                                }).catch(function () { try { if (window.swal) swal.close(); } catch (e) { } opToast('<i class="fas fa-exclamation-triangle mr-1"></i> Error de red al cambiar el estado', false); });
                                         };
                                         // Punto 1 (decoupleado): "Marcar como FINALIZADA". El autoguardado ya persistió la
                                         // observación (opc=11, sin cambiar estado). Aquí SOLO se finaliza (opc=13). Si la
@@ -3329,8 +3370,12 @@
                                                 chain = pureFinalize();
                                             }
                                             chain.then(function (r) {
-                                                if (r && (r.ok || r.status === 302)) { window.location.reload(); }
-                                                else { throw new Error('finalize'); }
+                                                try { if (window.swal) swal.close(); } catch (e) { }
+                                                if (r && (r.ok || r.status === 302)) {
+                                                    opReflectActivityState(index, idMemoria, 3); // SIN reload: reflejo en vivo
+                                                    if (descChanged && descEl) descEl.setAttribute('data-orig', descEl.value || '');
+                                                    opToast('<i class="fas fa-check mr-1"></i> Actividad marcada como FINALIZADA');
+                                                } else { throw new Error('finalize'); }
                                             }).catch(function (e) {
                                                 try { if (window.swal) swal.close(); } catch (er) { }
                                                 if (e && e.message === 'numeral-desconocido') alert('Editaste la descripción pero no se pudo determinar el numeral actual; se ABORTÓ para no corromper el registro. Usa el lápiz (Modificar) del flujo estándar para editar la descripción.');
@@ -3565,7 +3610,7 @@
                                                         + '    <div class="d-flex flex-wrap gap-3" style="gap: 15px;">'
                                                         + '      <div><i class="fas fa-user-edit mr-1 text-primary"></i> <b>AUTOR:</b> ' + authorText + '</div>'
                                                         + '      <div><i class="far fa-calendar-alt mr-1"></i> <b>FECHA:</b> ' + dateText + '</div>'
-                                                        + '      <div><i class="fas fa-info-circle mr-1"></i> <b>ESTADO:</b> <span class="badge ' + (estadoText === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estadoText === 'FINALIZADO' ? 'background:#16a34a;color:#fff;font-weight:700;' : '') + '">' + estadoText + '</span>'
+                                                        + '      <div><i class="fas fa-info-circle mr-1"></i> <b>ESTADO:</b> <span class="badge op-estado-badge ' + (estadoText === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estadoText === 'FINALIZADO' ? 'background:#16a34a;color:#fff;font-weight:700;' : '') + '">' + estadoText + '</span>'
                                                         + (isEditable && idMemoria ? (' <span class="ml-2" style="white-space:nowrap;"><button type="button" class="btn btn-outline-warning py-0 px-2" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 1)" title="Marcar En Proceso">En Proceso</button> <button type="button" class="btn btn-outline-success py-0 px-2 ml-1" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 3)" title="Marcar Finalizado">Finalizar</button></span>') : '')
                                                         + '      </div>'
                                                         + '    </div>'
@@ -3576,6 +3621,15 @@
                                                         + (isEditable
                                                             ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" data-orig="' + ((descText || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/"/g, '&quot;')) + '" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + (descText || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ') + '</textarea>'
                                                             : '    <div>' + descText + '</div>')
+                                                        + (isEditable ? ('    <div class="op-doc-toolbar d-flex align-items-center flex-wrap mt-2" style="gap:6px;">'
+                                                            + '      <span class="text-muted mr-1" style="font-size:10.5px;"><i class="fas fa-paperclip mr-1"></i>Anexar a la actividad:</span>'
+                                                            + '      <button type="button" class="btn btn-sm btn-outline-info font-weight-bold" onclick="opOpenFileManagerForActivity(' + index + ', ' + subIndex + ')" style="font-size:11px;" title="Seleccionar archivo existente de Office Platform"><i class="fas fa-folder-open mr-1"></i> Gestor Archivos</button>'
+                                                            + '      <button type="button" class="btn btn-sm btn-outline-secondary font-weight-bold" onclick="opPromptAddHyperlink(' + index + ', ' + subIndex + ')" style="font-size:11px;" title="Insertar enlace o hipervínculo"><i class="fas fa-link mr-1"></i> Anexar Enlace</button>'
+                                                            + '      <button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" onclick="opCreateInlineDoc(' + index + ', ' + subIndex + ', \'document\')" style="font-size:11px;"><i class="far fa-file-word mr-1"></i> + Word</button>'
+                                                            + '      <button type="button" class="btn btn-sm btn-outline-success font-weight-bold" onclick="opCreateInlineDoc(' + index + ', ' + subIndex + ', \'spreadsheet\')" style="font-size:11px;"><i class="far fa-file-excel mr-1"></i> + Excel</button>'
+                                                            + '      <button type="button" class="btn btn-sm btn-outline-warning font-weight-bold" onclick="opCreateInlineDoc(' + index + ', ' + subIndex + ', \'presentation\')" style="font-size:11px;"><i class="far fa-file-powerpoint mr-1"></i> + PPT</button>'
+                                                            + '      <label class="btn btn-sm btn-outline-dark font-weight-bold m-0" style="font-size:11px; cursor:pointer;" title="Subir archivo desde tu computador"><i class="fas fa-upload mr-1"></i> Subir PC<input type="file" style="display:none;" onchange="opUploadLocalFileForActivity(' + index + ', ' + subIndex + ', this)"></label>'
+                                                            + '    </div>') : '')
                                                         + '  </div>'
                                                         + '  <div class="op-activity-status-row mb-3">'
                                                         + '    ' + statusHtml
