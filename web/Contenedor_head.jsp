@@ -2261,6 +2261,15 @@
 
                                 // Helper global para abrir o descargar archivos de OnlyOffice con autorización
                                 window.opOpenOOFile = function (fileId, title) {
+                                    var name = (title || '').toLowerCase();
+                                    // Solo estos formatos los renderiza el editor OnlyOffice. El resto (.eml, .msg, .zip,
+                                    // .pdf, imagenes, etc.) se DESCARGA/abre directo -> NUNCA se llama al editor (evita el 404).
+                                    var isOO = /\.(docx?|xlsx?|pptx?|csv|odt|ods|odp|txt)$/.test(name);
+                                    var dl = 'http://localhost:8080/api/files/' + parseInt(fileId, 10) + '/download';
+                                    if (!isOO) {
+                                        window.open(dl, '_blank', 'noopener');
+                                        return;
+                                    }
                                     if (typeof OfficePlatform !== 'undefined' && typeof OfficePlatform.openEditor === 'function') {
                                         OfficePlatform.openEditor({ fileId: parseInt(fileId, 10) });
                                     } else {
@@ -2328,7 +2337,7 @@
                                                 if (['xls', 'xlsx', 'ods', 'csv'].indexOf(ext) >= 0) { iconClass = 'fa-file-excel'; btnStyle = 'btn-outline-success'; }
                                                 else if (['ppt', 'pptx', 'odp'].indexOf(ext) >= 0) { iconClass = 'fa-file-powerpoint'; btnStyle = 'btn-outline-warning'; }
                                                 else if (['doc', 'docx', 'odt', 'txt'].indexOf(ext) >= 0) { iconClass = 'fa-file-word'; btnStyle = 'btn-outline-primary'; }
-                                                else if (ext === 'pdf') { iconClass = 'fa-file-pdf'; btnStyle = 'btn-outline-danger'; }
+                                                else if (ext === 'pdf') { iconClass = 'fa-file-pdf'; btnStyle = 'btn-outline-danger'; } else if (['eml', 'msg'].indexOf(ext) >= 0) { iconClass = 'fa-envelope'; btnStyle = 'btn-outline-info'; }
 
                                                 return '<a href="javascript:void(0)" onclick="if(typeof opOpenOOFile===\'function\'){opOpenOOFile(' + fileId + ',\'' + fileName.replace(/'/g, "\\'") + '\');}else if(typeof OfficePlatform!==\'undefined\'){OfficePlatform.openEditor({fileId:' + fileId + '});}" class="btn btn-sm ' + btnStyle + ' oo-formatted" style="margin:2px 4px; font-weight:600; text-transform:none; text-decoration:none; display:inline-flex; align-items:center; gap:4px;" title="Abrir en OnlyOffice"><i class="far ' + iconClass + ' mr-1"></i> ' + fileName + '</a>';
                                             });
@@ -2379,7 +2388,7 @@
                                                     if (['xls', 'xlsx', 'ods', 'csv'].indexOf(ext) >= 0) { iconClass = 'fa-file-excel'; btnStyle = 'btn-outline-success'; }
                                                     else if (['ppt', 'pptx', 'odp'].indexOf(ext) >= 0) { iconClass = 'fa-file-powerpoint'; btnStyle = 'btn-outline-warning'; }
                                                     else if (['doc', 'docx', 'odt', 'txt'].indexOf(ext) >= 0) { iconClass = 'fa-file-word'; btnStyle = 'btn-outline-primary'; }
-                                                    else if (ext === 'pdf') { iconClass = 'fa-file-pdf'; btnStyle = 'btn-outline-danger'; }
+                                                    else if (ext === 'pdf') { iconClass = 'fa-file-pdf'; btnStyle = 'btn-outline-danger'; } else if (['eml', 'msg'].indexOf(ext) >= 0) { iconClass = 'fa-envelope'; btnStyle = 'btn-outline-info'; }
 
                                                     return '<a href="javascript:void(0)" onclick="if(typeof opOpenOOFile===\'function\'){opOpenOOFile(' + fileId + ',\'' + fileName.replace(/'/g, "\\'") + '\');}else if(typeof OfficePlatform!==\'undefined\'){OfficePlatform.openEditor({fileId:' + fileId + '});}" class="btn btn-sm ' + btnStyle + ' oo-formatted" style="margin:2px 4px; font-weight:600; text-transform:none;" title="Abrir en OnlyOffice"><i class="far ' + iconClass + ' mr-1"></i> ' + fileName + '</a>';
                                                 });
@@ -3845,7 +3854,10 @@
                                             })
                                                 .then(function (r) { return r.json(); })
                                                 .then(function (resp) {
-                                                    var fileId = resp && resp.data && (resp.data.fileId || resp.data.id) || Date.now();
+                                                    // CRITICO: usar SOLO el id REAL registrado en Office Platform. NUNCA Date.now()
+                                                    // (un id timestamp falso no existe en :8080 -> 404 al abrir la tarjeta).
+                                                    var fileId = resp && resp.data && (resp.data.fileId || resp.data.id);
+                                                    if (!fileId) { throw new Error('sin-id'); }
                                                     var title = (resp && resp.data && resp.data.title) || file.name;
                                                     var ta = document.getElementById('op-detail-response-text-' + index + '-' + subIndex);
                                                     if (ta) {
@@ -3856,14 +3868,8 @@
                                                     }
                                                 })
                                                 .catch(function (err) {
-                                                    var fileId = Date.now();
-                                                    var ta = document.getElementById('op-detail-response-text-' + index + '-' + subIndex);
-                                                    if (ta) {
-                                                        var cur = (ta.value || '').trim();
-                                                        var tag = 'oo:' + fileId + ':' + file.name;
-                                                        ta.value = cur ? (cur + '\n' + tag) : tag;
-                                                        opAutoSaveResponse(index, subIndex);
-                                                    }
+                                                    // El archivo NO quedó registrado: NO insertamos una referencia rota (evita el 404).
+                                                    if (statusEl) statusEl.innerHTML = '<span class="text-danger font-weight-bold"><i class="fas fa-exclamation-triangle mr-1"></i> No se pudo subir "' + file.name + '" al gestor. Intente de nuevo.</span>';
                                                 });
                                         };
 
@@ -4011,6 +4017,7 @@
                                                 else if (/\.(xlsx|xls|csv)$/i.test(fTitle)) { icon = 'far fa-file-excel'; col = '#217346'; }
                                                 else if (/\.(pptx|ppt)$/i.test(fTitle)) { icon = 'far fa-file-powerpoint'; col = '#d24726'; }
                                                 else if (/\.(pdf)$/i.test(fTitle)) { icon = 'far fa-file-pdf'; col = '#e11d48'; }
+                                                else if (/\.(eml|msg)$/i.test(fTitle)) { icon = 'far fa-envelope'; col = '#0284c7'; }
                                                 var esc = fTitle.replace(/'/g, "\\'");
                                                 var safeTitle = fTitle.replace(/"/g, '&quot;');
                                                 var verBtn = '<button type="button" class="btn btn-xs btn-outline-secondary' + (isList ? '' : ' flex-fill') + '" style="font-size:10.5px; font-weight:600;" onclick="if(typeof OfficePlatform!==\'undefined\'){OfficePlatform.openEditor({fileId:' + fId + '});}else if(typeof opOpenOOFile===\'function\'){opOpenOOFile(' + fId + ',\'' + esc + '\');}" title="Ver en OnlyOffice"><i class="fas fa-eye"></i></button>';
