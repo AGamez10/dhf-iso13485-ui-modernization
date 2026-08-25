@@ -487,3 +487,56 @@ anti-doble-submit, ver commit de cierre), que NO reduce la latencia real.
 - **Estado:** RESUELTO en frontend (consentimiento informado + Opción 1 autocompletar AUTORIZADA
   por negocio, con guardarraíl de permisos y matiz ALCOA documentado; verificación de escritura a
   cargo del usuario). Cobertura total de pendientes y cierre real permanecen como trabajo de backend.
+
+### 8.10 Integración con Office Platform (gestor descentralizado :8080): upload/descarga universal, rediseño acordeón, terminología TERMINADA y borradores persistentes
+
+Cluster de sprints de UX del panel de gestión (Modo Gestión / Pantalla Dividida) y su integración con
+el microservicio `office-platform`. VERIFICADO por el usuario en navegador con su sesión (el desarrollador
+NO autopruebó escrituras, §7.C). Único archivo tocado en el repo DHF: `web/Contenedor_head.jsp`.
+
+- **Hallazgo clave (contrato real del gestor, verificado con curl):** `office-platform` es **Spring Boot /
+  Java**, NO Node/Multer. `POST :8080/api/files/upload` exige un part JSON `@RequestPart("request")` con
+  `originalFileName` (`@NotBlank`); sin él → `MissingServletRequestPartException` (HTTP 500). El frontend no
+  lo mandaba → el upload fallaba y caía a un id falso → 404. El bloqueo de tipos NO es por extensión: es por
+  MIME (`MimeUtils.isAllowed`, match EXACTO) contra `application.yml:39` (solo Office+PDF por defecto).
+  Respuesta 201: `resp.data.fileId` / `originalFileName` / `mimeType` (no existe `title`). Detalle completo
+  en la memoria persistente `office-platform-upload-contract`.
+- **Cambio de BACKEND en `office-platform` (repo aparte, AUTORIZADO — no es el backend DHF congelado §4.1):**
+  env `OFFICE_PLATFORM_STORAGE_ALLOWED_MIME_TYPES` en `docker-compose.yml` (Spring relaxed binding) con
+  lista ampliada (rfc822, ms-outlook, octet-stream, zip, imágenes, dwg/dxf, etc.) → almacenamiento universal
+  (.eml/.msg/CAD/zip/imágenes). Aplicado con `docker compose up -d --no-build office-platform-app` (solo
+  recrea el app). Rollback: quitar la env + recrear. Commit office-platform `b59bef6`.
+- **Upload (frontend):** FormData con el contrato real (`file` + part `request` JSON + `userId` + `userName`).
+  Se removió `scope=private`: un archivo privado solo lo descarga su dueño autenticado y `GET {id}/download`
+  da 403 con la API-key → sin scope = global a la API-key = descargable. `projectId`/`category` NO existen en
+  la firma (removidos). Toast de éxito "Guardado en Gestor Descentralizado".
+- **Descarga segura (opOpenOOFile):** los tipos OnlyOffice van al editor (JWT propio); los no-Office
+  (.eml/.msg/.zip/.pdf/imágenes) se descargan por **fetch autenticado (X-Api-Key) → blob → `<a download>`**
+  (el `window.open` daba 403). Se elimina el modal en blanco "Cargando editor…": todos los botones de apertura
+  (tarjeta de anexo, verBtn del gestor, tags `.oo-formatted`) pasan por `opOpenOOFile`, que rutea por tipo.
+  404 → aviso "legacy"; 403 → aviso "privado".
+- **Rediseño Pantalla Dividida:** bloque principal = Descripción (editable) + Toolbar de Anexos + tarjetas de
+  evidencia; Observaciones = **acordeón opcional** (colapsado si vacío); pie de control con botón verde
+  reactivo. Reactividad en vivo del estado sin reload (`opReflectActivityState` por id único del badge).
+- **Terminología:** el estado de actividad se muestra como **TERMINADA** (badge en detalle, árbol izquierdo,
+  previsualizador, toasts) y los botones como **Terminar**, por pedido de negocio. Solo cambió el TEXTO de
+  display de la capa `.op-*`; las regex que DETECTAN el "FINALIZADO" legacy que genera `Tag_memoria`, los
+  tokens CSS (`--op-status-finalizado-dot`) y los valores al backend (estado=3) quedaron INTACTOS.
+- **id_memoria infalible:** extracción por bloque (cba_num → ProyectoEstado → id_memoria) + red de seguridad
+  en `opMarkActivityFinalized` → "Marcar como TERMINADA" funciona en el 100% de las actividades de cualquier etapa.
+- **Borradores persistentes (localStorage):** descripción y observaciones se autoguardan como borrador local
+  ({v,t}) con clave namespaceada por `ipy`+`estadoM`. Sobreviven navegación, F5 y cierre de pestaña/navegador.
+  Limpieza: **TTL de 7 días** (purga al cargar + descarte al leer) y **borrado al marcar TERMINADA** (el botón
+  principal borra ambos borradores; el mini "Terminar"/opc=13 borra solo el de observación, porque no persiste
+  la descripción). Es conveniencia por-navegador; el guardado real sigue siendo BD (opc=11 observación, opc=10
+  descripción). Tolerante a fallos (try/catch, memoria como fuente primaria).
+- **Commits DHF:** `6aae0fc` (toast upload), `797c791` (contrato @RequestPart + acordeón), `fc1b266` (descarga
+  autenticada + scope global + persistencia navegación + TERMINADA botón), `6d86aa4` (badge TERMINADA en 3
+  vistas), `4896333` (ruteo no-Office + id_memoria + micro-botón Terminar), `64e874c` (reactividad badge +
+  persistencia memoria), `139bb57` (borradores sessionStorage), `74f31a3` (borradores localStorage + TTL 7d
+  + limpieza al TERMINAR).
+- **Escalado a backend (fuera de alcance `.op-*`):** archivo *privado* + descargable requiere cablear `userId`
+  en el permiso de descarga de `office-platform`, o devolver+guardar el `uuid` y bajar por `/download/{uuid}`
+  (endpoint sin chequeo de permisos). Batch transaccional del cargue masivo (§8.5-P2) sigue pendiente.
+- **Estado:** RESUELTO y VERIFICADO por el usuario. Backend `office-platform` ampliado (env). Persistencia
+  real server-side y descarga de privados permanecen como trabajo de backend.
