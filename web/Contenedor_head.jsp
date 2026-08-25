@@ -2263,27 +2263,45 @@
                                 window.opOpenOOFile = function (fileId, title) {
                                     var name = (title || '').toLowerCase();
                                     // Solo estos formatos los renderiza el editor OnlyOffice. El resto (.eml, .msg, .zip,
-                                    // .pdf, imagenes, etc.) se DESCARGA/abre directo -> NUNCA se llama al editor (evita el 404).
+                                    // .pdf, imagenes, etc.) se DESCARGA por fetch autenticado -> NUNCA se llama al editor.
                                     var isOO = /\.(docx?|xlsx?|pptx?|csv|odt|ods|odp|txt)$/.test(name);
                                     var id = parseInt(fileId, 10);
-                                    var dl = 'http://localhost:8080/api/files/' + id + '/download';
-                                    function openEditorNow() {
+                                    if (isOO) {
+                                        // OnlyOffice maneja su propia auth (JWT). Un id valido abre; uno inexistente
+                                        // muestra el error propio del editor. Sin pre-check HEAD (daba 403 sin la key).
                                         if (typeof OfficePlatform !== 'undefined' && typeof OfficePlatform.openEditor === 'function') {
                                             OfficePlatform.openEditor({ fileId: id });
-                                        } else {
+                                        } else if (typeof window.ooInitEditor === 'function') {
                                             window.ooInitEditor({ containerId: 'office-platform', inputId: 'textInput', existingFileId: id, autoLoad: true });
                                         }
+                                        return;
                                     }
-                                    function degrade() { if (window.opToast) { opToast('<i class="fas fa-exclamation-triangle mr-1"></i> Archivo no disponible: registro legacy que no existe en el almacenamiento.', false); } else { alert('Archivo no disponible (registro legacy).'); } }
-                                    function openByType() { if (isOO) { openEditorNow(); } else { window.open(dl, '_blank', 'noopener'); } }
-                                    // Pre-check HEAD para TODOS los tipos: si el id es legacy/huerfano (404) NO se abre nada
-                                    // (ni editor ni pestaña en blanco); se muestra un aviso amable. 200/otros -> abrir por tipo.
-                                    fetch(dl, { method: 'HEAD' })
-                                        .then(function (r) {
-                                            if (r && r.status === 404) { degrade(); }
-                                            else { openByType(); } // 200/405/otros -> abrir por tipo (no penalizar por incertidumbre del HEAD)
+                                    // DESCARGA SEGURA (Punto 1): window.open al endpoint da 403 porque Spring exige X-Api-Key.
+                                    // Se descarga con la key y se genera un Object URL local -> sin 403, sin pestana en blanco.
+                                    var dl = 'http://localhost:8080/api/files/' + id + '/download';
+                                    if (window.opToast) opToast('<i class="fas fa-spinner fa-spin mr-1"></i> Descargando ' + (title || ('archivo ' + id)) + '...');
+                                    fetch(dl, { method: 'GET', headers: { 'X-Api-Key': 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0' } })
+                                        .then(function (res) {
+                                            if (res.status === 404) { throw new Error('legacy'); }
+                                            if (res.status === 403) { throw new Error('forbidden'); }
+                                            if (!res.ok) { throw new Error('http-' + res.status); }
+                                            return res.blob();
                                         })
-                                        .catch(function () { openByType(); }); // fallo de red al verificar -> intentar abrir igual
+                                        .then(function (blob) {
+                                            var url = window.URL.createObjectURL(blob);
+                                            var a = document.createElement('a');
+                                            a.href = url; a.download = title || ('archivo_' + id);
+                                            document.body.appendChild(a); a.click(); a.remove();
+                                            setTimeout(function () { try { window.URL.revokeObjectURL(url); } catch (e) { } }, 1500);
+                                            if (window.opToast) opToast('<i class="fas fa-check mr-1"></i> Archivo descargado');
+                                        })
+                                        .catch(function (err) {
+                                            var m = (err && err.message) || '';
+                                            var msg = (m === 'legacy') ? '<i class="fas fa-exclamation-triangle mr-1"></i> Archivo no disponible: registro legacy que no existe en el almacenamiento.'
+                                                : (m === 'forbidden') ? '<i class="fas fa-lock mr-1"></i> Sin permisos de descarga: el archivo se subio como privado. Contacte al administrador.'
+                                                    : '<i class="fas fa-exclamation-triangle mr-1"></i> No se pudo descargar el archivo.';
+                                            if (window.opToast) opToast(msg, false); else alert(msg.replace(/<[^>]+>/g, ''));
+                                        });
                                 };
 
                                         // Intercept ALL OnlyOffice file links and open in OfficePlatform.openEditor()
@@ -3747,7 +3765,7 @@
                                                             + '  <!-- Pie de control: siempre visible -->'
                                                             + '  <div class="op-activity-footer d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3 pt-3 border-top" style="gap:8px;">'
                                                             + '    <span class="text-muted" style="font-size:10.5px;"><i class="fas fa-info-circle mr-1"></i>Los cambios de texto se autoguardan; el estado lo decides vos.</span>'
-                                                            + '    <button type="button" class="btn btn-success font-weight-bold px-3" onclick="opMarkActivityFinalized(' + index + ', ' + subIndex + ', \'' + idMemoria + '\')" title="Finaliza la actividad (opc=13). Si editaste la descripción, la guarda preservando el numeral."><i class="fas fa-check mr-1"></i> ✓ Marcar como FINALIZADA</button>'
+                                                            + '    <button type="button" class="btn btn-success font-weight-bold px-3" onclick="opMarkActivityFinalized(' + index + ', ' + subIndex + ', \'' + idMemoria + '\')" title="Finaliza la actividad (opc=13). Si editaste la descripción, la guarda preservando el numeral."><i class="fas fa-check mr-1"></i> Marcar como TERMINADA</button>'
                                                             + '  </div>'
                                                             + '</div>';
                                                     } else {
@@ -3878,12 +3896,15 @@
                                             // Contrato REAL del endpoint (FileController.upload, verificado con curl):
                                             // exige un part JSON @RequestPart("request") con originalFileName (@NotBlank);
                                             // sin el, Spring devuelve MissingServletRequestPartException (500) y el upload falla.
-                                            // scope=private + userId hace que el archivo aparezca en "Mis archivos" del gestor.
                                             // (projectId/category NO existen en la firma del backend -> se removieron.)
+                                            // NOTA scope: NO se usa scope=private. Un archivo privado solo lo descarga su dueno
+                                            // autenticado y GET /api/files/{id}/download exige ese permiso (da 403 con la API-key),
+                                            // dejando el anexo IMPOSIBLE de bajar desde la actividad. Sin scope -> global a la
+                                            // API-key -> descargable con X-Api-Key (verificado: 200). Se conserva userId/userName
+                                            // para la atribucion (createdByUserId/createdByName).
                                             formData.append('request', new Blob([JSON.stringify({ originalFileName: file.name })], { type: 'application/json' }));
                                             formData.append('userId', _idUsuario);
                                             formData.append('userName', _userName);
-                                            formData.append('scope', 'private');
 
                                             fetch('http://localhost:8080/api/files/upload', {
                                                 method: 'POST',
@@ -3902,7 +3923,12 @@
                                                         var cur = (ta.value || '').trim();
                                                         var tag = 'oo:' + fileId + ':' + title;
                                                         ta.value = cur ? (cur + '\n' + tag) : tag;
-                                                        opAutoSaveResponse(index, subIndex);
+                                                        opAutoSaveResponse(index, subIndex); // persiste en BD (opc=11) + cache
+                                                        // Punto 2 (defensivo): asegurar la persistencia en memoria del anexo aunque
+                                                        // opAutoSaveResponse hiciera early-return, para que NO se borre al navegar entre
+                                                        // actividades en el indice izquierdo (opShowActivityDetail relee _opResponsesCache).
+                                                        window._opResponsesCache = window._opResponsesCache || {};
+                                                        window._opResponsesCache[index + '-' + subIndex] = ta.value;
                                                     }
                                                     if (statusEl) statusEl.innerHTML = '<span class="text-success font-weight-bold"><i class="fas fa-cloud-upload-alt mr-1"></i> Guardado en Gestor Descentralizado</span>';
                                                     if (window.opToast) opToast('<i class="fas fa-cloud-upload-alt mr-1"></i> Archivo guardado en Gestor Descentralizado y vinculado a la actividad');
