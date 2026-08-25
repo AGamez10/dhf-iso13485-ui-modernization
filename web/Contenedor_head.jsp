@@ -3395,6 +3395,27 @@
                                             });
                                         };
 
+                                        // Acordeon de Observaciones (progressive disclosure): muestra/oculta el bloque de
+                                        // avance/observacion sin tocar el estado ni recargar. Tolerante: si el nodo no existe, no falla.
+                                        window.opToggleObservationBlock = function (index, subIndex) {
+                                            var body = document.getElementById('op-obs-body-' + index + '-' + subIndex);
+                                            if (!body) return;
+                                            var chevron = document.getElementById('op-obs-chevron-' + index + '-' + subIndex);
+                                            var label = document.getElementById('op-obs-label-' + index + '-' + subIndex);
+                                            var isOpen = body.style.display !== 'none';
+                                            if (isOpen) {
+                                                body.style.display = 'none';
+                                                if (chevron) { chevron.classList.remove('fa-chevron-down'); chevron.classList.add('fa-chevron-right'); }
+                                                if (label) label.textContent = 'Agregar Conclusión / Nota de Seguimiento (Opcional)';
+                                            } else {
+                                                body.style.display = 'block';
+                                                if (chevron) { chevron.classList.remove('fa-chevron-right'); chevron.classList.add('fa-chevron-down'); }
+                                                if (label) label.textContent = 'Conclusión / Nota de Seguimiento';
+                                                var ta = document.getElementById('op-detail-response-text-' + index + '-' + subIndex);
+                                                if (ta) { try { ta.focus(); } catch (e) { } }
+                                            }
+                                        };
+
                                         function opShowActivityDetail(index, activityElements, detailPanel, masterPanel) {
                                             if (index < 0 || index >= activityElements.length) return;
 
@@ -3700,30 +3721,33 @@
 
                                                     // Caja de respuestas inline para esta tarjeta con barra de herramientas de adjuntos
                                                     if (isEditable) {
-                                                        cardsHtml += '  <!-- Area de Respuesta Inline -->'
-                                                            + '  <div class="op-inline-response-box p-3 bg-light border rounded mt-3" style="border-radius:10px !important; border:1px solid #cbd5e1 !important;">'
-                                                            + '    <div class="d-flex align-items-center justify-content-between mb-2">'
-                                                            + '      <label class="font-weight-bold text-dark m-0" style="font-size:12px;"><i class="fas fa-reply text-success mr-1"></i> Registrar Avance u Observación:</label>'
-                                                            + '      <span class="badge badge-secondary" style="font-size:9px;">Autoguardado activo</span>'
-                                                            + '    </div>'
-                                                            + '    <textarea class="form-control mb-2" id="op-detail-response-text-' + index + '-' + subIndex + '" rows="3" placeholder="Escribe tu observación, hipervínculo o avance aquí..." style="border-radius:6px; font-size:13px; background:#ffffff;" oninput="opTriggerAutosave(' + index + ', ' + subIndex + ')" onblur="opAutoSaveResponse(' + index + ', ' + subIndex + ')">' + existingResponse + '</textarea>'
-                                                            + '    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-2 border-top" style="gap:8px;">'
-                                                            + '      <div id="op-autosave-status-' + index + '-' + subIndex + '" style="font-size:11px; font-weight:bold; min-height:16px;">'
-                                                            + '        <span class="text-muted"><i class="fas fa-check-circle mr-1"></i> Listo para guardar</span>'
+                                                        // Observaciones/Avances: acordeon opcional (progressive disclosure).
+                                                        // Colapsado si no hay texto (para no estorbar); desplegado si ya hay observacion.
+                                                        // Se ignoran las etiquetas oo:<id> (adjuntos) al decidir: eso ya se ve como tarjeta arriba.
+                                                        var _hasObs = (existingResponse || '').replace(/oo:\d+:[^\r\n]+/g, '').trim() !== '';
+                                                        cardsHtml += '  <!-- Observaciones: acordeon opcional (progressive disclosure) -->'
+                                                            + '  <div class="op-obs-accordion mt-3">'
+                                                            + '    <a href="javascript:void(0)" class="op-obs-toggle text-muted font-weight-bold" style="font-size:12px;" onclick="opToggleObservationBlock(' + index + ', ' + subIndex + ')">'
+                                                            + '      <i class="fas ' + (_hasObs ? 'fa-chevron-down' : 'fa-chevron-right') + ' mr-1" id="op-obs-chevron-' + index + '-' + subIndex + '"></i> '
+                                                            + '<span id="op-obs-label-' + index + '-' + subIndex + '">' + (_hasObs ? 'Conclusión / Nota de Seguimiento' : 'Agregar Conclusión / Nota de Seguimiento (Opcional)') + '</span>'
+                                                            + '    </a>'
+                                                            + '    <div class="op-obs-body" id="op-obs-body-' + index + '-' + subIndex + '" style="display:' + (_hasObs ? 'block' : 'none') + '; margin-top:8px;">'
+                                                            + '      <div class="op-inline-response-box p-3 bg-light border rounded" style="border-radius:10px !important; border:1px solid #cbd5e1 !important;">'
+                                                            + '        <div class="d-flex align-items-center justify-content-between mb-2">'
+                                                            + '          <label class="font-weight-bold text-dark m-0" style="font-size:12px;"><i class="fas fa-reply text-success mr-1"></i> Registrar Avance u Observación:</label>'
+                                                            + '          <span class="badge badge-secondary" style="font-size:9px;">Autoguardado activo</span>'
+                                                            + '        </div>'
+                                                            + '        <textarea class="form-control mb-2" id="op-detail-response-text-' + index + '-' + subIndex + '" rows="3" spellcheck="true" lang="es" placeholder="Escribe tu observación, hipervínculo o avance aquí..." style="border-radius:6px; font-size:13px; background:#ffffff;" oninput="opTriggerAutosave(' + index + ', ' + subIndex + ')" onblur="opAutoSaveResponse(' + index + ', ' + subIndex + ')">' + existingResponse + '</textarea>'
+                                                            + '        <div id="op-autosave-status-' + index + '-' + subIndex + '" style="font-size:11px; font-weight:bold; min-height:16px;">'
+                                                            + '          <span class="text-muted"><i class="fas fa-check-circle mr-1"></i> Listo para guardar</span>'
+                                                            + '        </div>'
                                                             + '      </div>'
-                                                            + '      <div class="d-flex align-items-center flex-wrap gap-1" style="gap:6px;">'
-                                                            + '        <button type="button" class="btn btn-sm btn-outline-info font-weight-bold" onclick="opOpenFileManagerForActivity(' + index + ', ' + subIndex + ')" style="font-size:11px;" title="Seleccionar archivo existente de Office Platform"><i class="fas fa-folder-open mr-1"></i> Gestor Archivos</button>'
-                                                            + '        <button type="button" class="btn btn-sm btn-outline-secondary font-weight-bold" onclick="opPromptAddHyperlink(' + index + ', ' + subIndex + ')" style="font-size:11px;" title="Insertar enlace o hipervínculo web"><i class="fas fa-link mr-1"></i> Anexar Enlace</button>'
-                                                            + '        <button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" onclick="opCreateInlineDoc(' + index + ', ' + subIndex + ', \'document\')" style="font-size:11px;"><i class="far fa-file-word mr-1"></i> + Word</button>'
-                                                            + '        <button type="button" class="btn btn-sm btn-outline-success font-weight-bold" onclick="opCreateInlineDoc(' + index + ', ' + subIndex + ', \'spreadsheet\')" style="font-size:11px;"><i class="far fa-file-excel mr-1"></i> + Excel</button>'
-                                                            + '        <button type="button" class="btn btn-sm btn-outline-warning font-weight-bold" onclick="opCreateInlineDoc(' + index + ', ' + subIndex + ', \'presentation\')" style="font-size:11px;"><i class="far fa-file-powerpoint mr-1"></i> + PPT</button>'
-                                                            + '        <label class="btn btn-sm btn-outline-dark font-weight-bold m-0" style="font-size:11px; cursor:pointer;" title="Subir archivo desde tu computador"><i class="fas fa-upload mr-1"></i> Subir PC<input type="file" style="display:none;" onchange="opUploadLocalFileForActivity(' + index + ', ' + subIndex + ', this)"></label>'
-                                                            + '      </div>'
                                                             + '    </div>'
-                                                            + '    <div class="pt-2 mt-2 border-top text-right">'
-                                                            + '      <span class="text-muted mr-2" style="font-size:10.5px;"><i class="fas fa-info-circle mr-1"></i>Los cambios de texto se autoguardan; el estado lo decides vos.</span>'
-                                                            + '      <button type="button" class="btn btn-sm btn-success font-weight-bold" onclick="opMarkActivityFinalized(' + index + ', ' + subIndex + ', \'' + idMemoria + '\')" title="Finaliza la actividad (opc=13). Si editaste la descripción, la guarda preservando el numeral."><i class="fas fa-check mr-1"></i> ✓ Marcar como FINALIZADA</button>'
-                                                            + '    </div>'
+                                                            + '  </div>'
+                                                            + '  <!-- Pie de control: siempre visible -->'
+                                                            + '  <div class="op-activity-footer d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3 pt-3 border-top" style="gap:8px;">'
+                                                            + '    <span class="text-muted" style="font-size:10.5px;"><i class="fas fa-info-circle mr-1"></i>Los cambios de texto se autoguardan; el estado lo decides vos.</span>'
+                                                            + '    <button type="button" class="btn btn-success font-weight-bold px-3" onclick="opMarkActivityFinalized(' + index + ', ' + subIndex + ', \'' + idMemoria + '\')" title="Finaliza la actividad (opc=13). Si editaste la descripción, la guarda preservando el numeral."><i class="fas fa-check mr-1"></i> ✓ Marcar como FINALIZADA</button>'
                                                             + '  </div>'
                                                             + '</div>';
                                                     } else {
@@ -3847,16 +3871,19 @@
                                             var statusEl = document.getElementById('op-autosave-status-' + index + '-' + subIndex);
                                             if (statusEl) statusEl.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin mr-1"></i> Subiendo ' + file.name + '...</span>';
 
-                                            var _up = new URLSearchParams(window.location.search);
-                                            var _ipy = _up.get('ipy') || (document.querySelector('[name="ipy"]') || {}).value || '';
                                             var _idUsuario = (document.querySelector('[name="id_usuario"]') || {}).value || '';
+                                            var _userName = (document.querySelector('[name="nombre_usuario"]') || document.querySelector('[name="usuario"]') || {}).value || 'Usuario DHF';
                                             var formData = new FormData();
                                             formData.append('file', file);
-                                            // Metadatos para aceptar formatos no-Office (.eml/.msg/.zip/.pdf/imagenes) sin que la
-                                            // validacion de tipo bloquee la subida -> categoria de anexo generico.
+                                            // Contrato REAL del endpoint (FileController.upload, verificado con curl):
+                                            // exige un part JSON @RequestPart("request") con originalFileName (@NotBlank);
+                                            // sin el, Spring devuelve MissingServletRequestPartException (500) y el upload falla.
+                                            // scope=private + userId hace que el archivo aparezca en "Mis archivos" del gestor.
+                                            // (projectId/category NO existen en la firma del backend -> se removieron.)
+                                            formData.append('request', new Blob([JSON.stringify({ originalFileName: file.name })], { type: 'application/json' }));
                                             formData.append('userId', _idUsuario);
-                                            formData.append('projectId', _ipy);
-                                            formData.append('category', 'ATTACHMENT');
+                                            formData.append('userName', _userName);
+                                            formData.append('scope', 'private');
 
                                             fetch('http://localhost:8080/api/files/upload', {
                                                 method: 'POST',
@@ -3869,7 +3896,7 @@
                                                     // (un id timestamp falso no existe en :8080 -> 404 al abrir la tarjeta).
                                                     var fileId = resp && resp.data && (resp.data.fileId || resp.data.id);
                                                     if (!fileId) { throw new Error('sin-id'); }
-                                                    var title = (resp && resp.data && resp.data.title) || file.name;
+                                                    var title = (resp && resp.data && (resp.data.originalFileName || resp.data.title)) || file.name;
                                                     var ta = document.getElementById('op-detail-response-text-' + index + '-' + subIndex);
                                                     if (ta) {
                                                         var cur = (ta.value || '').trim();
