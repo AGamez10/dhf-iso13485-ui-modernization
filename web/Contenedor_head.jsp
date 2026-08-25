@@ -3314,33 +3314,68 @@
                                         };
 
                                         // Borradores persistentes: mantienen descripcion/observaciones en MEMORIA (sobreviven al
-                                        // navegar entre actividades) y en sessionStorage (sobreviven a un F5/recarga accidental de
-                                        // la MISMA pestana). La clave se namespacea por ipy+estadoM para NO cruzar borradores entre
-                                        // proyectos/vistas (el cache es posicional: index-subIndex). sessionStorage puede fallar
+                                        // navegar entre actividades) y en localStorage (sobreviven a un F5/recarga y al cierre de
+                                        // la pestana/navegador). La clave se namespacea por ipy+estadoM para NO cruzar borradores
+                                        // entre proyectos/vistas (el cache es posicional: index-subIndex). localStorage puede fallar
                                         // (lleno/deshabilitado/incognito) -> todo en try/catch, con la memoria como fuente primaria.
+                                        // Politica de limpieza: TTL de 7 dias (purga al cargar) + borrado del borrador al TERMINAR.
+                                        window._OP_DRAFT_PREFIX = 'opdraft:';
+                                        window._OP_DRAFT_TTL = 7 * 24 * 60 * 60 * 1000; // 7 dias en ms
                                         window._opDraftNS = function () {
                                             var up = new URLSearchParams(window.location.search);
-                                            return 'opdraft:' + (up.get('ipy') || '') + ':' + (up.get('estadoM') || '1') + ':';
+                                            return window._OP_DRAFT_PREFIX + (up.get('ipy') || '') + ':' + (up.get('estadoM') || '1') + ':';
                                         };
                                         window.opSaveDraft = function (kind, cacheKey, value) {
                                             if (kind === 'desc') { window._opDescCache = window._opDescCache || {}; window._opDescCache[cacheKey] = value; }
                                             else { window._opResponsesCache = window._opResponsesCache || {}; window._opResponsesCache[cacheKey] = value; }
-                                            try { sessionStorage.setItem(window._opDraftNS() + kind + ':' + cacheKey, value); } catch (e) { }
+                                            // Se guarda {v,t}: t = timestamp para el TTL.
+                                            try { localStorage.setItem(window._opDraftNS() + kind + ':' + cacheKey, JSON.stringify({ v: value, t: Date.now() })); } catch (e) { }
                                         };
                                         window.opReadDraft = function (kind, cacheKey) {
                                             var mem = (kind === 'desc') ? window._opDescCache : window._opResponsesCache;
                                             if (mem && Object.prototype.hasOwnProperty.call(mem, cacheKey)) return mem[cacheKey];
                                             try {
-                                                var v = sessionStorage.getItem(window._opDraftNS() + kind + ':' + cacheKey);
-                                                if (v !== null) {
-                                                    // hidratar memoria para lecturas siguientes
-                                                    if (kind === 'desc') { window._opDescCache = window._opDescCache || {}; window._opDescCache[cacheKey] = v; }
-                                                    else { window._opResponsesCache = window._opResponsesCache || {}; window._opResponsesCache[cacheKey] = v; }
-                                                    return v;
+                                                var fullKey = window._opDraftNS() + kind + ':' + cacheKey;
+                                                var raw = localStorage.getItem(fullKey);
+                                                if (raw !== null) {
+                                                    var o = null; try { o = JSON.parse(raw); } catch (e2) { o = null; }
+                                                    if (o && typeof o.v !== 'undefined') {
+                                                        // TTL: si expiro (>7 dias) se descarta y se limpia; no se restaura.
+                                                        if (o.t && (Date.now() - o.t) > window._OP_DRAFT_TTL) {
+                                                            try { localStorage.removeItem(fullKey); } catch (e3) { }
+                                                            return undefined;
+                                                        }
+                                                        // hidratar memoria para lecturas siguientes (post F5/recarga)
+                                                        if (kind === 'desc') { window._opDescCache = window._opDescCache || {}; window._opDescCache[cacheKey] = o.v; }
+                                                        else { window._opResponsesCache = window._opResponsesCache || {}; window._opResponsesCache[cacheKey] = o.v; }
+                                                        return o.v;
+                                                    }
                                                 }
                                             } catch (e) { }
                                             return undefined;
                                         };
+                                        // Borra el/los borrador(es) de una actividad (memoria + localStorage). kinds por defecto: ambos.
+                                        window.opClearDraft = function (cacheKey, kinds) {
+                                            kinds = kinds || ['desc', 'resp'];
+                                            kinds.forEach(function (kind) {
+                                                try { var m = (kind === 'desc') ? window._opDescCache : window._opResponsesCache; if (m) delete m[cacheKey]; } catch (e) { }
+                                                try { localStorage.removeItem(window._opDraftNS() + kind + ':' + cacheKey); } catch (e) { }
+                                            });
+                                        };
+                                        // Purga TODOS los borradores expirados (>7 dias) de cualquier proyecto/vista. Se corre 1 vez al cargar.
+                                        window.opPurgeOldDrafts = function () {
+                                            try {
+                                                var now = Date.now(), rm = [];
+                                                for (var i = 0; i < localStorage.length; i++) {
+                                                    var k = localStorage.key(i);
+                                                    if (!k || k.indexOf(window._OP_DRAFT_PREFIX) !== 0) continue;
+                                                    var ts = 0; try { var o = JSON.parse(localStorage.getItem(k)); ts = (o && o.t) || 0; } catch (e2) { ts = 0; }
+                                                    if (!ts || (now - ts) > window._OP_DRAFT_TTL) rm.push(k);
+                                                }
+                                                rm.forEach(function (k) { try { localStorage.removeItem(k); } catch (e3) { } });
+                                            } catch (e) { }
+                                        };
+                                        try { window.opPurgeOldDrafts(); } catch (e) { }
 
                                         // Actualiza EN VIVO (sin reload) el badge del detalle, el punto del arbol y el contador.
                                         function opReflectActivityState(index, idMemoria, estadoNum, subIndex) {
@@ -3390,6 +3425,10 @@
                                                     try { if (window.swal) swal.close(); } catch (e) { }
                                                     if (r && (r.ok || r.status === 302)) {
                                                         opReflectActivityState(index, idMemoria, estado, subIndex);
+                                                        // Al TERMINAR (estado 3): la observacion ya se autoguardo (opc=11) -> se borra ese
+                                                        // borrador. NO se borra el de la descripcion: opc=13 (este flujo) NO persiste la
+                                                        // descripcion, y borrarlo perderia una edicion no guardada.
+                                                        if (estado === 3 || estado === '3') { opClearDraft(index + '-' + subIndex, ['resp']); }
                                                         opToast('<i class="fas fa-check mr-1"></i> Actividad marcada como ' + label);
                                                     } else { opToast('<i class="fas fa-exclamation-triangle mr-1"></i> No se pudo cambiar el estado', false); }
                                                 }).catch(function () { try { if (window.swal) swal.close(); } catch (e) { } opToast('<i class="fas fa-exclamation-triangle mr-1"></i> Error de red al cambiar el estado', false); });
@@ -3451,6 +3490,9 @@
                                                 if (r && (r.ok || r.status === 302)) {
                                                     opReflectActivityState(index, idMemoria, 3, subIndex); // SIN reload: reflejo en vivo
                                                     if (descChanged && descEl) descEl.setAttribute('data-orig', descEl.value || '');
+                                                    // TERMINADA por el flujo principal: la descripcion se persistio (opc=10 si cambio) y
+                                                    // la observacion via autoguardado (opc=11) -> se borran AMBOS borradores.
+                                                    opClearDraft(index + '-' + subIndex);
                                                     opToast('<i class="fas fa-check mr-1"></i> Actividad marcada como TERMINADA');
                                                 } else { throw new Error('finalize'); }
                                             }).catch(function (e) {
