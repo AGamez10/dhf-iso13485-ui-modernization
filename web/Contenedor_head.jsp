@@ -3289,54 +3289,53 @@
                                                     else { try { if (window.swal) swal.close(); } catch (e) { } alert('No se pudo cambiar el estado a ' + label + '.'); }
                                                 }).catch(function () { try { if (window.swal) swal.close(); } catch (e) { } alert('Error de red al cambiar el estado.'); });
                                         };
-                                        // Punto 2 (unificado): guarda la DESCRIPCION editada (opc=10) + la OBSERVACION (opc=11) y
-                                        // finaliza, en un click. opc=10 requiere el numeral de la actividad -> lo obtenemos del form
-                                        // de edicion real (TempM=1) para NO corromperlo; si no se puede determinar, se ABORTA.
-                                        window.opSaveAndFinalizeActivity = function (index, subIndex, idMemoria) {
+                                        // Punto 1 (decoupleado): "Marcar como FINALIZADA". El autoguardado ya persistió la
+                                        // observación (opc=11, sin cambiar estado). Aquí SOLO se finaliza (opc=13). Si la
+                                        // DESCRIPCION fue editada, se persiste via opc=10 (que ademas finaliza) preservando el
+                                        // numeral leido del form de edicion; si no cambio, se usa opc=13 puro (sin email/numeral).
+                                        // NO se re-envia la observacion (evita duplicar la respuesta del autoguardado).
+                                        window.opMarkActivityFinalized = function (index, subIndex, idMemoria) {
                                             idMemoria = ('' + idMemoria).trim();
                                             if (!idMemoria) { alert('No se pudo identificar la actividad (id_memoria).'); return; }
-                                            var descEl = document.getElementById('op-detail-desc-' + index + '-' + subIndex);
-                                            var obsEl = document.getElementById('op-detail-response-text-' + index + '-' + subIndex);
-                                            var desc = descEl ? (descEl.value || '').trim() : '';
-                                            var obs = obsEl ? (obsEl.value || '').trim() : '';
                                             var up = new URLSearchParams(window.location.search);
                                             var ipy = up.get('ipy') || (document.querySelector('[name="ipy"]') || {}).value || '';
                                             var estadoM = up.get('estadoM') || '1';
                                             var idUsuario = (document.querySelector('[name="id_usuario"]') || {}).value || '';
-                                            var usuario = (document.querySelector('[name="usuario"]') || {}).value || '';
                                             var today = new Date().toISOString().substring(0, 10);
                                             var H = { 'Content-Type': 'application/x-www-form-urlencoded' };
-                                            if (typeof window.swal === 'function') { try { swal({ title: 'Guardando cambios y finalizando…', text: '<i class="fas fa-spinner fa-spin fa-2x text-primary"></i>', html: true, showConfirmButton: false }); } catch (e) { } }
-                                            // 1) leer el numeral ACTUAL desde el form de edicion (TempM=1) — imprescindible para opc=10
-                                            fetch('Proyecto?opc=7&ipy=' + ipy + '&estadoM=' + estadoM + '&TempM=1&cba_num=' + idMemoria, { credentials: 'same-origin' })
-                                                .then(function (r) { return r.text(); })
-                                                .then(function (html) {
-                                                    var doc = new DOMParser().parseFromString(html, 'text/html');
-                                                    var numSel = doc.querySelector('#Ventana4 select[name="numeral"]') || doc.querySelector('select[name="numeral"]');
-                                                    var numeral = numSel ? numSel.value : '';
-                                                    var fEl = doc.querySelector('#Ventana4 input[name="fecha_reg"]') || doc.querySelector('input[name="fecha_reg"]');
-                                                    var fecha = (fEl && fEl.value) ? fEl.value : today;
-                                                    if (!numeral || numeral === '#' || numeral === '-') { throw new Error('numeral-desconocido'); }
-                                                    // 2) (si hay observacion) opc=11 avance
-                                                    var step = obs
-                                                        ? fetch('Proyecto?opc=11', { method: 'POST', headers: H, credentials: 'same-origin', body: new URLSearchParams({ ipy: ipy, estado: estadoM, id_memoria: idMemoria, id_usuario: idUsuario, usuario: usuario, fecha_reg: today, observacion: obs, Tipo_log: 'RESPONSABLE' }).toString() })
-                                                        : Promise.resolve({ ok: true });
-                                                    return step.then(function (r11) {
-                                                        if (!r11 || !(r11.ok || r11.status === 302)) throw new Error('opc=11');
-                                                        // 3) opc=10: guardar descripcion + finalizar (personas vacio -> estado 3), PRESERVANDO el numeral
-                                                        var body10 = new URLSearchParams({ estado: estadoM, ipy: ipy, id_usuario: idUsuario, id_memoria: idMemoria, fecha_reg: fecha, numeral: numeral, observacion: desc }).toString();
+                                            var descEl = document.getElementById('op-detail-desc-' + index + '-' + subIndex);
+                                            var descChanged = descEl && (descEl.value || '') !== (descEl.getAttribute('data-orig') || '');
+                                            if (typeof window.swal === 'function') { try { swal({ title: 'Finalizando actividad…', text: '<i class="fas fa-spinner fa-spin fa-2x text-primary"></i>', html: true, showConfirmButton: false }); } catch (e) { } }
+                                            function pureFinalize() {
+                                                return fetch('Proyecto?opc=13', { method: 'POST', headers: H, credentials: 'same-origin',
+                                                    body: 'ipy=' + ipy + '&id_memoria=' + idMemoria + '&estado=3&estadoM=' + estadoM });
+                                            }
+                                            var chain;
+                                            if (descChanged) {
+                                                // leer numeral ACTUAL del form de edicion (TempM=1) para NO corromperlo; si no aparece, ABORTAR
+                                                chain = fetch('Proyecto?opc=7&ipy=' + ipy + '&estadoM=' + estadoM + '&TempM=1&cba_num=' + idMemoria, { credentials: 'same-origin' })
+                                                    .then(function (r) { return r.text(); })
+                                                    .then(function (html) {
+                                                        var doc = new DOMParser().parseFromString(html, 'text/html');
+                                                        var numSel = doc.querySelector('#Ventana4 select[name="numeral"]') || doc.querySelector('select[name="numeral"]');
+                                                        var numeral = numSel ? numSel.value : '';
+                                                        var fEl = doc.querySelector('#Ventana4 input[name="fecha_reg"]') || doc.querySelector('input[name="fecha_reg"]');
+                                                        var fecha = (fEl && fEl.value) ? fEl.value : today;
+                                                        if (!numeral || numeral === '#' || numeral === '-') { throw new Error('numeral-desconocido'); }
+                                                        var body10 = new URLSearchParams({ estado: estadoM, ipy: ipy, id_usuario: idUsuario, id_memoria: idMemoria, fecha_reg: fecha, numeral: numeral, observacion: (descEl.value || '').trim() }).toString();
                                                         return fetch('Proyecto?opc=10', { method: 'POST', headers: H, credentials: 'same-origin', body: body10 });
                                                     });
-                                                })
-                                                .then(function (r10) {
-                                                    if (r10 && (r10.ok || r10.status === 302)) { window.location.reload(); }
-                                                    else { throw new Error('opc=10'); }
-                                                })
-                                                .catch(function (e) {
-                                                    try { if (window.swal) swal.close(); } catch (er) { }
-                                                    if (e && e.message === 'numeral-desconocido') alert('No se pudo determinar el numeral actual de la actividad; se ABORTÓ para no corromper el registro. Usa el lápiz (Modificar) del flujo estándar.');
-                                                    else alert('No se pudo guardar/finalizar la actividad. Revise e intente nuevamente.');
-                                                });
+                                            } else {
+                                                chain = pureFinalize();
+                                            }
+                                            chain.then(function (r) {
+                                                if (r && (r.ok || r.status === 302)) { window.location.reload(); }
+                                                else { throw new Error('finalize'); }
+                                            }).catch(function (e) {
+                                                try { if (window.swal) swal.close(); } catch (er) { }
+                                                if (e && e.message === 'numeral-desconocido') alert('Editaste la descripción pero no se pudo determinar el numeral actual; se ABORTÓ para no corromper el registro. Usa el lápiz (Modificar) del flujo estándar para editar la descripción.');
+                                                else alert('No se pudo finalizar la actividad. Revise e intente nuevamente.');
+                                            });
                                         };
 
                                         function opShowActivityDetail(index, activityElements, detailPanel, masterPanel) {
@@ -3575,7 +3574,7 @@
                                                         + '  <div class="op-activity-desc mb-3 p-3 rounded" style="font-size:13px; line-height:1.6; color:#1e293b; font-weight:500; background:#f8fafc; border:1px solid #f1f5f9;">'
                                                         + '    <div class="d-flex align-items-center justify-content-between mb-1"><span class="badge badge-info" style="font-size:9px;">ACTIVIDAD ' + (subIndex + 1) + '</span>' + (isEditable ? '<span class="text-muted" style="font-size:10px;"><i class="fas fa-pen mr-1"></i>Descripción editable</span>' : '') + '</div>'
                                                         + (isEditable
-                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + (descText || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ') + '</textarea>'
+                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" data-orig="' + ((descText || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/"/g, '&quot;')) + '" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + (descText || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ') + '</textarea>'
                                                             : '    <div>' + descText + '</div>')
                                                         + '  </div>'
                                                         + '  <div class="op-activity-status-row mb-3">'
@@ -3656,7 +3655,8 @@
                                                             + '      </div>'
                                                             + '    </div>'
                                                             + '    <div class="pt-2 mt-2 border-top text-right">'
-                                                            + '      <button type="button" class="btn btn-sm btn-success font-weight-bold" onclick="opSaveAndFinalizeActivity(' + index + ', ' + subIndex + ', \'' + idMemoria + '\')" title="Guarda la descripción editada + la observación y marca la actividad como FINALIZADO"><i class="fas fa-save mr-1"></i> 💾 Guardar Cambios y Finalizar Actividad</button>'
+                                                            + '      <span class="text-muted mr-2" style="font-size:10.5px;"><i class="fas fa-info-circle mr-1"></i>Los cambios de texto se autoguardan; el estado lo decides vos.</span>'
+                                                            + '      <button type="button" class="btn btn-sm btn-success font-weight-bold" onclick="opMarkActivityFinalized(' + index + ', ' + subIndex + ', \'' + idMemoria + '\')" title="Finaliza la actividad (opc=13). Si editaste la descripción, la guarda preservando el numeral."><i class="fas fa-check mr-1"></i> ✓ Marcar como FINALIZADA</button>'
                                                             + '    </div>'
                                                             + '  </div>'
                                                             + '</div>';
@@ -4199,7 +4199,7 @@
                                                 .then(function (htmlText) {
                                                     if (statusIndicator) {
                                                         var now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                                        statusIndicator.innerHTML = '<span class="text-success font-weight-bold"><i class="fas fa-check-circle mr-1"></i> Guardado en BD (' + now + ')</span>';
+                                                        statusIndicator.innerHTML = '<span class="text-success font-weight-bold"><i class="fas fa-check-circle mr-1"></i> Guardado automáticamente (' + now + ')</span>';
                                                     }
 
                                                     try {
@@ -4270,7 +4270,7 @@
                                             clearTimeout(window._opAutosaveDebounceTimer);
                                             window._opAutosaveDebounceTimer = setTimeout(function () {
                                                 opAutoSaveResponse(index, subIndex);
-                                            }, 400); // Guardar 400ms tras pausar la escritura
+                                            }, 3000); // Guardar 3s tras pausar la escritura (o al blur). NO cambia estado (opc=11).
                                         };
 
                                         // Abrir modal con opciones avanzadas de OnlyOffice mostradas automáticamente
