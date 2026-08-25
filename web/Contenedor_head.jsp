@@ -3877,6 +3877,8 @@
                                                         ta.value = cur ? (cur + '\n' + tag) : tag;
                                                         opAutoSaveResponse(index, subIndex);
                                                     }
+                                                    if (statusEl) statusEl.innerHTML = '<span class="text-success font-weight-bold"><i class="fas fa-cloud-upload-alt mr-1"></i> Guardado en Gestor Descentralizado</span>';
+                                                    if (window.opToast) opToast('<i class="fas fa-cloud-upload-alt mr-1"></i> Archivo guardado en Gestor Descentralizado y vinculado a la actividad');
                                                 })
                                                 .catch(function (err) {
                                                     // El archivo NO quedó registrado: NO insertamos una referencia rota (evita el 404).
