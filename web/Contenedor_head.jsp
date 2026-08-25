@@ -2274,17 +2274,16 @@
                                             window.ooInitEditor({ containerId: 'office-platform', inputId: 'textInput', existingFileId: id, autoLoad: true });
                                         }
                                     }
-                                    function degrade(msg) { if (window.opToast) { opToast('<i class="fas fa-exclamation-triangle mr-1"></i> ' + msg, false); } else { alert(msg); } }
-                                    if (!isOO) { window.open(dl, '_blank', 'noopener'); return; }
-                                    // Degradacion 404: pre-verificar existencia del archivo antes de abrir el editor OnlyOffice.
-                                    // Los oo:<timestamp> legacy (huerfanos, id inexistente en :8080) darian 404 en /api/documents;
-                                    // aqui lo detectamos con un HEAD al download y mostramos un aviso amable en vez del toast rojo crudo.
+                                    function degrade() { if (window.opToast) { opToast('<i class="fas fa-exclamation-triangle mr-1"></i> Archivo no disponible: registro legacy que no existe en el almacenamiento.', false); } else { alert('Archivo no disponible (registro legacy).'); } }
+                                    function openByType() { if (isOO) { openEditorNow(); } else { window.open(dl, '_blank', 'noopener'); } }
+                                    // Pre-check HEAD para TODOS los tipos: si el id es legacy/huerfano (404) NO se abre nada
+                                    // (ni editor ni pestaña en blanco); se muestra un aviso amable. 200/otros -> abrir por tipo.
                                     fetch(dl, { method: 'HEAD' })
                                         .then(function (r) {
-                                            if (r && r.status === 404) { degrade('Archivo no disponible: registro legacy que no existe en Office Platform.'); }
-                                            else { openEditorNow(); } // 200/405/otros -> abrir (no penalizar por incertidumbre del HEAD)
+                                            if (r && r.status === 404) { degrade(); }
+                                            else { openByType(); } // 200/405/otros -> abrir por tipo (no penalizar por incertidumbre del HEAD)
                                         })
-                                        .catch(function () { openEditorNow(); }); // fallo de red al verificar -> intentar abrir igual
+                                        .catch(function () { openByType(); }); // fallo de red al verificar -> intentar abrir igual
                                 };
 
                                         // Intercept ALL OnlyOffice file links and open in OfficePlatform.openEditor()
@@ -3848,8 +3847,16 @@
                                             var statusEl = document.getElementById('op-autosave-status-' + index + '-' + subIndex);
                                             if (statusEl) statusEl.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin mr-1"></i> Subiendo ' + file.name + '...</span>';
 
+                                            var _up = new URLSearchParams(window.location.search);
+                                            var _ipy = _up.get('ipy') || (document.querySelector('[name="ipy"]') || {}).value || '';
+                                            var _idUsuario = (document.querySelector('[name="id_usuario"]') || {}).value || '';
                                             var formData = new FormData();
                                             formData.append('file', file);
+                                            // Metadatos para aceptar formatos no-Office (.eml/.msg/.zip/.pdf/imagenes) sin que la
+                                            // validacion de tipo bloquee la subida -> categoria de anexo generico.
+                                            formData.append('userId', _idUsuario);
+                                            formData.append('projectId', _ipy);
+                                            formData.append('category', 'ATTACHMENT');
 
                                             fetch('http://localhost:8080/api/files/upload', {
                                                 method: 'POST',
