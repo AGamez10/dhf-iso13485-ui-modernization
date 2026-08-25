@@ -2959,7 +2959,8 @@
                                                     card.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:11.5px; font-weight:600; color:#334155; transition:all 0.15s; margin-left:4px;';
 
                                                     var _stTok = 'muted', _stLbl = 'Sin iniciar';
-                                                    if (act.element.querySelector('.text-success')) { _stTok = 'finalizado'; _stLbl = 'Terminada'; }
+                                                    if (window.opNodeFinalizedFromCache && window.opNodeFinalizedFromCache(act.globalIndex)) { _stTok = 'finalizado'; _stLbl = 'Terminada'; }
+                                                    else if (act.element.querySelector('.text-success')) { _stTok = 'finalizado'; _stLbl = 'Terminada'; }
                                                     else if (act.element.querySelector('.text-warning')) { _stTok = 'revision'; _stLbl = 'En revisión'; }
                                                     else if (/EN PROCESO|PROCESO/i.test(act.element.textContent || '')) { _stTok = 'proceso'; _stLbl = 'En proceso'; }
                                                     card.setAttribute('title', act.title + ' — ' + _stLbl);
@@ -3325,14 +3326,19 @@
                                             var up = new URLSearchParams(window.location.search);
                                             return window._OP_DRAFT_PREFIX + (up.get('ipy') || '') + ':' + (up.get('estadoM') || '1') + ':';
                                         };
+                                        // Selector del objeto-cache en memoria segun kind: 'desc' | 'resp' | 'state'.
+                                        window._opCacheFor = function (kind) {
+                                            if (kind === 'desc') { window._opDescCache = window._opDescCache || {}; return window._opDescCache; }
+                                            if (kind === 'state') { window._opStateCache = window._opStateCache || {}; return window._opStateCache; }
+                                            window._opResponsesCache = window._opResponsesCache || {}; return window._opResponsesCache;
+                                        };
                                         window.opSaveDraft = function (kind, cacheKey, value) {
-                                            if (kind === 'desc') { window._opDescCache = window._opDescCache || {}; window._opDescCache[cacheKey] = value; }
-                                            else { window._opResponsesCache = window._opResponsesCache || {}; window._opResponsesCache[cacheKey] = value; }
+                                            window._opCacheFor(kind)[cacheKey] = value;
                                             // Se guarda {v,t}: t = timestamp para el TTL.
                                             try { localStorage.setItem(window._opDraftNS() + kind + ':' + cacheKey, JSON.stringify({ v: value, t: Date.now() })); } catch (e) { }
                                         };
                                         window.opReadDraft = function (kind, cacheKey) {
-                                            var mem = (kind === 'desc') ? window._opDescCache : window._opResponsesCache;
+                                            var mem = window._opCacheFor(kind);
                                             if (mem && Object.prototype.hasOwnProperty.call(mem, cacheKey)) return mem[cacheKey];
                                             try {
                                                 var fullKey = window._opDraftNS() + kind + ':' + cacheKey;
@@ -3346,19 +3352,19 @@
                                                             return undefined;
                                                         }
                                                         // hidratar memoria para lecturas siguientes (post F5/recarga)
-                                                        if (kind === 'desc') { window._opDescCache = window._opDescCache || {}; window._opDescCache[cacheKey] = o.v; }
-                                                        else { window._opResponsesCache = window._opResponsesCache || {}; window._opResponsesCache[cacheKey] = o.v; }
+                                                        window._opCacheFor(kind)[cacheKey] = o.v;
                                                         return o.v;
                                                     }
                                                 }
                                             } catch (e) { }
                                             return undefined;
                                         };
-                                        // Borra el/los borrador(es) de una actividad (memoria + localStorage). kinds por defecto: ambos.
+                                        // Borra el/los borrador(es) de una actividad (memoria + localStorage). kinds por defecto: desc+resp.
+                                        // El estado ('state') NO se borra por defecto al TERMINAR: es justo lo que debe persistir.
                                         window.opClearDraft = function (cacheKey, kinds) {
                                             kinds = kinds || ['desc', 'resp'];
                                             kinds.forEach(function (kind) {
-                                                try { var m = (kind === 'desc') ? window._opDescCache : window._opResponsesCache; if (m) delete m[cacheKey]; } catch (e) { }
+                                                try { var m = window._opCacheFor(kind); if (m) delete m[cacheKey]; } catch (e) { }
                                                 try { localStorage.removeItem(window._opDraftNS() + kind + ':' + cacheKey); } catch (e) { }
                                             });
                                         };
@@ -3377,6 +3383,32 @@
                                         };
                                         try { window.opPurgeOldDrafts(); } catch (e) { }
 
+                                        // Marca el estado en el nodo subyacente (activityElements[index]) con un data-attr
+                                        // NO destructivo. La fuente autoritativa de persistencia es _opStateCache (memoria +
+                                        // localStorage); esta marca es una senal secundaria y evita cirugia fragil sobre el HTML legacy.
+                                        window.opMutateNodeState = function (index, estadoNum) {
+                                            try {
+                                                var node = window._opActivityElements && window._opActivityElements[index];
+                                                if (node && node.setAttribute) node.setAttribute('data-op-state', estadoNum);
+                                            } catch (e) { }
+                                        };
+                                        // True si ALGUNA sub-actividad de este index quedo TERMINADA (estado 3) segun el state cache
+                                        // (memoria + localStorage). Lo usa el build del arbol para pintar el dot verde tras un F5.
+                                        window.opNodeFinalizedFromCache = function (index) {
+                                            try {
+                                                var sc = window._opStateCache || {};
+                                                for (var k in sc) { if (sc.hasOwnProperty(k) && k.indexOf(index + '-') === 0 && (sc[k] === 3 || sc[k] === '3')) return true; }
+                                                var ns = window._opDraftNS() + 'state:' + index + '-';
+                                                for (var i = 0; i < localStorage.length; i++) {
+                                                    var lk = localStorage.key(i);
+                                                    if (lk && lk.indexOf(ns) === 0) {
+                                                        var o = null; try { o = JSON.parse(localStorage.getItem(lk)); } catch (e2) { o = null; }
+                                                        if (o && (o.v === 3 || o.v === '3')) return true;
+                                                    }
+                                                }
+                                            } catch (e) { }
+                                            return false;
+                                        };
                                         // Actualiza EN VIVO (sin reload) el badge del detalle, el punto del arbol y el contador.
                                         function opReflectActivityState(index, idMemoria, estadoNum, subIndex) {
                                             var isFin = (estadoNum === 3 || estadoNum === '3');
@@ -3425,6 +3457,9 @@
                                                     try { if (window.swal) swal.close(); } catch (e) { }
                                                     if (r && (r.ok || r.status === 302)) {
                                                         opReflectActivityState(index, idMemoria, estado, subIndex);
+                                                        // Persistir el ESTADO para que sobreviva al re-render al navegar y al F5.
+                                                        opSaveDraft('state', index + '-' + subIndex, estado);
+                                                        opMutateNodeState(index, estado); // reflejar en el HTML subyacente del arbol
                                                         // Al TERMINAR (estado 3): la observacion ya se autoguardo (opc=11) -> se borra ese
                                                         // borrador. NO se borra el de la descripcion: opc=13 (este flujo) NO persiste la
                                                         // descripcion, y borrarlo perderia una edicion no guardada.
@@ -3490,6 +3525,9 @@
                                                 if (r && (r.ok || r.status === 302)) {
                                                     opReflectActivityState(index, idMemoria, 3, subIndex); // SIN reload: reflejo en vivo
                                                     if (descChanged && descEl) descEl.setAttribute('data-orig', descEl.value || '');
+                                                    // Persistir el ESTADO (TERMINADA) para que sobreviva al re-render al navegar y al F5.
+                                                    opSaveDraft('state', index + '-' + subIndex, 3);
+                                                    opMutateNodeState(index, 3); // reflejar en el HTML subyacente del arbol
                                                     // TERMINADA por el flujo principal: la descripcion se persistio (opc=10 si cambio) y
                                                     // la observacion via autoguardado (opc=11) -> se borran AMBOS borradores.
                                                     opClearDraft(index + '-' + subIndex);
@@ -3754,6 +3792,15 @@
 
                                                     // SPRINT 10: Persistencia de caché en memoria garantizada
                                                     var cacheKey = index + '-' + subIndex;
+
+                                                    // Persistencia de ESTADO: si el usuario cambio el estado en esta sesion (opc=13),
+                                                    // el _opStateCache es autoritativo y gana sobre el HTML estatico del JSP -> el badge
+                                                    // NO revierte a amarillo al navegar de vuelta ni tras un F5. 3=FINALIZADO (verde),
+                                                    // 1=EN PROCESO. Si no hay cache, se usa lo parseado del HTML.
+                                                    var _cachedState = opReadDraft('state', cacheKey);
+                                                    if (_cachedState === 3 || _cachedState === '3') estadoText = 'FINALIZADO';
+                                                    else if (_cachedState === 1 || _cachedState === '1') estadoText = 'EN PROCESO';
+
                                                     window._opResponsesCache = window._opResponsesCache || {};
                                                     var cachedVal = opReadDraft('resp', cacheKey);
                                                     if (cachedVal !== undefined && cachedVal.trim() !== '') {
