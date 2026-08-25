@@ -3272,6 +3272,51 @@
                                         }
 
                                         // Render selected activity in Detail Panel (Cross-Section & Interactive)
+                                        // Punto 2: control directo de estado de la actividad en el Panel Detalle (Split View).
+                                        // opc=13 (cambiar estado). Escritura al audit trail -> recarga para reflejar el badge.
+                                        window.opSetActivityState = function (index, subIndex, idMemoria, estado) {
+                                            idMemoria = ('' + idMemoria).trim();
+                                            if (!idMemoria) { alert('No se pudo identificar la actividad (id_memoria).'); return; }
+                                            var up = new URLSearchParams(window.location.search);
+                                            var ipy = up.get('ipy') || (document.querySelector('[name="ipy"]') || {}).value || '';
+                                            var estadoM = up.get('estadoM') || '1';
+                                            var label = (estado === 3 || estado === '3') ? 'FINALIZADO' : 'EN PROCESO';
+                                            if (typeof window.swal === 'function') { try { swal({ title: 'Cambiar estado', text: '<i class="fas fa-spinner fa-spin fa-2x text-primary"></i>', html: true, showConfirmButton: false }); } catch (e) { } }
+                                            fetch('Proyecto?opc=13', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, credentials: 'same-origin',
+                                                body: 'ipy=' + ipy + '&id_memoria=' + idMemoria + '&estado=' + estado + '&estadoM=' + estadoM })
+                                                .then(function (r) {
+                                                    if (r && (r.ok || r.status === 302)) { window.location.reload(); }
+                                                    else { try { if (window.swal) swal.close(); } catch (e) { } alert('No se pudo cambiar el estado a ' + label + '.'); }
+                                                }).catch(function () { try { if (window.swal) swal.close(); } catch (e) { } alert('Error de red al cambiar el estado.'); });
+                                        };
+                                        // Punto 2: guardar la observación (opc=11) y finalizar (opc=13) en un click, esperando cada una.
+                                        window.opSaveAndFinalizeActivity = function (index, subIndex, idMemoria) {
+                                            idMemoria = ('' + idMemoria).trim();
+                                            if (!idMemoria) { alert('No se pudo identificar la actividad (id_memoria).'); return; }
+                                            var ta = document.getElementById('op-detail-response-text-' + index + '-' + subIndex);
+                                            var obs = ta ? (ta.value || '').trim() : '';
+                                            var up = new URLSearchParams(window.location.search);
+                                            var ipy = up.get('ipy') || (document.querySelector('[name="ipy"]') || {}).value || '';
+                                            var estadoM = up.get('estadoM') || '1';
+                                            var idUsuario = (document.querySelector('[name="id_usuario"]') || {}).value || '';
+                                            var usuario = (document.querySelector('[name="usuario"]') || {}).value || '';
+                                            var today = new Date().toISOString().substring(0, 10);
+                                            var H = { 'Content-Type': 'application/x-www-form-urlencoded' };
+                                            if (typeof window.swal === 'function') { try { swal({ title: 'Guardando y finalizando…', text: '<i class="fas fa-spinner fa-spin fa-2x text-primary"></i>', html: true, showConfirmButton: false }); } catch (e) { } }
+                                            var step1 = obs
+                                                ? fetch('Proyecto?opc=11', { method: 'POST', headers: H, credentials: 'same-origin',
+                                                    body: new URLSearchParams({ ipy: ipy, estado: estadoM, id_memoria: idMemoria, id_usuario: idUsuario, usuario: usuario, fecha_reg: today, observacion: obs, Tipo_log: 'RESPONSABLE' }).toString() })
+                                                : Promise.resolve({ ok: true });
+                                            step1.then(function (r1) {
+                                                if (!r1 || !(r1.ok || r1.status === 302)) throw new Error('opc=11');
+                                                return fetch('Proyecto?opc=13', { method: 'POST', headers: H, credentials: 'same-origin',
+                                                    body: 'ipy=' + ipy + '&id_memoria=' + idMemoria + '&estado=3&estadoM=' + estadoM });
+                                            }).then(function (r2) {
+                                                if (r2 && (r2.ok || r2.status === 302)) { window.location.reload(); }
+                                                else { throw new Error('opc=13'); }
+                                            }).catch(function () { try { if (window.swal) swal.close(); } catch (e) { } alert('No se pudo guardar/finalizar la actividad. Revise e intente nuevamente.'); });
+                                        };
+
                                         function opShowActivityDetail(index, activityElements, detailPanel, masterPanel) {
                                             if (index < 0 || index >= activityElements.length) return;
 
@@ -3499,7 +3544,9 @@
                                                         + '    <div class="d-flex flex-wrap gap-3" style="gap: 15px;">'
                                                         + '      <div><i class="fas fa-user-edit mr-1 text-primary"></i> <b>AUTOR:</b> ' + authorText + '</div>'
                                                         + '      <div><i class="far fa-calendar-alt mr-1"></i> <b>FECHA:</b> ' + dateText + '</div>'
-                                                        + '      <div><i class="fas fa-info-circle mr-1"></i> <b>ESTADO:</b> ' + estadoText + '</div>'
+                                                        + '      <div><i class="fas fa-info-circle mr-1"></i> <b>ESTADO:</b> <span class="badge ' + (estadoText === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estadoText === 'FINALIZADO' ? 'background:#16a34a;color:#fff;font-weight:700;' : '') + '">' + estadoText + '</span>'
+                                                        + (isEditable && idMemoria ? (' <span class="ml-2" style="white-space:nowrap;"><button type="button" class="btn btn-outline-warning py-0 px-2" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 1)" title="Marcar En Proceso">En Proceso</button> <button type="button" class="btn btn-outline-success py-0 px-2 ml-1" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 3)" title="Marcar Finalizado">Finalizar</button></span>') : '')
+                                                        + '      </div>'
                                                         + '    </div>'
                                                         + '    <div class="d-flex align-items-center op-card-actions">' + actionsHtml + '</div>'
                                                         + '  </div>'
@@ -3583,6 +3630,9 @@
                                                             + '        <button type="button" class="btn btn-sm btn-outline-warning font-weight-bold" onclick="opCreateInlineDoc(' + index + ', ' + subIndex + ', \'presentation\')" style="font-size:11px;"><i class="far fa-file-powerpoint mr-1"></i> + PPT</button>'
                                                             + '        <label class="btn btn-sm btn-outline-dark font-weight-bold m-0" style="font-size:11px; cursor:pointer;" title="Subir archivo desde tu computador"><i class="fas fa-upload mr-1"></i> Subir PC<input type="file" style="display:none;" onchange="opUploadLocalFileForActivity(' + index + ', ' + subIndex + ', this)"></label>'
                                                             + '      </div>'
+                                                            + '    </div>'
+                                                            + '    <div class="pt-2 mt-2 border-top text-right">'
+                                                            + '      <button type="button" class="btn btn-sm btn-success font-weight-bold" onclick="opSaveAndFinalizeActivity(' + index + ', ' + subIndex + ', \'' + idMemoria + '\')" title="Guarda la observación y marca la actividad como FINALIZADO"><i class="fas fa-check-double mr-1"></i> Guardar y Finalizar Actividad</button>'
                                                             + '    </div>'
                                                             + '  </div>'
                                                             + '</div>';
