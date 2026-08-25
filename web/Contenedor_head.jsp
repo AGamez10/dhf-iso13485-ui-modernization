@@ -1237,8 +1237,8 @@
             /* H-d: impresión — lo que se ve es lo que sale */
             @media print {
                 @page {
-                    size: A4;
-                    margin: 1.5cm;
+                    size: letter portrait;
+                    margin: 12mm 15mm 15mm 15mm;
                 }
 
                 body {
@@ -1299,6 +1299,48 @@
                 * {
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
+                }
+
+                /* ── Punto 4: Previsualizador Ejecutivo como documento corporativo Carta ── */
+                html, body {
+                    height: auto !important;
+                    overflow: visible !important;
+                    background: #ffffff !important;
+                }
+                /* hoja a ancho completo, sin escritorio/sombra/borde en papel */
+                body.op-fullview-mode .card-body {
+                    background: #ffffff !important;
+                    padding: 0 !important;
+                }
+                #op-continuous-preview-container,
+                .op-continuous-preview-container {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    box-shadow: none !important;
+                    border: none !important;
+                }
+                /* no partir etapas / tarjetas / tablas entre páginas (evita cortes y huérfanas) */
+                .op-preview-stage-block,
+                .op-preview-activity-card,
+                .op-preview-distribution,
+                .table-bordered {
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                }
+                /* cabecera de actividad: flex sin position:absolute/float -> evita solapamiento de textos */
+                .op-preview-activity-card > div:first-child {
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    align-items: center !important;
+                    position: static !important;
+                    float: none !important;
+                }
+                /* controles que no deben imprimirse */
+                .no-print, .btn, .nav, .op-seg-control, .op-seg-static,
+                #op-submit-toast, #op-ac-overlay, #op-batch-modal, #op-fm-modal {
+                    display: none !important;
                 }
             }
 
@@ -3069,7 +3111,7 @@
                                                         actHtml += '<div class="op-preview-activity-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:18px 24px; margin-bottom:20px; page-break-inside:avoid;">'
                                                             + '  <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="font-size:12px; color:#475569; font-weight:600;">'
                                                             + '    <span><span class="badge badge-primary mr-2" style="font-size:10px;">ACTIVIDAD ' + (aIdx + 1) + '</span> Autor: ' + _authorDisp + _legacyBadge + '</span>'
-                                                            + '    <span>Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '">' + estado + '</span></span>'
+                                                            + '    <span>Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estado === 'FINALIZADO' ? 'background:#16a34a; color:#fff; font-weight:700;' : '') + '">' + estado + '</span></span>'
                                                             + '  </div>'
                                                             + '  <div class="font-weight-bold text-dark mb-2" style="font-size:13.5px; line-height:1.55; color:#0f172a;">' + desc + '</div>'
                                                             // Tarea 1: solo mostrar el recuadro de avance si HAY respuesta real; nunca la caja vacía.
@@ -4883,11 +4925,11 @@
                                             var tv = (titleVal || '').replace(/"/g, '&quot;');
                                             return '<div class="op-wiz-act-row" style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; background:#ffffff;">'
                                                 + '  <div style="display:flex; gap:10px; align-items:center;">'
-                                                + '    <input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de la Actividad" spellcheck="true" lang="es" style="flex:1 1 auto; min-width:0; font-weight:600;" value="' + tv + '">'
+                                                + '    <input type="text" class="form-control form-control-sm op-batch-title" placeholder="Nombre de la Actividad" spellcheck="true" lang="es" style="flex:1 1 auto; min-width:0; box-sizing:border-box; font-weight:600;" value="' + tv + '">'
                                                 + '    <select class="form-control form-control-sm op-batch-doc" style="flex:0 0 30%; max-width:230px;"><option value="none" selected>Ninguno (Solo Texto / Observación)</option><option value="docx">Documento Word (.docx) - Opcional</option><option value="docx_req">Documento Word (.docx) - Obligatorio</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select>'
                                                 + '    <button type="button" class="btn btn-sm btn-outline-danger" title="Eliminar actividad" onclick="this.closest(\'.op-wiz-act-row\').remove()" style="flex:0 0 auto;">&times;</button>'
                                                 + '  </div>'
-                                                + '  <textarea class="form-control form-control-sm op-batch-desc mt-2" rows="2" placeholder="Descripción / Observación Técnica" spellcheck="true" lang="es" style="width:100%; min-height:52px; resize:vertical;">Actividad planificada, ejecutada y verificada de acuerdo con las especificaciones de la norma ISO 13485</textarea>'
+                                                + '  <textarea class="form-control form-control-sm op-batch-desc mt-2" rows="2" placeholder="Descripción / Observación Técnica" spellcheck="true" lang="es" style="width:100%; box-sizing:border-box; min-height:52px; resize:vertical;">Actividad planificada, ejecutada y verificada de acuerdo con las especificaciones de la norma ISO 13485</textarea>'
                                                 + '</div>';
                                         }
 
@@ -4972,7 +5014,7 @@
 
                                                 footerBtns.innerHTML = ''
                                                     + '<button type="button" class="btn btn-outline-secondary btn-sm font-weight-bold mr-2" onclick="opRenderWizardStep(1)"><i class="fas fa-arrow-left mr-1"></i> Volver a Etapas</button>'
-                                                    + '<button type="button" class="btn btn-success btn-sm font-weight-bold" onclick="opExecuteBatchSubmit()"><i class="fas fa-bolt mr-1"></i> ⚡ Generar Memoria Completa en Lote</button>';
+                                                    + '<button type="button" class="btn btn-success btn-sm font-weight-bold" onclick="opExecuteBatchSubmit()"><i class="fas fa-bolt mr-1"></i> ⚡ Generar y Finalizar Memoria en Lote</button>';
                                             }
                                         }
 
