@@ -2265,22 +2265,26 @@
                                     // Solo estos formatos los renderiza el editor OnlyOffice. El resto (.eml, .msg, .zip,
                                     // .pdf, imagenes, etc.) se DESCARGA/abre directo -> NUNCA se llama al editor (evita el 404).
                                     var isOO = /\.(docx?|xlsx?|pptx?|csv|odt|ods|odp|txt)$/.test(name);
-                                    var dl = 'http://localhost:8080/api/files/' + parseInt(fileId, 10) + '/download';
-                                    if (!isOO) {
-                                        window.open(dl, '_blank', 'noopener');
-                                        return;
+                                    var id = parseInt(fileId, 10);
+                                    var dl = 'http://localhost:8080/api/files/' + id + '/download';
+                                    function openEditorNow() {
+                                        if (typeof OfficePlatform !== 'undefined' && typeof OfficePlatform.openEditor === 'function') {
+                                            OfficePlatform.openEditor({ fileId: id });
+                                        } else {
+                                            window.ooInitEditor({ containerId: 'office-platform', inputId: 'textInput', existingFileId: id, autoLoad: true });
+                                        }
                                     }
-                                    if (typeof OfficePlatform !== 'undefined' && typeof OfficePlatform.openEditor === 'function') {
-                                        OfficePlatform.openEditor({ fileId: parseInt(fileId, 10) });
-                                    } else {
-                                        // Fallback al editor embebido
-                                        window.ooInitEditor({
-                                            containerId: 'office-platform',
-                                            inputId: 'textInput',
-                                            existingFileId: parseInt(fileId, 10),
-                                            autoLoad: true
-                                        });
-                                    }
+                                    function degrade(msg) { if (window.opToast) { opToast('<i class="fas fa-exclamation-triangle mr-1"></i> ' + msg, false); } else { alert(msg); } }
+                                    if (!isOO) { window.open(dl, '_blank', 'noopener'); return; }
+                                    // Degradacion 404: pre-verificar existencia del archivo antes de abrir el editor OnlyOffice.
+                                    // Los oo:<timestamp> legacy (huerfanos, id inexistente en :8080) darian 404 en /api/documents;
+                                    // aqui lo detectamos con un HEAD al download y mostramos un aviso amable en vez del toast rojo crudo.
+                                    fetch(dl, { method: 'HEAD' })
+                                        .then(function (r) {
+                                            if (r && r.status === 404) { degrade('Archivo no disponible: registro legacy que no existe en Office Platform.'); }
+                                            else { openEditorNow(); } // 200/405/otros -> abrir (no penalizar por incertidumbre del HEAD)
+                                        })
+                                        .catch(function () { openEditorNow(); }); // fallo de red al verificar -> intentar abrir igual
                                 };
 
                                         // Intercept ALL OnlyOffice file links and open in OfficePlatform.openEditor()
