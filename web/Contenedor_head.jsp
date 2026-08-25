@@ -3312,6 +3312,36 @@
                                             requestAnimationFrame(function () { t.style.opacity = '1'; });
                                             setTimeout(function () { t.style.opacity = '0'; setTimeout(function () { if (t.parentNode) t.remove(); }, 250); }, 2600);
                                         };
+
+                                        // Borradores persistentes: mantienen descripcion/observaciones en MEMORIA (sobreviven al
+                                        // navegar entre actividades) y en sessionStorage (sobreviven a un F5/recarga accidental de
+                                        // la MISMA pestana). La clave se namespacea por ipy+estadoM para NO cruzar borradores entre
+                                        // proyectos/vistas (el cache es posicional: index-subIndex). sessionStorage puede fallar
+                                        // (lleno/deshabilitado/incognito) -> todo en try/catch, con la memoria como fuente primaria.
+                                        window._opDraftNS = function () {
+                                            var up = new URLSearchParams(window.location.search);
+                                            return 'opdraft:' + (up.get('ipy') || '') + ':' + (up.get('estadoM') || '1') + ':';
+                                        };
+                                        window.opSaveDraft = function (kind, cacheKey, value) {
+                                            if (kind === 'desc') { window._opDescCache = window._opDescCache || {}; window._opDescCache[cacheKey] = value; }
+                                            else { window._opResponsesCache = window._opResponsesCache || {}; window._opResponsesCache[cacheKey] = value; }
+                                            try { sessionStorage.setItem(window._opDraftNS() + kind + ':' + cacheKey, value); } catch (e) { }
+                                        };
+                                        window.opReadDraft = function (kind, cacheKey) {
+                                            var mem = (kind === 'desc') ? window._opDescCache : window._opResponsesCache;
+                                            if (mem && Object.prototype.hasOwnProperty.call(mem, cacheKey)) return mem[cacheKey];
+                                            try {
+                                                var v = sessionStorage.getItem(window._opDraftNS() + kind + ':' + cacheKey);
+                                                if (v !== null) {
+                                                    // hidratar memoria para lecturas siguientes
+                                                    if (kind === 'desc') { window._opDescCache = window._opDescCache || {}; window._opDescCache[cacheKey] = v; }
+                                                    else { window._opResponsesCache = window._opResponsesCache || {}; window._opResponsesCache[cacheKey] = v; }
+                                                    return v;
+                                                }
+                                            } catch (e) { }
+                                            return undefined;
+                                        };
+
                                         // Actualiza EN VIVO (sin reload) el badge del detalle, el punto del arbol y el contador.
                                         function opReflectActivityState(index, idMemoria, estadoNum, subIndex) {
                                             var isFin = (estadoNum === 3 || estadoNum === '3');
@@ -3683,7 +3713,7 @@
                                                     // SPRINT 10: Persistencia de caché en memoria garantizada
                                                     var cacheKey = index + '-' + subIndex;
                                                     window._opResponsesCache = window._opResponsesCache || {};
-                                                    var cachedVal = window._opResponsesCache[cacheKey];
+                                                    var cachedVal = opReadDraft('resp', cacheKey);
                                                     if (cachedVal !== undefined && cachedVal.trim() !== '') {
                                                         existingResponse = cachedVal;
                                                         statusHtml = '<div class="d-block mb-1"><span class="op-status-atendida"><i class="fas fa-check-circle mr-1"></i> Atendida</span></div>'
@@ -3702,7 +3732,8 @@
                                                     // siga siendo correcta.
                                                     var _origDesc = (descText || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ');
                                                     window._opDescCache = window._opDescCache || {};
-                                                    var _descVal = (window._opDescCache[cacheKey] !== undefined) ? window._opDescCache[cacheKey] : _origDesc;
+                                                    var _cachedDesc = opReadDraft('desc', cacheKey);
+                                                    var _descVal = (_cachedDesc !== undefined) ? _cachedDesc : _origDesc;
                                                     var _descOrigAttr = _origDesc.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                                                     var _descBody = ('' + _descVal).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -3720,7 +3751,7 @@
                                                         + '  <div class="op-activity-desc mb-3 p-3 rounded" style="font-size:13px; line-height:1.6; color:#1e293b; font-weight:500; background:#f8fafc; border:1px solid #f1f5f9;">'
                                                         + '    <div class="d-flex align-items-center justify-content-between mb-1"><span class="badge badge-info" style="font-size:9px;">ACTIVIDAD ' + (subIndex + 1) + '</span>' + (isEditable ? '<span class="text-muted" style="font-size:10px;"><i class="fas fa-pen mr-1"></i>Descripción editable</span>' : '') + '</div>'
                                                         + (isEditable
-                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" data-orig="' + _descOrigAttr + '" oninput="window._opDescCache=window._opDescCache||{};window._opDescCache[\'' + cacheKey + '\']=this.value;" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + _descBody + '</textarea>'
+                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" data-orig="' + _descOrigAttr + '" oninput="opSaveDraft(\'desc\', \'' + cacheKey + '\', this.value)" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + _descBody + '</textarea>'
                                                             : '    <div>' + descText + '</div>')
                                                         + (isEditable ? ('    <div class="op-doc-toolbar d-flex align-items-center flex-wrap mt-2" style="gap:6px;">'
                                                             + '      <span class="text-muted mr-1" style="font-size:10.5px;"><i class="fas fa-paperclip mr-1"></i>Anexar a la actividad:</span>'
@@ -3977,8 +4008,7 @@
                                                         // Punto 2 (defensivo): asegurar la persistencia en memoria del anexo aunque
                                                         // opAutoSaveResponse hiciera early-return, para que NO se borre al navegar entre
                                                         // actividades en el indice izquierdo (opShowActivityDetail relee _opResponsesCache).
-                                                        window._opResponsesCache = window._opResponsesCache || {};
-                                                        window._opResponsesCache[index + '-' + subIndex] = ta.value;
+                                                        opSaveDraft('resp', index + '-' + subIndex, ta.value);
                                                     }
                                                     if (window.opToast) opToast('<i class="fas fa-cloud-upload-alt mr-1"></i> Archivo guardado en Gestor Descentralizado y vinculado a la actividad');
                                                     // Punto 2: re-render inmediato de la actividad -> la tarjeta del adjunto aparece al
@@ -4300,10 +4330,9 @@
                                             var text = (ta.value || '').trim();
                                             if (!text) return; // no guardar vacíos automáticamente
 
-                                            // Guardar inmediatamente en caché en memoria
+                                            // Guardar inmediatamente en cache (memoria + sessionStorage: sobrevive F5)
                                             var cacheKey = index + '-' + subIndex;
-                                            window._opResponsesCache = window._opResponsesCache || {};
-                                            window._opResponsesCache[cacheKey] = text;
+                                            opSaveDraft('resp', cacheKey, text);
 
                                             var statusIndicator = document.getElementById('op-autosave-status-' + index + '-' + subIndex);
                                             if (statusIndicator) {
@@ -4450,9 +4479,7 @@
                                             // Guardar en cache inmediatamente para evitar pérdidas de foco
                                             var ta = document.getElementById('op-detail-response-text-' + index + '-' + subIndex);
                                             if (ta) {
-                                                var cacheKey = index + '-' + subIndex;
-                                                window._opResponsesCache = window._opResponsesCache || {};
-                                                window._opResponsesCache[cacheKey] = ta.value;
+                                                opSaveDraft('resp', index + '-' + subIndex, ta.value);
                                             }
                                             clearTimeout(window._opAutosaveDebounceTimer);
                                             window._opAutosaveDebounceTimer = setTimeout(function () {
