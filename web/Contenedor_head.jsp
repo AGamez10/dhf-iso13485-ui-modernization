@@ -3313,16 +3313,20 @@
                                             setTimeout(function () { t.style.opacity = '0'; setTimeout(function () { if (t.parentNode) t.remove(); }, 250); }, 2600);
                                         };
                                         // Actualiza EN VIVO (sin reload) el badge del detalle, el punto del arbol y el contador.
-                                        function opReflectActivityState(index, idMemoria, estadoNum) {
+                                        function opReflectActivityState(index, idMemoria, estadoNum, subIndex) {
                                             var isFin = (estadoNum === 3 || estadoNum === '3');
-                                            var card = idMemoria ? document.querySelector('.op-activity-item-card[data-id-memoria="' + idMemoria + '"]') : null;
-                                            if (card) {
-                                                var badge = card.querySelector('.op-estado-badge');
-                                                if (badge) {
-                                                    badge.className = 'badge op-estado-badge ' + (isFin ? 'badge-success' : 'badge-warning');
-                                                    badge.setAttribute('style', isFin ? 'background:#16a34a;color:#fff;font-weight:700;' : '');
-                                                    badge.textContent = isFin ? 'TERMINADA' : 'EN PROCESO';
-                                                }
+                                            // Badge de cabecera: primero por ID UNICO (robusto, no depende de data-id-memoria);
+                                            // fallback a la card por data-id-memoria por compatibilidad.
+                                            var badge = (subIndex !== undefined && subIndex !== null)
+                                                ? document.getElementById('op-detail-header-badge-' + index + '-' + subIndex) : null;
+                                            if (!badge) {
+                                                var card = idMemoria ? document.querySelector('.op-activity-item-card[data-id-memoria="' + idMemoria + '"]') : null;
+                                                if (card) badge = card.querySelector('.op-estado-badge');
+                                            }
+                                            if (badge) {
+                                                badge.className = 'badge op-estado-badge ' + (isFin ? 'badge-success' : 'badge-warning');
+                                                badge.style.cssText = isFin ? 'background:#16a34a !important;color:#fff !important;font-weight:700 !important;' : '';
+                                                badge.textContent = isFin ? 'TERMINADA' : 'EN PROCESO';
                                             }
                                             var mc = document.querySelector('#op-master-panel .op-activity-card[data-activity-index="' + index + '"]');
                                             if (mc) {
@@ -3355,7 +3359,7 @@
                                                 .then(function (r) {
                                                     try { if (window.swal) swal.close(); } catch (e) { }
                                                     if (r && (r.ok || r.status === 302)) {
-                                                        opReflectActivityState(index, idMemoria, estado);
+                                                        opReflectActivityState(index, idMemoria, estado, subIndex);
                                                         opToast('<i class="fas fa-check mr-1"></i> Actividad marcada como ' + label);
                                                     } else { opToast('<i class="fas fa-exclamation-triangle mr-1"></i> No se pudo cambiar el estado', false); }
                                                 }).catch(function () { try { if (window.swal) swal.close(); } catch (e) { } opToast('<i class="fas fa-exclamation-triangle mr-1"></i> Error de red al cambiar el estado', false); });
@@ -3415,7 +3419,7 @@
                                             chain.then(function (r) {
                                                 try { if (window.swal) swal.close(); } catch (e) { }
                                                 if (r && (r.ok || r.status === 302)) {
-                                                    opReflectActivityState(index, idMemoria, 3); // SIN reload: reflejo en vivo
+                                                    opReflectActivityState(index, idMemoria, 3, subIndex); // SIN reload: reflejo en vivo
                                                     if (descChanged && descEl) descEl.setAttribute('data-orig', descEl.value || '');
                                                     opToast('<i class="fas fa-check mr-1"></i> Actividad marcada como TERMINADA');
                                                 } else { throw new Error('finalize'); }
@@ -3666,6 +3670,16 @@
                                                         if (_mId) idMemoria = _mId[1];
                                                     }
 
+                                                    // Fallback de estadoText a nivel de bloque: si la deteccion por fila no lo hallo,
+                                                    // se evita el feo "Estado no especificado" en la cabecera. Default: EN PROCESO.
+                                                    if (!estadoText || estadoText === 'Estado no especificado') {
+                                                        var _blkTxt = blockRows.map(function (r) { return r.textContent || ''; }).join(' ');
+                                                        if (/FINALIZAD/i.test(_blkTxt)) estadoText = 'FINALIZADO';
+                                                        else if (/SIN ATENDER/i.test(_blkTxt)) estadoText = 'SIN ATENDER';
+                                                        else if (/PROCESO/i.test(_blkTxt)) estadoText = 'EN PROCESO';
+                                                        else estadoText = 'EN PROCESO';
+                                                    }
+
                                                     // SPRINT 10: Persistencia de caché en memoria garantizada
                                                     var cacheKey = index + '-' + subIndex;
                                                     window._opResponsesCache = window._opResponsesCache || {};
@@ -3681,12 +3695,23 @@
                                                         statusHtml = '<span class="op-status-no-atendida"><i class="fas fa-exclamation-triangle mr-1"></i> Sin atender actividad</span>';
                                                     }
 
+                                                    // Punto 2: cache de la DESCRIPCION editada. El re-render al navegar lee el HTML
+                                                    // estatico del JSP; sin cache, lo que el usuario escribio en la descripcion se
+                                                    // perdia. Se precarga del cache si existe; data-orig conserva el valor ORIGINAL
+                                                    // del servidor para que la deteccion de cambios (descChanged) en la finalizacion
+                                                    // siga siendo correcta.
+                                                    var _origDesc = (descText || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ');
+                                                    window._opDescCache = window._opDescCache || {};
+                                                    var _descVal = (window._opDescCache[cacheKey] !== undefined) ? window._opDescCache[cacheKey] : _origDesc;
+                                                    var _descOrigAttr = _origDesc.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                                                    var _descBody = ('' + _descVal).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
                                                     cardsHtml += '<div class="op-activity-item-card mb-4 p-4 border rounded" style="border-radius:12px; background:#ffffff; box-shadow:0 4px 15px rgba(0,0,0,0.04); border:1px solid #cbd5e1;" data-id-memoria="' + idMemoria + '">'
                                                         + '  <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom" style="font-size:11px; color:#64748b; font-weight:600; flex-wrap: wrap; gap: 8px;">'
                                                         + '    <div class="d-flex flex-wrap gap-3" style="gap: 15px;">'
                                                         + '      <div><i class="fas fa-user-edit mr-1 text-primary"></i> <b>AUTOR:</b> ' + authorText + '</div>'
                                                         + '      <div><i class="far fa-calendar-alt mr-1"></i> <b>FECHA:</b> ' + dateText + '</div>'
-                                                        + '      <div><i class="fas fa-info-circle mr-1"></i> <b>ESTADO:</b> <span class="badge op-estado-badge ' + (estadoText === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estadoText === 'FINALIZADO' ? 'background:#16a34a;color:#fff;font-weight:700;' : '') + '">' + (estadoText === 'FINALIZADO' ? 'TERMINADA' : estadoText) + '</span>'
+                                                        + '      <div><i class="fas fa-info-circle mr-1"></i> <b>ESTADO:</b> <span id="op-detail-header-badge-' + index + '-' + subIndex + '" class="badge op-estado-badge ' + (estadoText === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estadoText === 'FINALIZADO' ? 'background:#16a34a;color:#fff;font-weight:700;' : '') + '">' + (estadoText === 'FINALIZADO' ? 'TERMINADA' : estadoText) + '</span>'
                                                         + (isEditable && idMemoria ? (' <span class="ml-2" style="white-space:nowrap;"><button type="button" class="btn btn-outline-warning py-0 px-2" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 1)" title="Marcar En Proceso">En Proceso</button> <button type="button" class="btn btn-outline-success py-0 px-2 ml-1" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 3)" title="Marcar Terminada">Terminar</button></span>') : '')
                                                         + '      </div>'
                                                         + '    </div>'
@@ -3695,7 +3720,7 @@
                                                         + '  <div class="op-activity-desc mb-3 p-3 rounded" style="font-size:13px; line-height:1.6; color:#1e293b; font-weight:500; background:#f8fafc; border:1px solid #f1f5f9;">'
                                                         + '    <div class="d-flex align-items-center justify-content-between mb-1"><span class="badge badge-info" style="font-size:9px;">ACTIVIDAD ' + (subIndex + 1) + '</span>' + (isEditable ? '<span class="text-muted" style="font-size:10px;"><i class="fas fa-pen mr-1"></i>Descripción editable</span>' : '') + '</div>'
                                                         + (isEditable
-                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" data-orig="' + ((descText || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/"/g, '&quot;')) + '" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + (descText || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ') + '</textarea>'
+                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" data-orig="' + _descOrigAttr + '" oninput="window._opDescCache=window._opDescCache||{};window._opDescCache[\'' + cacheKey + '\']=this.value;" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + _descBody + '</textarea>'
                                                             : '    <div>' + descText + '</div>')
                                                         + (isEditable ? ('    <div class="op-doc-toolbar d-flex align-items-center flex-wrap mt-2" style="gap:6px;">'
                                                             + '      <span class="text-muted mr-1" style="font-size:10.5px;"><i class="fas fa-paperclip mr-1"></i>Anexar a la actividad:</span>'
@@ -3955,8 +3980,18 @@
                                                         window._opResponsesCache = window._opResponsesCache || {};
                                                         window._opResponsesCache[index + '-' + subIndex] = ta.value;
                                                     }
-                                                    if (statusEl) statusEl.innerHTML = '<span class="text-success font-weight-bold"><i class="fas fa-cloud-upload-alt mr-1"></i> Guardado en Gestor Descentralizado</span>';
                                                     if (window.opToast) opToast('<i class="fas fa-cloud-upload-alt mr-1"></i> Archivo guardado en Gestor Descentralizado y vinculado a la actividad');
+                                                    // Punto 2: re-render inmediato de la actividad -> la tarjeta del adjunto aparece al
+                                                    // instante (leida del cache). La descripcion se conserva via _opDescCache y la
+                                                    // observacion via _opResponsesCache, asi el re-render no pierde nada.
+                                                    var _dp = document.getElementById('op-detail-panel');
+                                                    var _mp = document.getElementById('op-master-panel');
+                                                    var _stillHere = (typeof _opActiveActivityIndex === 'undefined') || (_opActiveActivityIndex === index);
+                                                    if (_stillHere && _dp && _mp && window._opActivityElements && typeof opShowActivityDetail === 'function') {
+                                                        opShowActivityDetail(index, window._opActivityElements, _dp, _mp);
+                                                    } else if (statusEl) {
+                                                        statusEl.innerHTML = '<span class="text-success font-weight-bold"><i class="fas fa-cloud-upload-alt mr-1"></i> Guardado en Gestor Descentralizado</span>';
+                                                    }
                                                 })
                                                 .catch(function (err) {
                                                     // El archivo NO quedó registrado: NO insertamos una referencia rota (evita el 404).
