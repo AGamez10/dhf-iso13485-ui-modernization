@@ -3847,44 +3847,46 @@
 
                                             var modalHtml = ''
                                                 + '<div class="modal fade show" id="' + modalId + '" tabindex="-1" style="display:block; background:rgba(0,0,0,0.6); z-index:999999;">'
-                                                + '  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">'
-                                                + '    <div class="modal-content" style="border-radius:12px; overflow:hidden; border:none; box-shadow:0 10px 40px rgba(0,0,0,0.25);">'
-                                                + '      <div class="modal-header bg-dark text-white py-3 px-4">'
-                                                + '        <div class="d-flex align-items-center gap-2">'
-                                                + '          <i class="fas fa-server text-warning mr-2"></i>'
-                                                + '          <h5 class="modal-title font-weight-bold m-0 text-white" style="font-size:15px;">Gestor de Archivos Descentralizados (Office Platform)</h5>'
-                                                + '        </div>'
-                                                + '        <button type="button" class="close text-white" onclick="document.getElementById(\'' + modalId + '\').remove()">&times;</button>'
+                                                + '  <div class="modal-dialog modal-dialog-centered" style="max-width:1200px; width:95vw; margin:2.5vh auto;">'
+                                                + '    <div class="modal-content" style="border-radius:12px; overflow:hidden; border:none; box-shadow:0 25px 60px rgba(0,0,0,0.3); height:85vh; display:flex; flex-direction:column;">'
+                                                + '      <div class="modal-header py-3 px-4" style="background:linear-gradient(90deg,#0f172a,#1e3a5f); border:none; flex:0 0 auto;">'
+                                                + '        <div class="d-flex align-items-center gap-2"><i class="fas fa-folder-open text-warning mr-2"></i><h5 class="modal-title font-weight-bold m-0 text-white" style="font-size:15px;">Gestor de Archivos del Proyecto (Office Platform)</h5></div>'
+                                                + '        <button type="button" class="close text-white" style="opacity:0.9; text-shadow:none;" onclick="document.getElementById(\'' + modalId + '\').remove()">&times;</button>'
                                                 + '      </div>'
-                                                + '      <div class="modal-body p-0 bg-light">'
-                                                + '        <div class="op-fm-actionbar d-flex align-items-center justify-content-between flex-wrap px-4 pt-2 pb-0" style="background:#ffffff; border-bottom:1px solid #e2e8f0; gap:10px;">'
-                                                + '          <div class="op-fm-tabs d-flex align-items-center" role="tablist">'
-                                                + '            <button type="button" class="op-fm-tab op-fm-tab-active" data-tab="mis" onclick="opFmSwitchTab(\'mis\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')"><i class="far fa-folder mr-1"></i> Mis archivos <span class="op-fm-badge" id="op-fm-c-mis">0</span></button>'
-                                                + '            <button type="button" class="op-fm-tab" data-tab="comp" onclick="opFmSwitchTab(\'comp\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')"><i class="fas fa-share-alt mr-1"></i> Compartidos <span class="op-fm-badge" id="op-fm-c-comp">0</span></button>'
-                                                + '            <button type="button" class="op-fm-tab" data-tab="rec" onclick="opFmSwitchTab(\'rec\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')"><i class="far fa-clock mr-1"></i> Recientes <span class="op-fm-badge" id="op-fm-c-rec">0</span></button>'
-                                                + '          </div>'
-                                                + '          <div style="position:relative; padding-bottom:8px;">'
-                                                + '            <i class="fas fa-search" style="position:absolute; left:12px; top:calc(50% - 4px); transform:translateY(-50%); color:#94a3b8; font-size:11px;"></i>'
-                                                + '            <input type="text" id="op-fm-search" class="form-control form-control-sm" placeholder="Buscar archivo..." oninput="opFilterFmFiles(this.value)" style="border-radius:20px; font-size:12px; padding-left:30px; width:210px;">'
-                                                + '          </div>'
+                                                + '      <div class="op-fm-actionbar d-flex align-items-center justify-content-between flex-wrap px-4 pt-2" style="background:#ffffff; border-bottom:1px solid #e2e8f0; gap:10px; flex:0 0 auto;">'
+                                                + '        <div class="op-fm-tabs d-flex align-items-center" role="tablist">'
+                                                + '          <button type="button" class="op-fm-tab op-fm-tab-active" data-tab="mis" onclick="opFmSwitchTab(\'mis\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')"><i class="far fa-folder mr-1"></i> Mis archivos <span class="op-fm-badge" id="op-fm-c-mis">0</span></button>'
+                                                + '          <button type="button" class="op-fm-tab" data-tab="comp" onclick="opFmSwitchTab(\'comp\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')"><i class="fas fa-share-alt mr-1"></i> Compartidos <span class="op-fm-badge" id="op-fm-c-comp">0</span></button>'
+                                                + '          <button type="button" class="op-fm-tab" data-tab="rec" onclick="opFmSwitchTab(\'rec\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')"><i class="far fa-clock mr-1"></i> Recientes <span class="op-fm-badge" id="op-fm-c-rec">0</span></button>'
                                                 + '        </div>'
-                                                + '        <div id="op-fm-file-list" class="op-fm-grid" style="min-height:300px; max-height:440px; overflow-y:auto; background:#f8fafc; padding:16px;">'
-                                                + '          <div class="text-center p-4 text-muted" style="grid-column:1 / -1;"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i><p>Conectando con almacenamiento descentralizado...</p></div>'
+                                                + '        <div class="d-flex align-items-center flex-wrap" style="gap:8px; padding-bottom:8px;">'
+                                                + '          <select id="op-fm-typefilter" class="form-control form-control-sm" onchange="opFmSwitchTab(window._opFmActiveTab||\'mis\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')" style="width:135px; font-size:12px; border-radius:6px;"><option value="">Todos los tipos</option><option value="word">Word</option><option value="excel">Excel</option><option value="ppt">PowerPoint</option><option value="pdf">PDF</option></select>'
+                                                + '          <div class="btn-group btn-group-sm" role="group">'
+                                                + '            <button type="button" id="op-fm-view-grid" class="btn btn-outline-secondary active" onclick="opFmSetView(\'grid\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')" title="Cuadrícula"><i class="fas fa-th"></i></button>'
+                                                + '            <button type="button" id="op-fm-view-list" class="btn btn-outline-secondary" onclick="opFmSetView(\'list\', ' + index + ', ' + subIndex + ', \'' + modalId + '\')" title="Lista"><i class="fas fa-list"></i></button>'
+                                                + '          </div>'
+                                                + '          <div style="position:relative;"><i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:11px;"></i><input type="text" id="op-fm-search" class="form-control form-control-sm" placeholder="Buscar archivo..." oninput="opFilterFmFiles(this.value)" style="border-radius:20px; font-size:12px; padding-left:30px; width:200px;"></div>'
                                                 + '        </div>'
+                                                + '      </div>'
+                                                + '      <div id="op-fm-file-list" class="op-fm-grid" style="flex:1 1 auto; overflow-y:auto; background:#f8fafc; padding:18px 24px;">'
+                                                + '        <div class="text-center p-4 text-muted" style="grid-column:1 / -1;"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i><p>Conectando con almacenamiento…</p></div>'
+                                                + '      </div>'
+                                                + '      <div class="modal-footer bg-white py-2 px-4 d-flex justify-content-between" style="flex:0 0 auto;">'
+                                                + '        <span class="text-muted" style="font-size:11px;"><i class="fas fa-shield-alt text-success mr-1"></i> MinIO / S3 Storage Conectado</span>'
+                                                + '        <button type="button" class="btn btn-secondary btn-sm font-weight-bold" onclick="document.getElementById(\'' + modalId + '\').remove()">Cerrar</button>'
                                                 + '      </div>'
                                                 + '      <style>'
                                                 + '        #' + modalId + ' .op-fm-tab{background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-size:12.5px;font-weight:600;padding:8px 14px;cursor:pointer;white-space:nowrap;}'
                                                 + '        #' + modalId + ' .op-fm-tab:hover{color:#0f172a;}'
                                                 + '        #' + modalId + ' .op-fm-tab-active{color:#0284c7;border-bottom-color:#0284c7;}'
                                                 + '        #' + modalId + ' .op-fm-badge{display:inline-block;background:#e2e8f0;color:#475569;border-radius:10px;font-size:10px;padding:1px 7px;margin-left:4px;font-weight:700;}'
-                                                + '        #' + modalId + ' .op-fm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;align-content:start;}'
+                                                + '        #' + modalId + ' .op-fm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;align-content:start;}'
                                                 + '        #' + modalId + ' .op-fm-card{background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 10px 10px;text-align:center;transition:all .15s ease;display:flex;flex-direction:column;align-items:center;}'
                                                 + '        #' + modalId + ' .op-fm-card:hover{border-color:#0284c7;box-shadow:0 6px 18px rgba(2,132,199,0.12);transform:translateY(-2px);}'
+                                                + '        #' + modalId + '.op-fm-listmode #op-fm-file-list{display:block;}'
+                                                + '        #' + modalId + '.op-fm-listmode .op-fm-row{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;margin-bottom:8px;}'
+                                                + '        #' + modalId + '.op-fm-listmode .op-fm-row:hover{border-color:#0284c7;}'
                                                 + '      </style>'
-                                                + '      <div class="modal-footer bg-white py-2 px-4 d-flex justify-content-between">'
-                                                + '        <span class="text-muted" style="font-size:11px;"><i class="fas fa-shield-alt text-success mr-1"></i> MinIO / S3 Storage Conectado</span>'
-                                                + '        <button type="button" class="btn btn-secondary btn-sm font-weight-bold" onclick="document.getElementById(\'' + modalId + '\').remove()">Cerrar</button>'
-                                                + '      </div>'
                                                 + '    </div>'
                                                 + '  </div>'
                                                 + '</div>';
@@ -3934,14 +3936,20 @@
                                         function renderFmGrid(files, index, subIndex, modalId) {
                                             var grid = document.getElementById('op-fm-file-list');
                                             if (!grid) return;
-
-                                            if (!files || files.length === 0) {
-                                                grid.innerHTML = '<div class="text-center p-5 text-muted" style="grid-column:1 / -1;"><i class="fas fa-folder-open fa-2x mb-2"></i><p style="font-size:12px;">No hay archivos en esta vista.</p></div>';
+                                            // Filtro por tipo (cliente) sobre la data ya cargada de /api/files
+                                            var tf = (document.getElementById('op-fm-typefilter') || {}).value || '';
+                                            function typeOf(name) { if (/\.(docx|doc|odt)$/i.test(name)) return 'word'; if (/\.(xlsx|xls|csv|ods)$/i.test(name)) return 'excel'; if (/\.(pptx|ppt|odp)$/i.test(name)) return 'ppt'; if (/\.(pdf)$/i.test(name)) return 'pdf'; return 'other'; }
+                                            var isList = (window._opFmView === 'list');
+                                            var listFiles = (files || []).filter(function (f) {
+                                                if (!tf) return true;
+                                                return typeOf(f.originalFileName || f.title || f.name || f.filename || '') === tf;
+                                            });
+                                            if (listFiles.length === 0) {
+                                                grid.innerHTML = '<div class="text-center p-5 text-muted" style="grid-column:1 / -1;"><i class="fas fa-folder-open fa-2x mb-2"></i><p style="font-size:12px;">No hay archivos' + (tf ? ' de ese tipo' : '') + ' en esta vista.</p></div>';
                                                 return;
                                             }
-
                                             var html = '';
-                                            files.forEach(function (f) {
+                                            listFiles.forEach(function (f) {
                                                 var fId = f.id || f.fileId;
                                                 var fTitle = f.originalFileName || f.title || f.name || f.filename || ('Archivo_' + fId);
                                                 var icon = 'far fa-file-alt', col = '#64748b';
@@ -3951,19 +3959,34 @@
                                                 else if (/\.(pdf)$/i.test(fTitle)) { icon = 'far fa-file-pdf'; col = '#e11d48'; }
                                                 var esc = fTitle.replace(/'/g, "\\'");
                                                 var safeTitle = fTitle.replace(/"/g, '&quot;');
-
-                                                html += '<div class="op-fm-card" data-title="' + fTitle.toLowerCase().replace(/"/g, '') + '">'
-                                                    + '  <i class="' + icon + '" style="font-size:34px; color:' + col + '; margin-bottom:8px;"></i>'
-                                                    + '  <span title="' + safeTitle + '" style="font-size:11.5px; font-weight:600; color:#1e293b; line-height:1.3; word-break:break-word; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:30px;">' + fTitle + '</span>'
-                                                    + '  <span style="font-size:9.5px; color:#94a3b8; margin-top:2px;">ID ' + fId + '</span>'
-                                                    + '  <div class="d-flex w-100 mt-2" style="gap:5px;">'
-                                                    + '    <button type="button" class="btn btn-xs btn-outline-secondary flex-fill" style="font-size:10.5px; font-weight:600;" onclick="if(typeof OfficePlatform!==\'undefined\'){OfficePlatform.openEditor({fileId:' + fId + '});}else if(typeof opOpenOOFile===\'function\'){opOpenOOFile(' + fId + ',\'' + esc + '\');}" title="Ver en OnlyOffice"><i class="fas fa-eye"></i></button>'
-                                                    + '    <button type="button" class="btn btn-xs btn-primary flex-fill" style="font-size:10.5px; font-weight:700;" onclick="opSelectFmFileForActivity(' + index + ', ' + subIndex + ', ' + fId + ', \'' + esc + '\', \'' + modalId + '\')" title="Adjuntar a la actividad"><i class="fas fa-plus mr-1"></i>Adjuntar</button>'
-                                                    + '  </div>'
-                                                    + '</div>';
+                                                var verBtn = '<button type="button" class="btn btn-xs btn-outline-secondary' + (isList ? '' : ' flex-fill') + '" style="font-size:10.5px; font-weight:600;" onclick="if(typeof OfficePlatform!==\'undefined\'){OfficePlatform.openEditor({fileId:' + fId + '});}else if(typeof opOpenOOFile===\'function\'){opOpenOOFile(' + fId + ',\'' + esc + '\');}" title="Ver en OnlyOffice"><i class="fas fa-eye"></i></button>';
+                                                var addBtn = '<button type="button" class="btn btn-xs btn-primary' + (isList ? '' : ' flex-fill') + '" style="font-size:10.5px; font-weight:700;" onclick="opSelectFmFileForActivity(' + index + ', ' + subIndex + ', ' + fId + ', \'' + esc + '\', \'' + modalId + '\')" title="Vincular / Adjuntar a la actividad"><i class="fas fa-plus mr-1"></i>Vincular</button>';
+                                                if (isList) {
+                                                    html += '<div class="op-fm-row" data-title="' + fTitle.toLowerCase().replace(/"/g, '') + '">'
+                                                        + '  <i class="' + icon + '" style="font-size:24px; color:' + col + '; flex:0 0 auto;"></i>'
+                                                        + '  <div style="flex:1 1 auto; min-width:0;"><div class="text-truncate" title="' + safeTitle + '" style="font-size:12.5px; font-weight:600; color:#1e293b;">' + fTitle + '</div><div style="font-size:10px; color:#94a3b8;">ID ' + fId + '</div></div>'
+                                                        + '  <div class="d-flex" style="gap:6px; flex:0 0 auto;">' + verBtn + addBtn + '</div>'
+                                                        + '</div>';
+                                                } else {
+                                                    html += '<div class="op-fm-card" data-title="' + fTitle.toLowerCase().replace(/"/g, '') + '">'
+                                                        + '  <i class="' + icon + '" style="font-size:34px; color:' + col + '; margin-bottom:8px;"></i>'
+                                                        + '  <span title="' + safeTitle + '" style="font-size:11.5px; font-weight:600; color:#1e293b; line-height:1.3; word-break:break-word; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:30px;">' + fTitle + '</span>'
+                                                        + '  <span style="font-size:9.5px; color:#94a3b8; margin-top:2px;">ID ' + fId + '</span>'
+                                                        + '  <div class="d-flex w-100 mt-2" style="gap:5px;">' + verBtn + addBtn + '</div>'
+                                                        + '</div>';
+                                                }
                                             });
                                             grid.innerHTML = html;
                                         }
+                                        window.opFmSetView = function (view, index, subIndex, modalId) {
+                                            window._opFmView = view;
+                                            var modal = document.getElementById(modalId);
+                                            if (modal) { if (view === 'list') modal.classList.add('op-fm-listmode'); else modal.classList.remove('op-fm-listmode'); }
+                                            var g = document.getElementById('op-fm-view-grid'), l = document.getElementById('op-fm-view-list');
+                                            if (g) g.classList.toggle('active', view === 'grid');
+                                            if (l) l.classList.toggle('active', view === 'list');
+                                            opFmSwitchTab(window._opFmActiveTab || 'mis', index, subIndex, modalId);
+                                        };
 
                                         window.opFmSwitchTab = function (tab, index, subIndex, modalId) {
                                             window._opFmActiveTab = tab;
@@ -3980,10 +4003,10 @@
 
                                         window.opFilterFmFiles = function (query) {
                                             var q = (query || '').toLowerCase().trim();
-                                            var items = document.querySelectorAll('#op-fm-modal .op-fm-card');
+                                            var items = document.querySelectorAll('#op-fm-modal .op-fm-card, #op-fm-modal .op-fm-row');
                                             items.forEach(function (item) {
                                                 var title = item.getAttribute('data-title') || '';
-                                                item.style.display = (!q || title.indexOf(q) !== -1) ? 'flex' : 'none';
+                                                item.style.display = (!q || title.indexOf(q) !== -1) ? '' : 'none';
                                             });
                                         };
 
