@@ -3366,7 +3366,20 @@
                                         // numeral leido del form de edicion; si no cambio, se usa opc=13 puro (sin email/numeral).
                                         // NO se re-envia la observacion (evita duplicar la respuesta del autoguardado).
                                         window.opMarkActivityFinalized = function (index, subIndex, idMemoria) {
-                                            idMemoria = ('' + idMemoria).trim();
+                                            idMemoria = ('' + (idMemoria || '')).trim();
+                                            // Red de seguridad (Punto 2): si llego vacio/undefined, resolverlo desde el DOM de la
+                                            // card (data-id-memoria) o del HTML de la actividad, en vez de abortar.
+                                            if (!idMemoria || idMemoria === 'undefined' || idMemoria === 'null') {
+                                                var _c = document.querySelector('.op-activity-item-card[data-id-memoria]:not([data-id-memoria=""]) [id="op-detail-response-text-' + index + '-' + subIndex + '"]');
+                                                var _card = _c ? _c.closest('.op-activity-item-card') : null;
+                                                if (_card) idMemoria = (_card.getAttribute('data-id-memoria') || '').trim();
+                                                if (!idMemoria) {
+                                                    var _actEl = (window._opActivityElements && window._opActivityElements[index]) || null;
+                                                    var _h = _actEl ? (_actEl.innerHTML || '') : '';
+                                                    var _m = _h.match(/cba_num=(\d+)/i) || _h.match(/ProyectoEstado\d\(\s*\d+\s*,\s*\d+\s*,\s*(\d+)/) || _h.match(/(?:id_memoria|id_memoria_d)\s*[:=]\s*['"]?(\d+)/i);
+                                                    if (_m) idMemoria = _m[1];
+                                                }
+                                            }
                                             if (!idMemoria) { alert('No se pudo identificar la actividad (id_memoria).'); return; }
                                             var up = new URLSearchParams(window.location.search);
                                             var ipy = up.get('ipy') || (document.querySelector('[name="ipy"]') || {}).value || '';
@@ -3641,6 +3654,18 @@
                                                         }
                                                     });
 
+                                                    // Punto 2: extraccion INFALIBLE de id_memoria por actividad. Si el barrido por
+                                                    // filas no lo encontro (comun en actividades secundarias cuyo bloque no trae el
+                                                    // link cba_num), se regexea TODO el HTML del bloque. Fuente autoritativa: cba_num
+                                                    // (Tag_memoria: id_memoria = getAttribute("cba_num")); fallbacks: ProyectoEstado, id_memoria.
+                                                    if (!idMemoria) {
+                                                        var _blkHtml = blockRows.map(function (r) { return r.innerHTML || ''; }).join(' ');
+                                                        var _mId = _blkHtml.match(/cba_num=(\d+)/i)
+                                                            || _blkHtml.match(/ProyectoEstado\d\(\s*\d+\s*,\s*\d+\s*,\s*(\d+)/)
+                                                            || _blkHtml.match(/(?:id_memoria|id_memoria_d|idm)\s*[:=]\s*['"]?(\d+)/i);
+                                                        if (_mId) idMemoria = _mId[1];
+                                                    }
+
                                                     // SPRINT 10: Persistencia de caché en memoria garantizada
                                                     var cacheKey = index + '-' + subIndex;
                                                     window._opResponsesCache = window._opResponsesCache || {};
@@ -3662,7 +3687,7 @@
                                                         + '      <div><i class="fas fa-user-edit mr-1 text-primary"></i> <b>AUTOR:</b> ' + authorText + '</div>'
                                                         + '      <div><i class="far fa-calendar-alt mr-1"></i> <b>FECHA:</b> ' + dateText + '</div>'
                                                         + '      <div><i class="fas fa-info-circle mr-1"></i> <b>ESTADO:</b> <span class="badge op-estado-badge ' + (estadoText === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estadoText === 'FINALIZADO' ? 'background:#16a34a;color:#fff;font-weight:700;' : '') + '">' + (estadoText === 'FINALIZADO' ? 'TERMINADA' : estadoText) + '</span>'
-                                                        + (isEditable && idMemoria ? (' <span class="ml-2" style="white-space:nowrap;"><button type="button" class="btn btn-outline-warning py-0 px-2" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 1)" title="Marcar En Proceso">En Proceso</button> <button type="button" class="btn btn-outline-success py-0 px-2 ml-1" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 3)" title="Marcar Finalizado">Finalizar</button></span>') : '')
+                                                        + (isEditable && idMemoria ? (' <span class="ml-2" style="white-space:nowrap;"><button type="button" class="btn btn-outline-warning py-0 px-2" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 1)" title="Marcar En Proceso">En Proceso</button> <button type="button" class="btn btn-outline-success py-0 px-2 ml-1" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 3)" title="Marcar Terminada">Terminar</button></span>') : '')
                                                         + '      </div>'
                                                         + '    </div>'
                                                         + '    <div class="d-flex align-items-center op-card-actions">' + actionsHtml + '</div>'
@@ -3731,7 +3756,7 @@
                                                             + '      </div>'
                                                             + '    </div>'
                                                             + '    <div class="d-flex align-items-center gap-1">'
-                                                            + '      <button type="button" class="btn btn-xs btn-outline-primary font-weight-bold mr-1" onclick="if(typeof OfficePlatform!==\'undefined\'){OfficePlatform.openEditor({fileId:' + fileId + '});}"><i class="fas fa-eye mr-1"></i> Previsualizar</button>'
+                                                            + '      <button type="button" class="btn btn-xs btn-outline-primary font-weight-bold mr-1" onclick="opOpenOOFile(' + fileId + ', \'' + fileName.replace(/'/g, "\\'") + '\')" title="Abre en el editor si es Office; descarga si es correo/binario"><i class="fas fa-eye mr-1"></i> Abrir</button>'
                                                             + '      <button type="button" class="btn btn-xs btn-outline-danger font-weight-bold" onclick="opRemoveAttachmentFromActivity(' + index + ', ' + subIndex + ', ' + fileId + ')" title="Quitar archivo adjunto de esta actividad"><i class="fas fa-trash"></i></button>'
                                                             + '    </div>'
                                                             + '  </div>';
@@ -4086,7 +4111,7 @@
                                                 else if (/\.(eml|msg)$/i.test(fTitle)) { icon = 'far fa-envelope'; col = '#0284c7'; }
                                                 var esc = fTitle.replace(/'/g, "\\'");
                                                 var safeTitle = fTitle.replace(/"/g, '&quot;');
-                                                var verBtn = '<button type="button" class="btn btn-xs btn-outline-secondary' + (isList ? '' : ' flex-fill') + '" style="font-size:10.5px; font-weight:600;" onclick="if(typeof OfficePlatform!==\'undefined\'){OfficePlatform.openEditor({fileId:' + fId + '});}else if(typeof opOpenOOFile===\'function\'){opOpenOOFile(' + fId + ',\'' + esc + '\');}" title="Ver en OnlyOffice"><i class="fas fa-eye"></i></button>';
+                                                var verBtn = '<button type="button" class="btn btn-xs btn-outline-secondary' + (isList ? '' : ' flex-fill') + '" style="font-size:10.5px; font-weight:600;" onclick="if(typeof opOpenOOFile===\'function\'){opOpenOOFile(' + fId + ',\'' + esc + '\');}else if(typeof OfficePlatform!==\'undefined\'){OfficePlatform.openEditor({fileId:' + fId + '});}" title="Abre en el editor si es Office; descarga si es correo/binario"><i class="fas fa-eye"></i></button>';
                                                 var addBtn = '<button type="button" class="btn btn-xs btn-primary' + (isList ? '' : ' flex-fill') + '" style="font-size:10.5px; font-weight:700;" onclick="opSelectFmFileForActivity(' + index + ', ' + subIndex + ', ' + fId + ', \'' + esc + '\', \'' + modalId + '\')" title="Vincular / Adjuntar a la actividad"><i class="fas fa-plus mr-1"></i>Vincular</button>';
                                                 if (isList) {
                                                     html += '<div class="op-fm-row" data-title="' + fTitle.toLowerCase().replace(/"/g, '') + '">'
