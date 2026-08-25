@@ -171,10 +171,10 @@
 
             /* ═══════════════════════════════════════════════════════════════
                SPRINT 5: ELIMINADO — el colapso automático se suprimió.
-               Las actividades finalizadas se muestran completas igual que
+               Las actividades terminadas se muestran completas igual que
                las activas. No se ocultan filas con CSS.
                ═══════════════════════════════════════════════════════════════ */
-            /* Indicador visual sutil para actividades finalizadas (solo borde) */
+            /* Indicador visual sutil para actividades terminadas (solo borde) */
             .main-content table.table-bordered.op-activity-done {
                 border-left: 3px solid var(--op-status-finalizado-dot) !important;
             }
@@ -2926,7 +2926,7 @@
                                             masterHeader.className = 'op-master-header mb-3 pb-2 border-bottom';
                                             masterHeader.innerHTML = '<h6 class="m-0 font-weight-bold text-primary" style="font-size:13px;"><i class="fas fa-project-diagram mr-1"></i> Índice DHF ISO 13485</h6>'
                                                 + '<div class="op-progress-wrap"><div class="op-progress-bar" style="width:' + _opPct + '%;"></div></div>'
-                                                + '<div class="op-progress-label">' + _opFinalized + ' / ' + activityElements.length + ' actividades finalizadas</div>';
+                                                + '<div class="op-progress-label">' + _opFinalized + ' / ' + activityElements.length + ' actividades terminadas</div>';
                                             masterPanel.appendChild(masterHeader);
 
                                             // Render Sections Tree in Master Panel (Etapas desplegadas de forma clara y directa)
@@ -2959,7 +2959,7 @@
                                                     card.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:11.5px; font-weight:600; color:#334155; transition:all 0.15s; margin-left:4px;';
 
                                                     var _stTok = 'muted', _stLbl = 'Sin iniciar';
-                                                    if (act.element.querySelector('.text-success')) { _stTok = 'finalizado'; _stLbl = 'Finalizada'; }
+                                                    if (act.element.querySelector('.text-success')) { _stTok = 'finalizado'; _stLbl = 'Terminada'; }
                                                     else if (act.element.querySelector('.text-warning')) { _stTok = 'revision'; _stLbl = 'En revisión'; }
                                                     else if (/EN PROCESO|PROCESO/i.test(act.element.textContent || '')) { _stTok = 'proceso'; _stLbl = 'En proceso'; }
                                                     card.setAttribute('title', act.title + ' — ' + _stLbl);
@@ -3141,7 +3141,7 @@
                                                         actHtml += '<div class="op-preview-activity-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:18px 24px; margin-bottom:20px; page-break-inside:avoid;">'
                                                             + '  <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="font-size:12px; color:#475569; font-weight:600;">'
                                                             + '    <span><span class="badge badge-primary mr-2" style="font-size:10px;">ACTIVIDAD ' + (aIdx + 1) + '</span> Autor: ' + _authorDisp + _legacyBadge + '</span>'
-                                                            + '    <span>Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estado === 'FINALIZADO' ? 'background:#16a34a; color:#fff; font-weight:700;' : '') + '">' + estado + '</span></span>'
+                                                            + '    <span>Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estado === 'FINALIZADO' ? 'background:#16a34a; color:#fff; font-weight:700;' : '') + '">' + (estado === 'FINALIZADO' ? 'TERMINADA' : estado) + '</span></span>'
                                                             + '  </div>'
                                                             + '  <div class="font-weight-bold text-dark mb-2" style="font-size:13.5px; line-height:1.55; color:#0f172a;">' + desc + '</div>'
                                                             // Tarea 1: solo mostrar el recuadro de avance si HAY respuesta real; nunca la caja vacía.
@@ -3321,7 +3321,7 @@
                                                 if (badge) {
                                                     badge.className = 'badge op-estado-badge ' + (isFin ? 'badge-success' : 'badge-warning');
                                                     badge.setAttribute('style', isFin ? 'background:#16a34a;color:#fff;font-weight:700;' : '');
-                                                    badge.textContent = isFin ? 'FINALIZADO' : 'EN PROCESO';
+                                                    badge.textContent = isFin ? 'TERMINADA' : 'EN PROCESO';
                                                 }
                                             }
                                             var mc = document.querySelector('#op-master-panel .op-activity-card[data-activity-index="' + index + '"]');
@@ -3329,14 +3329,14 @@
                                                 var dot = mc.querySelector('.op-status-dot');
                                                 if (dot) dot.style.background = 'var(--op-status-' + (isFin ? 'finalizado' : 'proceso') + '-dot, var(--op-text-muted))';
                                                 var ttl = mc.getAttribute('title') || '';
-                                                mc.setAttribute('title', ttl.replace(/—.*/, '— ' + (isFin ? 'Finalizada' : 'En proceso')));
+                                                mc.setAttribute('title', ttl.replace(/—.*/, '— ' + (isFin ? 'Terminada' : 'En proceso')));
                                             }
                                             try {
                                                 var dots = document.querySelectorAll('#op-master-panel .op-status-dot');
                                                 var total = dots.length, fin = 0;
                                                 dots.forEach(function (d) { if ((d.style.background || '').indexOf('finalizado') !== -1) fin++; });
                                                 var lbl = document.querySelector('#op-master-panel .op-progress-label');
-                                                if (lbl) lbl.textContent = fin + ' / ' + total + ' actividades finalizadas';
+                                                if (lbl) lbl.textContent = fin + ' / ' + total + ' actividades terminadas';
                                                 var bar = document.querySelector('#op-master-panel .op-progress-bar');
                                                 if (bar) bar.style.width = (total ? Math.round(fin * 100 / total) : 0) + '%';
                                             } catch (e) { }
@@ -3349,7 +3349,7 @@
                                             var ipy = up.get('ipy') || (document.querySelector('[name="ipy"]') || {}).value || '';
                                             var estadoM = up.get('estadoM') || '1';
                                             var isFin = (estado === 3 || estado === '3');
-                                            var label = isFin ? 'FINALIZADO' : 'EN PROCESO';
+                                            var label = isFin ? 'TERMINADA' : 'EN PROCESO';
                                             fetch('Proyecto?opc=13', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, credentials: 'same-origin',
                                                 body: 'ipy=' + ipy + '&id_memoria=' + idMemoria + '&estado=' + estado + '&estadoM=' + estadoM })
                                                 .then(function (r) {
@@ -3404,7 +3404,7 @@
                                                 if (r && (r.ok || r.status === 302)) {
                                                     opReflectActivityState(index, idMemoria, 3); // SIN reload: reflejo en vivo
                                                     if (descChanged && descEl) descEl.setAttribute('data-orig', descEl.value || '');
-                                                    opToast('<i class="fas fa-check mr-1"></i> Actividad marcada como FINALIZADA');
+                                                    opToast('<i class="fas fa-check mr-1"></i> Actividad marcada como TERMINADA');
                                                 } else { throw new Error('finalize'); }
                                             }).catch(function (e) {
                                                 try { if (window.swal) swal.close(); } catch (er) { }
@@ -3661,7 +3661,7 @@
                                                         + '    <div class="d-flex flex-wrap gap-3" style="gap: 15px;">'
                                                         + '      <div><i class="fas fa-user-edit mr-1 text-primary"></i> <b>AUTOR:</b> ' + authorText + '</div>'
                                                         + '      <div><i class="far fa-calendar-alt mr-1"></i> <b>FECHA:</b> ' + dateText + '</div>'
-                                                        + '      <div><i class="fas fa-info-circle mr-1"></i> <b>ESTADO:</b> <span class="badge op-estado-badge ' + (estadoText === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estadoText === 'FINALIZADO' ? 'background:#16a34a;color:#fff;font-weight:700;' : '') + '">' + estadoText + '</span>'
+                                                        + '      <div><i class="fas fa-info-circle mr-1"></i> <b>ESTADO:</b> <span class="badge op-estado-badge ' + (estadoText === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estadoText === 'FINALIZADO' ? 'background:#16a34a;color:#fff;font-weight:700;' : '') + '">' + (estadoText === 'FINALIZADO' ? 'TERMINADA' : estadoText) + '</span>'
                                                         + (isEditable && idMemoria ? (' <span class="ml-2" style="white-space:nowrap;"><button type="button" class="btn btn-outline-warning py-0 px-2" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 1)" title="Marcar En Proceso">En Proceso</button> <button type="button" class="btn btn-outline-success py-0 px-2 ml-1" style="font-size:10px;" onclick="opSetActivityState(' + index + ', ' + subIndex + ', \'' + idMemoria + '\', 3)" title="Marcar Finalizado">Finalizar</button></span>') : '')
                                                         + '      </div>'
                                                         + '    </div>'
