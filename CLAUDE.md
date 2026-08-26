@@ -695,3 +695,25 @@ actividades individuales quedaban en estado 1 ("En Proceso"), no en estado 3 (TE
 - **Commit DHF:** `a1311a0`.
 - **Estado:** IMPLEMENTADO, compilado y desplegado. Verificación funcional (autocompletar → recargar → badges verdes
   TERMINADA en la previsualización) a cargo del usuario en proyecto sandbox.
+
+### 8.15 Blindaje del login contra caídas del widget :8080 (defer) + recuperación del contenedor Docker
+
+Incidente: el login (`index.jsp`) quedaba en pantalla azul en blanco, colgado varios minutos. Único archivo DHF: `web/Contenedor_head.jsp`.
+
+- **Causa raíz (Network tab del usuario + verificado con curl):** el `<script src="http://localhost:8080/office-platform-widget.js">`
+  (inyectado por `Contenedor_head.jsp`, presente en TODA página incl. el login) era **bloqueante** (sin defer/async). El
+  contenedor `office-platform-app` (:8080) estaba **caído** (postgres/minio/onlyoffice seguían up; solo el app murió), así
+  que el navegador esperaba el script indefinidamente → bloqueaba el render → pantalla azul. Confirmado: :8080 daba HTTP 000
+  (timeout ~8s).
+- **Fix (síntoma):** se agregó **`defer`** al `<script>` del widget. Descarga en paralelo y ejecuta tras el parse -> el DOM se
+  pinta SIEMPRE, aunque :8080 esté caído/lento. El widget igual auto-monta en DOMContentLoaded (defer corre antes de DCL).
+  Degradación limpia: si :8080 cae, el login carga normal y solo el gestor de archivos queda inoperante hasta que vuelva.
+  (El widget del embed `OfficePlatformEmbed.jsp` va dentro del modal on-demand, no afecta al login; se dejó igual.)
+- **Recuperación (causa):** `docker compose up -d` en `office-platform` levantó el `office-platform-app` caído. Verificado:
+  `:8080/office-platform-widget.js` -> 200; login/index -> 200 en ~5 ms.
+- **Nota operativa:** Tomcat se gestiona detached con `Start-Process cmd /c start_tomcat_daemon.bat` (sobrevive la sesión;
+  NO usar run_in_background del harness, que lo mata). MySQL de la app corre en :3307 (no :3306). Si el login vuelve a
+  colgarse, revisar primero que `office-platform-app` (:8080) esté arriba (`docker ps`) y `docker logs office-platform-app`
+  por si murió (OOM/excepción). `iniciar_servicios.bat` levanta MySQL + Docker + Tomcat al inicio de jornada.
+- **Commit DHF:** `599c8e1`.
+- **Estado:** RESUELTO y VERIFICADO por el usuario (login carga de inmediato, entra a la app sin bloqueos).
