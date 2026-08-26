@@ -584,3 +584,43 @@ viva; la creación real de actividades la ejecuta y verifica el usuario en sandb
   `be9d657` (fix navegación Volver + rediseño compacto).
 - **Estado:** IMPLEMENTADO, compilado y desplegado. Verificación funcional de la creación real (numerales +
   textos oficiales) a cargo del usuario en proyecto sandbox.
+
+### 8.12 UX integral: filtro de etapas cargadas, autosave con debounce, visor nativo de correos/no-Office y Gestor de Archivos embebido
+
+Sprint de 5 puntos sobre `web/Contenedor_head.jsp` + una vista JSP nueva mínima (autorizada). Verificado en
+build/deploy; la verificación funcional en navegador la hace el usuario (§7.C — el navegador de automatización
+no tiene permiso de host para `localhost:8085` y `opc=7` da 500 por el HTTP Monitor de NetBeans hasta reiniciar).
+
+- **P1 — Filtrar etapas ya cargadas (Cargue Masivo, Paso 1):** `opDetectLoadedFases()` lee el DOM real de la
+  memoria (`Tag_memoria`): cada fase es una `<table>` con `<thead th>` = "letra fase" y `<tbody id="mycard-collapse-N">`
+  con sus actividades; si el tbody contiene "AUTOR" -> esa fase tiene actividades -> ya cargada. En el Paso 1 las
+  cargadas van deshabilitadas + opacity 0.5 + "(Ya cargada ✓)"; solo se marcan las pendientes. Si están todas ->
+  mensaje "todas las etapas ISO cargadas" + "Siguiente" deshabilitado. Match por `_opNorm` (mismo del template).
+  NOTA (§8.8): es scraping de DOM; ante estructura inesperada degrada seguro (mostraría la etapa habilitada), no
+  bloquea de más. Fix real seguiría siendo backend que exponga numerales usados.
+- **P2 — Autosave de la descripción con debounce 500ms:** `opDescInput` escribe memoria en el acto y debouncea la
+  persistencia en localStorage (namespace `opdraft:{ipy}:{estadoM}:desc:{index}-{subIndex}`). Restaura al navegar/F5.
+- **P3 — "Anexar enlace":** `opPromptAddHyperlink` ya cumplía (prompt + normaliza https:// + inserta + autoguarda);
+  luego el BOTÓN se removió del toolbar por-actividad (ver corrección 3 abajo), conservando la función por si se usa.
+- **P4 — Gestor de Archivos completo:** modal overlay (`opOpenFileManagerModal`) con iframe. La 1ª versión cargaba
+  `OfficePlatform.jsp` (que hace `jsp:include` de `Contenedor_head.jsp` -> duplicaba navbar/sidebar/header). CORREGIDO:
+  se creó **`web/OfficePlatformEmbed.jsp`** (vista mínima, autorizada como excepción a §4.2.1): solo el `<div id="office-platform">`
+  + el `<script>` del widget con `data-container`/`data-token`/`data-user-*` (token vía `Methods.OfficePlatformResolver.resolveToken`,
+  misma sesión), SIN shell. El iframe del modal apunta a esa vista -> gestor limpio (pestañas/búsqueda/cards) sin duplicar la app.
+- **P5 — Visor nativo (sin modal en blanco de OnlyOffice):** `opOpenOOFile` rutea por tipo. Office (docx/xlsx/pptx/odt/ods/odp)
+  -> editor OnlyOffice. `.eml` -> modal `opFileViewerModal` con cabeceras De/Para/CC/Asunto/Fecha + cuerpo (texto o HTML en
+  iframe `sandbox`), parser RFC822 pragmático (`opParseEml`, multipart/QP/base64, con fallbacks). `.msg` -> aviso + descarga
+  (binario, no parseable en browser). PDF -> iframe; imagen -> img; texto/código -> `<pre>`; resto -> descarga autenticada.
+  Botón "Descargar" en el modal. Todo por fetch con X-Api-Key (blob).
+- **Correcciones post-validación:** (1) iframe del gestor -> `OfficePlatformEmbed.jsp` (limpio, arriba). (2) Se QUITÓ el
+  botón "Gestor de Archivos" del toolbar del header; el gestor vive ahora en el toolbar por-actividad (`op-doc-toolbar`):
+  el picker se renombró a "Vincular archivo" (`opOpenFileManagerForActivity`, inserta `oo:` en la actividad) y se agregó
+  "Gestor de Archivos" (`opOpenFileManagerModal`, gestor completo). (3) Se QUITÓ el botón "Anexar Enlace" del render de
+  la actividad (el textarea ya reconoce URLs); la función `opPromptAddHyperlink` se conserva.
+- **Restricciones:** sin `.java`/`.sql`; firma del POST y audit trail intactos; sin tocar persistencia ni el resto de la
+  capa `.op-*`. `OfficePlatformEmbed.jsp` es una vista nueva (no modifica backend congelado).
+- **Warning IDE `783:17` (`line-clamp`):** FALSO POSITIVO del linter CSS (vendorPrefix sobre `-webkit-line-clamp` en
+  `.op-activity-card-title`, preexistente). No es error de JS (`node --check` OK, 0 bytes de control).
+- **Commits DHF:** `f94b9e7` (P2/P5), `3dade26` (P1/P4), `<correcciones>` (embed limpio + reubicación botón + quitar Anexar Enlace).
+- **Estado:** IMPLEMENTADO, compilado y desplegado (incl. `OfficePlatformEmbed.jsp`). Verificación funcional en navegador
+  (previo reinicio de Tomcat para limpiar el 500 del HTTP Monitor) a cargo del usuario.
