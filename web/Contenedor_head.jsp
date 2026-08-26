@@ -2344,7 +2344,12 @@
                                 };
                                 // P4: Gestor de Archivos completo (OfficePlatform.jsp) en un modal overlay con iframe,
                                 // sin salir del contexto de la memoria. Cierra por boton x o click en el overlay.
-                                window.opOpenFileManagerModal = function () {
+                                window.opOpenFileManagerModal = function (index, subIndex) {
+                                    // Recordar desde que actividad se abrio (para "Vincular seleccionado"). Puede venir sin args
+                                    // (uso general): en ese caso el boton de vincular avisa que no hay actividad destino.
+                                    window._opFmActiveIndex = (index === undefined || index === null) ? null : index;
+                                    window._opFmActiveSub = (subIndex === undefined || subIndex === null) ? null : subIndex;
+                                    var canLink = window._opFmActiveIndex !== null && window._opFmActiveSub !== null;
                                     var old = document.getElementById('op-fm-fullmodal'); if (old) old.remove();
                                     var ov = document.createElement('div');
                                     ov.id = 'op-fm-fullmodal';
@@ -2353,12 +2358,95 @@
                                         + '  <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid #e2e8f0; background:#f8fafc;">'
                                         + '    <i class="fas fa-folder-open text-warning"></i>'
                                         + '    <span style="font-weight:700; font-size:14px; color:#1e293b; flex:1;">Gestor de Archivos — Office Platform</span>'
-                                        + '    <button type="button" class="btn btn-sm btn-light" onclick="var m=document.getElementById(\'op-fm-fullmodal\'); if(m) m.remove();" style="font-weight:700; line-height:1;">&times;</button>'
+                                        + (canLink ? '    <button type="button" class="btn btn-sm btn-success font-weight-bold" onclick="opLinkSelectedFileFromIframe()" title="Vincular a la actividad el archivo seleccionado en el gestor"><i class="fas fa-link mr-1"></i> Vincular seleccionado</button>' : '')
+                                        + '    <button type="button" class="btn btn-sm btn-light" onclick="opCloseFileManagerModal()" style="font-weight:700; line-height:1;">&times;</button>'
                                         + '  </div>'
                                         + '  <iframe src="OfficePlatformEmbed.jsp" style="flex:1; width:100%; border:none;" title="Gestor de Archivos"></iframe>'
                                         + '</div>';
-                                    ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+                                    ov.addEventListener('click', function (e) { if (e.target === ov) opCloseFileManagerModal(); });
                                     document.body.appendChild(ov);
+                                    // Puente de clic: si el gestor se abrio DESDE una actividad, el clic principal en una tarjeta
+                                    // VINCULA (no previsualiza). Listener en CAPTURA sobre el doc del iframe (same-origin) para
+                                    // interceptar antes del onclick propio del widget. La previsualizacion queda para el menu (⋮)/
+                                    // controles explicitos. Delegacion en document -> cubre tarjetas renderizadas async.
+                                    if (canLink) {
+                                        var ifr = ov.querySelector('iframe');
+                                        if (ifr) {
+                                            ifr.onload = function () {
+                                                var d = null;
+                                                try { d = ifr.contentDocument || (ifr.contentWindow && ifr.contentWindow.document); } catch (e) { d = null; }
+                                                if (!d) return;
+                                                d.addEventListener('click', function (e) {
+                                                    if (window._opFmActiveIndex === null || window._opFmActiveSub === null) return;
+                                                    var t = e.target;
+                                                    if (!t || !t.closest) return;
+                                                    // Dejar pasar controles explicitos (menu ⋮, checkbox, botones, enlaces, inputs)
+                                                    if (t.closest('.op-card-menu-btn, .op-card-check, .op-card-menu, .op-row-menu, .op-menu, button, a, input, select')) return;
+                                                    var card = t.closest('.op-card, .op-row');
+                                                    if (!card) return;
+                                                    var fid = card.getAttribute('data-id');
+                                                    if (!fid) return;
+                                                    e.preventDefault(); e.stopPropagation();
+                                                    var nameEl = card.querySelector('.op-card-name') || card.querySelector('.op-row-name');
+                                                    var fname = nameEl ? (nameEl.textContent || '').trim() : ('archivo_' + fid);
+                                                    opLinkFile(fid, fname);
+                                                }, true); // captura: gana al onclick del widget
+                                            };
+                                        }
+                                    }
+                                };
+                                window.opCloseFileManagerModal = function () { var m = document.getElementById('op-fm-fullmodal'); if (m) m.remove(); };
+                                // Vincula UN archivo (id+nombre) a la actividad activa: inserta oo:<id>:<nombre> en la observacion,
+                                // autoguarda (BD opc=11 + borrador) y cierra el modal con toast. Reutilizado por el clic y el boton.
+                                window.opLinkFile = function (fid, fname) {
+                                    var idx = window._opFmActiveIndex, sub = window._opFmActiveSub;
+                                    if (idx === null || sub === null) return;
+                                    var ta = document.getElementById('op-detail-response-text-' + idx + '-' + sub);
+                                    if (!ta) { alert('No se encontró el área de la actividad destino.'); return; }
+                                    var cur = (ta.value || '').trim();
+                                    if (cur.indexOf('oo:' + fid + ':') !== -1) {
+                                        if (window.opToast) opToast('<i class="fas fa-info-circle mr-1"></i> Ese archivo ya estaba vinculado');
+                                        opCloseFileManagerModal(); return;
+                                    }
+                                    var tag = 'oo:' + fid + ':' + fname;
+                                    ta.value = cur ? (cur + '\n' + tag) : tag;
+                                    if (typeof opAutoSaveResponse === 'function') opAutoSaveResponse(idx, sub);
+                                    if (typeof opSaveDraft === 'function') opSaveDraft('resp', idx + '-' + sub, ta.value);
+                                    if (window.opToast) opToast('<i class="fas fa-link mr-1"></i> Archivo vinculado con éxito');
+                                    opCloseFileManagerModal();
+                                };
+                                // Puente same-origin: lee del iframe del widget la(s) tarjeta(s) seleccionada(s) (.op-card/.op-row con
+                                // .op-selected y data-id) e inserta oo:<id>:<nombre> en la observacion de la actividad que abrio el modal.
+                                window.opLinkSelectedFileFromIframe = function () {
+                                    var idx = window._opFmActiveIndex, sub = window._opFmActiveSub;
+                                    if (idx === null || sub === null) { alert('No hay actividad destino. Abrí el gestor desde el botón de una actividad para poder vincular.'); return; }
+                                    var modal = document.getElementById('op-fm-fullmodal');
+                                    var iframe = modal ? modal.querySelector('iframe') : null;
+                                    var doc = null;
+                                    try { doc = iframe && (iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document)); } catch (e) { doc = null; }
+                                    if (!doc) { alert('No se pudo acceder al gestor (aún cargando). Esperá unos segundos e intentá de nuevo.'); return; }
+                                    var sel = doc.querySelectorAll('.op-card.op-selected, .op-row.op-selected');
+                                    if (!sel || sel.length === 0) { alert('Por favor selecciona un archivo en el gestor para vincularlo (activá la casilla de la tarjeta / modo selección).'); return; }
+                                    var ta = document.getElementById('op-detail-response-text-' + idx + '-' + sub);
+                                    if (!ta) { alert('No se encontró el área de la actividad destino.'); return; }
+                                    var linked = 0;
+                                    for (var i = 0; i < sel.length; i++) {
+                                        var el = sel[i];
+                                        var fid = el.getAttribute('data-id');
+                                        if (!fid) continue;
+                                        var nameEl = el.querySelector('.op-card-name') || el.querySelector('.op-row-name');
+                                        var fname = nameEl ? (nameEl.textContent || '').trim() : ('archivo_' + fid);
+                                        var cur = (ta.value || '').trim();
+                                        var tag = 'oo:' + fid + ':' + fname;
+                                        if (cur.indexOf('oo:' + fid + ':') !== -1) continue; // ya vinculado
+                                        ta.value = cur ? (cur + '\n' + tag) : tag;
+                                        linked++;
+                                    }
+                                    if (linked === 0) { alert('El/los archivo(s) seleccionado(s) ya estaban vinculados a esta actividad.'); return; }
+                                    if (typeof opAutoSaveResponse === 'function') opAutoSaveResponse(idx, sub);
+                                    if (typeof opSaveDraft === 'function') opSaveDraft('resp', idx + '-' + sub, ta.value);
+                                    if (window.opToast) opToast('<i class="fas fa-link mr-1"></i> ' + linked + ' archivo(s) vinculado(s) a la actividad');
+                                    opCloseFileManagerModal();
                                 };
                                 window.opOpenOOFile = function (fileId, title) {
                                     var name = (title || '').toLowerCase();
@@ -3711,6 +3799,13 @@
                                                     var subIdx = parseInt(ids[1], 10);
                                                     opAutoSaveResponse(idx, subIdx);
                                                 });
+                                                // P2: persistir la DESCRIPCION editada (memoria + localStorage) ANTES de desmontar,
+                                                // para que al volver se restaure exactamente lo escrito (no el texto original del DOM).
+                                                var descAreas = detailPanel.querySelectorAll('textarea[id^="op-detail-desc-"]');
+                                                descAreas.forEach(function (dta) {
+                                                    var dk = dta.id.replace('op-detail-desc-', '');
+                                                    if (typeof opSaveDraft === 'function') opSaveDraft('desc', dk, dta.value);
+                                                });
 
                                                 var prevNode = activityElements[_opActiveActivityIndex];
                                                 var prevPlaceholder = document.getElementById('op-placeholder-' + _opActiveActivityIndex);
@@ -3959,11 +4054,11 @@
                                                         + '  <div class="op-activity-desc mb-3 p-3 rounded" style="font-size:13px; line-height:1.6; color:#1e293b; font-weight:500; background:#f8fafc; border:1px solid #f1f5f9;">'
                                                         + '    <div class="d-flex align-items-center justify-content-between mb-1"><span class="badge badge-info" style="font-size:9px;">ACTIVIDAD ' + (subIndex + 1) + '</span>' + (isEditable ? '<span class="text-muted" style="font-size:10px;"><i class="fas fa-pen mr-1"></i>Descripción editable</span>' : '') + '</div>'
                                                         + (isEditable
-                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" data-orig="' + _descOrigAttr + '" oninput="opDescInput(\'' + cacheKey + '\', this.value)" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + _descBody + '</textarea>'
+                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" data-orig="' + _descOrigAttr + '" oninput="opDescInput(\'' + cacheKey + '\', this.value)" onchange="opSaveDraft(\'desc\', \'' + cacheKey + '\', this.value)" onblur="opSaveDraft(\'desc\', \'' + cacheKey + '\', this.value)" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + _descBody + '</textarea>'
                                                             : '    <div>' + descText + '</div>')
                                                         + (isEditable ? ('    <div class="op-doc-toolbar d-flex align-items-center flex-wrap mt-2" style="gap:6px;">'
                                                             + '      <span class="text-muted mr-1" style="font-size:10.5px;"><i class="fas fa-paperclip mr-1"></i>Anexar a la actividad:</span>'
-                                                            + '      <button type="button" class="btn btn-sm btn-outline-info font-weight-bold" onclick="opOpenFileManagerModal()" style="font-size:11px;" title="Abrir el Gestor de Archivos (Office Platform)"><i class="fas fa-folder-open mr-1"></i> Gestor de Archivos</button>'
+                                                            + '      <button type="button" class="btn btn-sm btn-outline-info font-weight-bold" onclick="opOpenFileManagerModal(' + index + ', ' + subIndex + ')" style="font-size:11px;" title="Abrir el Gestor de Archivos: clic en un archivo lo vincula a esta actividad"><i class="fas fa-folder-open mr-1"></i> Gestor de Archivos</button>'
                                                             + '      <button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" onclick="opCreateInlineDoc(' + index + ', ' + subIndex + ', \'document\')" style="font-size:11px;"><i class="far fa-file-word mr-1"></i> + Word</button>'
                                                             + '      <button type="button" class="btn btn-sm btn-outline-success font-weight-bold" onclick="opCreateInlineDoc(' + index + ', ' + subIndex + ', \'spreadsheet\')" style="font-size:11px;"><i class="far fa-file-excel mr-1"></i> + Excel</button>'
                                                             + '      <button type="button" class="btn btn-sm btn-outline-warning font-weight-bold" onclick="opCreateInlineDoc(' + index + ', ' + subIndex + ', \'presentation\')" style="font-size:11px;"><i class="far fa-file-powerpoint mr-1"></i> + PPT</button>'
@@ -4090,7 +4185,7 @@
                                                     + '        <span class="text-muted"><i class="fas fa-check-circle mr-1"></i> Listo para guardar</span>'
                                                     + '      </div>'
                                                     + '      <div class="d-flex align-items-center flex-wrap gap-1" style="gap:6px;">'
-                                                    + '        <button type="button" class="btn btn-sm btn-outline-info font-weight-bold" onclick="opOpenFileManagerModal()" style="font-size:11px;" title="Abrir el Gestor de Archivos (Office Platform)"><i class="fas fa-folder-open mr-1"></i> Gestor de Archivos</button>'
+                                                    + '        <button type="button" class="btn btn-sm btn-outline-info font-weight-bold" onclick="opOpenFileManagerModal(' + index + ', 0)" style="font-size:11px;" title="Abrir el Gestor de Archivos: clic en un archivo lo vincula a esta actividad"><i class="fas fa-folder-open mr-1"></i> Gestor de Archivos</button>'
                                                     + '        <button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" onclick="opCreateInlineDoc(' + index + ', 0, \'document\')" style="font-size:11px;"><i class="far fa-file-word mr-1"></i> + Word</button>'
                                                     + '        <button type="button" class="btn btn-sm btn-outline-success font-weight-bold" onclick="opCreateInlineDoc(' + index + ', 0, \'spreadsheet\')" style="font-size:11px;"><i class="far fa-file-excel mr-1"></i> + Excel</button>'
                                                     + '        <button type="button" class="btn btn-sm btn-outline-warning font-weight-bold" onclick="opCreateInlineDoc(' + index + ', 0, \'presentation\')" style="font-size:11px;"><i class="far fa-file-powerpoint mr-1"></i> + PPT</button>'
@@ -4185,14 +4280,14 @@
                                             // exige un part JSON @RequestPart("request") con originalFileName (@NotBlank);
                                             // sin el, Spring devuelve MissingServletRequestPartException (500) y el upload falla.
                                             // (projectId/category NO existen en la firma del backend -> se removieron.)
-                                            // NOTA scope: NO se usa scope=private. Un archivo privado solo lo descarga su dueno
-                                            // autenticado y GET /api/files/{id}/download exige ese permiso (da 403 con la API-key),
-                                            // dejando el anexo IMPOSIBLE de bajar desde la actividad. Sin scope -> global a la
-                                            // API-key -> descargable con X-Api-Key (verificado: 200). Se conserva userId/userName
-                                            // para la atribucion (createdByUserId/createdByName).
+                                            // scope=shared (NO private): un archivo privado solo lo descarga su dueno autenticado y
+                                            // GET /api/files/{id}/download da 403 con la API-key -> anexo IMPOSIBLE de bajar. shared/
+                                            // public -> global a la API-key -> descargable con X-Api-Key (verificado 200) y visible en
+                                            // la pestana "Compartidos" del gestor. Se conserva userId/userName para la atribucion.
                                             formData.append('request', new Blob([JSON.stringify({ originalFileName: file.name })], { type: 'application/json' }));
                                             formData.append('userId', _idUsuario);
                                             formData.append('userName', _userName);
+                                            formData.append('scope', 'shared');
 
                                             fetch('http://localhost:8080/api/files/upload', {
                                                 method: 'POST',
