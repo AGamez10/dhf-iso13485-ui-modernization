@@ -624,3 +624,48 @@ no tiene permiso de host para `localhost:8085` y `opc=7` da 500 por el HTTP Moni
 - **Commits DHF:** `f94b9e7` (P2/P5), `3dade26` (P1/P4), `<correcciones>` (embed limpio + reubicación botón + quitar Anexar Enlace).
 - **Estado:** IMPLEMENTADO, compilado y desplegado (incl. `OfficePlatformEmbed.jsp`). Verificación funcional en navegador
   (previo reinicio de Tomcat para limpiar el 500 del HTTP Monitor) a cargo del usuario.
+
+### 8.13 Subida a Office Platform con Bearer token, vinculación desde el widget y visores nativos
+
+Correcciones sobre la integración con el gestor `office-platform` (:8080). Único archivo DHF: `web/Contenedor_head.jsp`
+(+ `web/OfficePlatformEmbed.jsp`, vista mínima ya creada en §8.12). Diagnóstico hecho con `curl` contra :8080 y con
+lectura del código del widget; verificación funcional en navegador a cargo del usuario (§7.C).
+
+- **Causa raíz de "los archivos subidos no aparecen en el gestor" (identidad, verificada con curl):** el widget sube y
+  lista con el **Bearer token del usuario** (el `data-token` del `<script>` del widget = identidad resuelta por
+  `Methods.OfficePlatformResolver.resolveToken(cedula,nombre)`). El upload del DHF usaba `X-Api-Key` → el archivo quedaba
+  con dueño = la api-key (no un usuario) → NO aparecía en "Mis archivos" del usuario que el widget consulta
+  (`GET /api/files?scope=private` con Bearer). Confirmado: subir con Bearer + `scope=private` (query) → visible en Mis
+  archivos + descargable con Bearer (200); el mismo archivo con X-Api-Key → 403.
+- **Fix upload (`opUploadLocalFileForActivity`):** sube igual que el widget → `Authorization: Bearer <data-token>` +
+  `?scope=private` en la query, sin `userId` explícito (el token porta la identidad). Fallback sin token: `X-Api-Key` +
+  `scope=shared` (global descargable). Sigue insertando `oo:<id>:<nombre>` en la observación + autoguardado.
+- **Fix descarga (`opOpenOOFile`):** descarga con Bearer token (abre los privados del usuario); si 401/403, reintenta con
+  X-Api-Key (archivos globales/legacy). Sin token → api-key directo.
+- **Vinculación con el widget real (puente same-origin, §8.12 + este sprint):** el widget NO expone `postMessage` ni
+  callback de selección (verificado). Como el iframe (`OfficePlatformEmbed.jsp`) es same-origin, se lee su DOM:
+  cada tarjeta lleva `data-id` (widget línea 3114) y `.op-selected` al seleccionar; el nombre en `.op-card-name`.
+  * `opOpenFileManagerModal(index, subIndex)` recuerda la actividad origen; botón "Vincular seleccionado"
+    (`opLinkSelectedFileFromIframe`) para selección múltiple.
+  * Clic-para-vincular: listener en CAPTURA sobre el doc del iframe intercepta el clic en la tarjeta ANTES del onclick
+    del widget y ejecuta `opLinkFile(id,name)` (inserta `oo:`, autoguarda, cierra). Controles explícitos (menú ⋮,
+    checkbox, botones) se dejan pasar → la previsualización sigue por el menú.
+- **Visores nativos (`opOpenOOFile`, §8.12):** Office → editor OnlyOffice; `.eml` → modal con cabeceras + cuerpo
+  (parser RFC822); `.msg` → aviso + descarga; PDF → iframe; imagen → img; texto → `<pre>`; resto → descarga. Todo por
+  fetch autenticado (Bearer/api-key) + blob.
+- **Picker viejo retirado:** los botones por-actividad "Vincular archivo" (que abrían `opOpenFileManagerForActivity`,
+  el picker in-house) se removieron; cada actividad tiene "Gestor de Archivos" → widget real. `opOpenFileManagerForActivity`
+  queda definida pero huérfana (0 llamadas), se puede borrar luego.
+- **Infra — HTTP Monitor de NetBeans DESACTIVADO (§8 incidente):** el `MonitorFilter` en `conf/web.xml` global de la
+  instancia Tomcat recursaba en cada FORWARD/INCLUDE (Memorias.jsp→Contenedor_head) → StackOverflow → 500 en `opc=7`.
+  Se comentó (backup `conf/web.xml.op-bak`). Además, la causa del 500 sin sesión es el `catch`-forward a `opc=1&ipy=0` de
+  `Proyecto.java:1346` (backend congelado): sin login toda petición a `opc=7` entra en bucle — es artefacto de "sin sesión",
+  para usuarios logueados `opc=7` abre normal. Tomcat se relanza con `Start-Process` (proceso detached que sobrevive la
+  sesión), NO con `run_in_background` (el harness lo mata).
+- **Fragilidad conocida:** el puente de vinculación depende del DOM interno del widget (`.op-card[data-id]`,
+  `.op-selected`, `.op-card-name`). Si office-platform cambia esas clases, hay que reajustar. Lo robusto sería que el
+  widget exponga un `postMessage` de selección → escalado al dueño de office-platform.
+- **Commits DHF:** `7577a0c` (puente vincular + flush descripción + scope inicial), `f2cae73` (quitar picker viejo),
+  `e4545c1` (upload/download con Bearer token).
+- **Estado:** IMPLEMENTADO, compilado y desplegado. Verificación funcional (subir → ver en Mis archivos → abrir con visor;
+  clic-para-vincular) a cargo del usuario logueado en el navegador.
