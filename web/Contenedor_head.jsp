@@ -5286,7 +5286,12 @@
                                                     var txt = (t.textContent || '');
                                                     if (/AUTOR/i.test(txt)) {
                                                         total++;
-                                                        if (t.querySelector('.text-success') || /FINALIZAD/i.test(txt)) {
+                                                        // FINALIZADA solo si tiene el marcador REAL de estado de Tag_memoria:
+                                                        // <b class="text-success">FINALIZADO/FINALIZADA</b>. La regex laxa /FINALIZAD/
+                                                        // sobre todo el texto marcaba pendientes como finalizadas (respuestas/adjuntos/
+                                                        // fase con esa palabra) -> pendingIds incompleto -> actividades no se finalizaban.
+                                                        var _fb = t.querySelector('b.text-success');
+                                                        if (_fb && /FINALIZAD/i.test(_fb.textContent || '')) {
                                                             fin++;
                                                         } else {
                                                             // pendiente -> id_memoria. Fuente AUTORITATIVA presente en TODA actividad
@@ -5319,7 +5324,7 @@
                                             } else if (m && m.pendientes > 0) {
                                                 // Escenario A: hay pendientes -> decisión informada del usuario (3 opciones).
                                                 // Contexto de escritura para la Opción 1 (autocompletar) — autorizado, ver §8.9.
-                                                window._opCloseCtx = { id: id, finalState: finalState, pendingIds: (m.pendingIds || []), idUsuario: m.idUsuario, usuario: m.usuario, estadoM: m.estadoM || '1' };
+                                                window._opCloseCtx = { id: id, finalState: finalState, pendingIds: (m.pendingIds || []), pendientes: m.pendientes, idUsuario: m.idUsuario, usuario: m.usuario, estadoM: m.estadoM || '1' };
                                                 var _bs = 'width:100%; box-sizing:border-box; border:none; border-radius:6px; padding:10px 16px; font-weight:700; font-size:12.5px; margin:0; cursor:pointer; color:#ffffff; text-align:center;';
                                                 var panel = '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:12px; font-size:13px; color:#0f172a;">'
                                                     + '<div style="font-weight:700; margin-bottom:6px;">📊 Resumen de Actividades DHF</div>'
@@ -5375,8 +5380,18 @@
                                             var ctx = window._opCloseCtx;
                                             if (!ctx) return;
                                             var ids = (ctx.pendingIds || []);
-                                            // Solo actividades bajo la gestión del usuario que cierra (permiso [X]); las de otros
-                                            // responsables no se tocan -> correcto por ALCOA. Progreso en overlay propio (sin swal).
+                                            // GUARDA HONESTA: si hay actividades pendientes cuyo id NO se pudo capturar del DOM
+                                            // (los links con el id_memoria_d estan permission-gated a otros responsables), NO cerrar
+                                            // en silencio dejandolas en "En Proceso". Se informa cuantas se pueden vs no, y el usuario
+                                            // decide. El cierre server-side de TODAS (incl. de otros responsables) requiere backend (escalado).
+                                            var pend = (typeof ctx.pendientes === 'number') ? ctx.pendientes : ids.length;
+                                            if (ids.length < pend) {
+                                                var faltan = pend - ids.length;
+                                                var msg = 'De ' + pend + ' actividad(es) pendiente(s), puedo autocompletar y finalizar ' + ids.length + '.\n\n'
+                                                    + faltan + ' actividad(es) son gestionadas por otros responsables y su identificador no está disponible en esta vista, por lo que NO puedo finalizarlas automáticamente (deben finalizarse por su responsable o desde el backend).\n\n'
+                                                    + '¿Deseás finalizar las ' + ids.length + ' que sí puedo y CERRAR el proyecto de todos modos (las otras ' + faltan + ' quedarán En Proceso)?';
+                                                if (!confirm(msg)) { try { if (window.swal) swal.close(); } catch (e) { } return; }
+                                            }
                                             opShowInlineProgress(ids.length > 0 ? ('Autocompletando ' + ids.length + ' actividad(es) y finalizando…') : 'Finalizando proyecto…');
                                             if (ids.length === 0) {
                                                 setTimeout(function () { opConfirmProjectClose(ctx.id, ctx.finalState || 'TERMINADO'); }, 400);
