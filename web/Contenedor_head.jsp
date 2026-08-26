@@ -2080,7 +2080,11 @@
                     !request.getRequestURI().toLowerCase().contains("officeplatform")) { %>
                     <div id="office-platform" style="display: none;"></div>
                     <% } %>
-                        <script
+                        <%-- defer: NUNCA bloquear el render (login/index). El widget se carga de :8080; si ese
+                             servicio esta caido/lento, un <script> sincronico congela la pagina (pantalla azul en el
+                             login). Con defer descarga en paralelo y ejecuta tras el parse -> el DOM se pinta siempre.
+                             El widget igual auto-monta en DOMContentLoaded (defer corre antes de DCL). --%>
+                        <script defer
                             src="http://localhost:8080/office-platform-widget.js?v=<%= System.currentTimeMillis() %>"
                             data-api-key="opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0"
                             data-container="office-platform" data-server="http://localhost:8080"
