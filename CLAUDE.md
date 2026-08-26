@@ -540,3 +540,47 @@ NO autopruebó escrituras, §7.C). Único archivo tocado en el repo DHF: `web/Co
   (endpoint sin chequeo de permisos). Batch transaccional del cargue masivo (§8.5-P2) sigue pendiente.
 - **Estado:** RESUELTO y VERIFICADO por el usuario. Backend `office-platform` ampliado (env). Persistencia
   real server-side y descarga de privados permanecen como trabajo de backend.
+
+### 8.11 Plantilla ISO 13485 en el Cargue Masivo: árbol de sub-etapas compacto + corrección de navegación entre pasos
+
+Mejora del wizard de Cargue Masivo (Modo Gestión, `opShowBatchCreationModal`). Único archivo tocado en el
+repo DHF: `web/Contenedor_head.jsp`. VERIFICADO parcialmente: build/deploy OK, matcher validado contra la BD
+viva; la creación real de actividades la ejecuta y verifica el usuario en sandbox (§7.C — no autopruebo escrituras).
+
+- **Plantilla `OP_TEMPLATE_ISO_13485`:** estructura oficial 7.3.2→7.3.9 con sub-etapas (letra, fase, sel, obl),
+  tomada del catálogo REAL `fase` de la BD (`fase.fk_etapa → etapa`, ISO2016/estado=1). Defaults: 7.3.3-D OFF,
+  7.3.9 completa OFF, 7.3.6/7.3.7 (Verificación/Validación) ON+obligatorias. Descripciones = texto oficial del
+  catálogo (opción validada por el negocio), editables por el usuario en el Paso 2.
+- **Matching seguro (numeral REAL, nunca inventado):** `_opNorm` (mapa de acentos, ASCII-safe) + `opMatchTemplate`
+  matchean el TEXTO de cada opción real del `select[name="numeral"]` (que es `fase.letra + " " + fase.fase`,
+  ver `Tag_memoria.java:2107-2109`) a un item del template por contención normalizada, en orden 7.3.2→7.3.9
+  (evita falsos positivos de fases cortas como "REVISAR"). El **numeral posteado a `opc=9` es SIEMPRE el `value`
+  real de la opción** (`obj_fases[6]`, id por-proyecto) → cero riesgo de misfiling en `MemoriaDLog`. Las opciones
+  sin match caen en "Otras sub-etapas" (seleccionables, degradación limpia). Verificado con `mysql` contra
+  `diseno_desarrollo_dos`: de 26 opciones vivas 7.3.x, 25 agrupan bajo su cláusula; solo `ACTIVIDADES DEL
+  PROYECTO` (etapa 7.3.2.1, bucket libre) queda en "Otras" — correcto. Se agregó `ESTABLECIMIENTO DE LOS
+  OBJETIVOS DEL DISEÑO` (id_fase 46) al template para que agrupe bajo 7.3.2.
+- **Paso 2 rediseñado (lista compacta, sin "card dentro de card"):** encabezado de cláusula delgado con badge de
+  cantidad; filas limpias (`border-bottom` + hover `#f8fafc`) con checkbox + título en negrita arriba, y debajo
+  textarea de 1 línea (expandible en focus/resize) + select de documento fijo a 160px. CSS en el bloque `.op-*`
+  central. Checkbox padre (cláusula) togglea hijos; obligatorio = checkbox deshabilitado + badge + tooltip
+  (se excluye desmarcando la cláusula completa).
+- **Fix navegación entre pasos:** el botón "Volver a Etapas" no hacía nada porque `opRenderWizardStep` es local
+  del IIFE y los `onclick` inline corren en scope GLOBAL (ReferenceError). Se expuso `window.opRenderWizardStep`.
+  Además `opBatchNextToStep2` ahora persiste la selección real del Paso 1 en `_opSelectedStages`, de modo que al
+  volver se conservan los checkboxes que el usuario había marcado.
+- **Restricciones respetadas:** sin `.java`/`.sql`; firma del POST intacta (`opc=9`: estado, ipy, id_usuario,
+  fecha_reg, numeral, observacion); sin tocar persistencia (`opSaveDraft`/`opReadDraft`/`opClearDraft`/
+  `_opStateCache`/`opReflectActivityState`) ni el gestor de documentos (`opUploadLocalFileForActivity`/`opOpenOOFile`).
+  Nada se crea hasta que el usuario confirma en el Paso 3.
+- **Diagnóstico del warning del IDE:** `Contenedor_head.jsp:783:17` "Also define the standard property 'line-clamp'"
+  es un FALSO POSITIVO del linter CSS (regla vendorPrefix sobre `-webkit-line-clamp` en `.op-activity-card-title`,
+  CSS preexistente ajeno al wizard). NO es error de JS (`node --check` = OK, 0 bytes de control).
+- **Limitación de verificación en vivo:** el `opc=7` devuelve HTTP 500 por el StackOverflowError del NetBeans
+  HTTP Monitor (`MonitorFilter`, infra de dev, ajeno al código) hasta reiniciar Tomcat; y el extension de
+  Claude-in-Chrome no tiene permiso de host para `localhost:8085`. Por eso la validación del árbol se hizo contra
+  la BD viva (matcher) + un preview interactivo, no por captura de la app.
+- **Commits DHF:** `38c1e7f` (plantilla + árbol + numeral real), `3cf7f1d` (agrupar Establecimiento bajo 7.3.2),
+  `be9d657` (fix navegación Volver + rediseño compacto).
+- **Estado:** IMPLEMENTADO, compilado y desplegado. Verificación funcional de la creación real (numerales +
+  textos oficiales) a cargo del usuario en proyecto sandbox.
