@@ -2277,26 +2277,86 @@
                                 };
 
                                 // Helper global para abrir o descargar archivos de OnlyOffice con autorización
+                                // ── P5: visor nativo para no-Office ────────────────────────────────────────────
+                                window._opEsc = function (s) { return ('' + (s == null ? '' : s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+                                window._opDecodeQP = function (s) { return ('' + s).replace(/=\r?\n/g, '').replace(/=([0-9A-Fa-f]{2})/g, function (_, h) { return String.fromCharCode(parseInt(h, 16)); }); };
+                                // Parser RFC822 pragmatico: cabeceras + mejor parte de cuerpo (text/plain|html), con fallbacks.
+                                window.opParseEml = function (raw) {
+                                    var out = { from: '', to: '', cc: '', subject: '', date: '', body: '', isHtml: false };
+                                    try {
+                                        var crlf = raw.indexOf('\r\n\r\n'), lf = raw.indexOf('\n\n');
+                                        var sep = (crlf >= 0) ? crlf : lf;
+                                        var head = sep >= 0 ? raw.substring(0, sep) : raw;
+                                        var body = sep >= 0 ? raw.substring(sep + (crlf >= 0 ? 4 : 2)) : '';
+                                        head = head.replace(/\r?\n[ \t]+/g, ' ');
+                                        function h(n) { var m = head.match(new RegExp('^' + n + ':\\s*(.*)$', 'im')); return m ? m[1].trim() : ''; }
+                                        out.from = h('From'); out.to = h('To'); out.cc = h('Cc'); out.subject = h('Subject'); out.date = h('Date');
+                                        var ctype = (h('Content-Type') || '').toLowerCase();
+                                        var cte = (h('Content-Transfer-Encoding') || '').toLowerCase();
+                                        var mb = ctype.match(/boundary="?([^";]+)"?/);
+                                        if (mb) {
+                                            var parts = body.split('--' + mb[1]), chosen = null, chosenHtml = false;
+                                            for (var i = 0; i < parts.length; i++) {
+                                                var pl = parts[i].toLowerCase();
+                                                if (pl.indexOf('content-type: text/plain') !== -1 && !chosen) { chosen = parts[i]; chosenHtml = false; }
+                                                if (pl.indexOf('content-type: text/html') !== -1) { chosen = parts[i]; chosenHtml = true; }
+                                            }
+                                            if (chosen) {
+                                                var pc = chosen.indexOf('\r\n\r\n'), pl2 = chosen.indexOf('\n\n'), ps = (pc >= 0) ? pc : pl2;
+                                                var pcte = (chosen.match(/content-transfer-encoding:\s*([^\r\n]+)/i) || [])[1];
+                                                body = ps >= 0 ? chosen.substring(ps + (pc >= 0 ? 4 : 2)) : chosen;
+                                                cte = (pcte || '').toLowerCase(); out.isHtml = chosenHtml;
+                                            }
+                                        }
+                                        if (cte.indexOf('quoted-printable') !== -1) body = window._opDecodeQP(body);
+                                        else if (cte.indexOf('base64') !== -1) { try { body = decodeURIComponent(escape(atob(body.replace(/\s+/g, '')))); } catch (e) { } }
+                                        out.body = body;
+                                    } catch (e) { out.body = raw; }
+                                    return out;
+                                };
+                                window.opDownloadViewerFile = function () {
+                                    var d = window._opViewerDl; if (!d) return;
+                                    var a = document.createElement('a'); a.href = d.url; a.download = d.name || 'archivo';
+                                    document.body.appendChild(a); a.click(); a.remove();
+                                };
+                                window.opCloseFileViewer = function () {
+                                    var m = document.getElementById('op-file-viewer'); if (m) m.remove();
+                                    try { if (window._opViewerObjUrl) { window.URL.revokeObjectURL(window._opViewerObjUrl); window._opViewerObjUrl = null; } } catch (e) { }
+                                };
+                                window.opFileViewerModal = function (titleText, bodyHtml, dlUrl, dlName) {
+                                    window.opCloseFileViewer();
+                                    window._opViewerObjUrl = dlUrl || null;
+                                    window._opViewerDl = dlUrl ? { url: dlUrl, name: dlName } : null;
+                                    var ov = document.createElement('div');
+                                    ov.id = 'op-file-viewer';
+                                    ov.style.cssText = 'position:fixed; inset:0; z-index:100000; background:rgba(15,23,42,0.55); display:flex; align-items:center; justify-content:center; padding:24px;';
+                                    ov.innerHTML = '<div style="background:#fff; width:100%; max-width:920px; max-height:90vh; border-radius:12px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+                                        + '  <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid #e2e8f0; background:#f8fafc;">'
+                                        + '    <i class="fas fa-eye text-primary"></i>'
+                                        + '    <span style="font-weight:700; font-size:13px; color:#1e293b; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + window._opEsc(titleText || 'Documento') + '</span>'
+                                        + (dlUrl ? '    <button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" onclick="opDownloadViewerFile()" title="Descargar original"><i class="fas fa-download mr-1"></i> Descargar</button>' : '')
+                                        + '    <button type="button" class="btn btn-sm btn-light" onclick="opCloseFileViewer()" style="font-weight:700; line-height:1;">&times;</button>'
+                                        + '  </div>'
+                                        + '  <div style="flex:1; overflow:auto; padding:0; background:#fff;">' + bodyHtml + '</div>'
+                                        + '</div>';
+                                    ov.addEventListener('click', function (e) { if (e.target === ov) opCloseFileViewer(); });
+                                    document.body.appendChild(ov);
+                                };
                                 window.opOpenOOFile = function (fileId, title) {
                                     var name = (title || '').toLowerCase();
-                                    // Solo estos formatos los renderiza el editor OnlyOffice. El resto (.eml, .msg, .zip,
-                                    // .pdf, imagenes, etc.) se DESCARGA por fetch autenticado -> NUNCA se llama al editor.
-                                    var isOO = /\.(docx?|xlsx?|pptx?|csv|odt|ods|odp|txt)$/.test(name);
+                                    var isOO = /\.(docx?|xlsx?|pptx?|odt|ods|odp)$/.test(name);
+                                    var isEml = /\.eml$/.test(name), isMsg = /\.msg$/.test(name);
+                                    var isPdf = /\.pdf$/.test(name);
+                                    var isImg = /\.(png|jpe?g|gif|webp|bmp|svg|tiff?)$/.test(name);
+                                    var isText = /\.(txt|log|json|xml|csv|md|markdown|ya?ml|ini|js|ts|css|html?|java|sql|properties)$/.test(name);
                                     var id = parseInt(fileId, 10);
                                     if (isOO) {
-                                        // OnlyOffice maneja su propia auth (JWT). Un id valido abre; uno inexistente
-                                        // muestra el error propio del editor. Sin pre-check HEAD (daba 403 sin la key).
-                                        if (typeof OfficePlatform !== 'undefined' && typeof OfficePlatform.openEditor === 'function') {
-                                            OfficePlatform.openEditor({ fileId: id });
-                                        } else if (typeof window.ooInitEditor === 'function') {
-                                            window.ooInitEditor({ containerId: 'office-platform', inputId: 'textInput', existingFileId: id, autoLoad: true });
-                                        }
+                                        if (typeof OfficePlatform !== 'undefined' && typeof OfficePlatform.openEditor === 'function') { OfficePlatform.openEditor({ fileId: id }); }
+                                        else if (typeof window.ooInitEditor === 'function') { window.ooInitEditor({ containerId: 'office-platform', inputId: 'textInput', existingFileId: id, autoLoad: true }); }
                                         return;
                                     }
-                                    // DESCARGA SEGURA (Punto 1): window.open al endpoint da 403 porque Spring exige X-Api-Key.
-                                    // Se descarga con la key y se genera un Object URL local -> sin 403, sin pestana en blanco.
                                     var dl = 'http://localhost:8080/api/files/' + id + '/download';
-                                    if (window.opToast) opToast('<i class="fas fa-spinner fa-spin mr-1"></i> Descargando ' + (title || ('archivo ' + id)) + '...');
+                                    if (window.opToast) opToast('<i class="fas fa-spinner fa-spin mr-1"></i> Abriendo ' + (title || ('archivo ' + id)) + '...');
                                     fetch(dl, { method: 'GET', headers: { 'X-Api-Key': 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0' } })
                                         .then(function (res) {
                                             if (res.status === 404) { throw new Error('legacy'); }
@@ -2305,18 +2365,33 @@
                                             return res.blob();
                                         })
                                         .then(function (blob) {
-                                            var url = window.URL.createObjectURL(blob);
-                                            var a = document.createElement('a');
-                                            a.href = url; a.download = title || ('archivo_' + id);
+                                            var objUrl = window.URL.createObjectURL(blob);
+                                            if (isPdf) { opFileViewerModal(title, '<iframe src="' + objUrl + '" style="width:100%; height:80vh; border:none;"></iframe>', objUrl, title); return; }
+                                            if (isImg) { opFileViewerModal(title, '<div style="padding:16px; text-align:center; background:#0f172a; min-height:200px;"><img src="' + objUrl + '" style="max-width:100%; height:auto;" alt="' + window._opEsc(title) + '"></div>', objUrl, title); return; }
+                                            if (isEml) {
+                                                return blob.text().then(function (raw) {
+                                                    var m = window.opParseEml(raw);
+                                                    function row(l, v) { return v ? '<div style="margin-bottom:4px;"><b style="color:#0f5c95; display:inline-block; min-width:64px;">' + l + ':</b> ' + window._opEsc(v) + '</div>' : ''; }
+                                                    var hdr = '<div style="padding:14px 16px; border-bottom:1px solid #e2e8f0; font-size:12.5px; background:#fbfdff; color:#1e293b;">'
+                                                        + row('De', m.from) + row('Para', m.to) + row('CC', m.cc) + row('Asunto', m.subject) + row('Fecha', m.date) + '</div>';
+                                                    var bodyBlock = m.isHtml
+                                                        ? '<iframe sandbox srcdoc="' + ('' + m.body).replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '" style="width:100%; height:55vh; border:none; background:#fff;"></iframe>'
+                                                        : '<pre style="white-space:pre-wrap; word-wrap:break-word; font-family:inherit; font-size:13px; margin:0; padding:16px; color:#1e293b;">' + window._opEsc(m.body || '(cuerpo vacío)') + '</pre>';
+                                                    opFileViewerModal(title, hdr + bodyBlock, objUrl, title);
+                                                });
+                                            }
+                                            if (isMsg) { opFileViewerModal(title, '<div style="padding:28px; text-align:center; color:#64748b;"><i class="fas fa-envelope fa-2x mb-2"></i><p style="margin-top:10px;">Correo de Outlook (.msg): formato binario, no se previsualiza en el navegador.<br>Usá <b>Descargar</b> para abrirlo en tu cliente de correo.</p></div>', objUrl, title); return; }
+                                            if (isText) { return blob.text().then(function (txt) { opFileViewerModal(title, '<pre style="white-space:pre-wrap; word-wrap:break-word; font-size:12.5px; margin:0; padding:16px; color:#1e293b;">' + window._opEsc(txt) + '</pre>', objUrl, title); }); }
+                                            // Resto (zip, binarios, etc.) -> descarga directa
+                                            var a = document.createElement('a'); a.href = objUrl; a.download = title || ('archivo_' + id);
                                             document.body.appendChild(a); a.click(); a.remove();
-                                            setTimeout(function () { try { window.URL.revokeObjectURL(url); } catch (e) { } }, 1500);
                                             if (window.opToast) opToast('<i class="fas fa-check mr-1"></i> Archivo descargado');
                                         })
                                         .catch(function (err) {
-                                            var m = (err && err.message) || '';
-                                            var msg = (m === 'legacy') ? '<i class="fas fa-exclamation-triangle mr-1"></i> Archivo no disponible: registro legacy que no existe en el almacenamiento.'
-                                                : (m === 'forbidden') ? '<i class="fas fa-lock mr-1"></i> Sin permisos de descarga: el archivo se subio como privado. Contacte al administrador.'
-                                                    : '<i class="fas fa-exclamation-triangle mr-1"></i> No se pudo descargar el archivo.';
+                                            var mm = (err && err.message) || '';
+                                            var msg = (mm === 'legacy') ? '<i class="fas fa-exclamation-triangle mr-1"></i> Archivo no disponible: registro legacy que no existe en el almacenamiento.'
+                                                : (mm === 'forbidden') ? '<i class="fas fa-lock mr-1"></i> Sin permisos de descarga: el archivo se subio como privado. Contacte al administrador.'
+                                                    : '<i class="fas fa-exclamation-triangle mr-1"></i> No se pudo abrir el archivo.';
                                             if (window.opToast) opToast(msg, false); else alert(msg.replace(/<[^>]+>/g, ''));
                                         });
                                 };
@@ -3400,6 +3475,15 @@
                                         };
                                         try { window.opPurgeOldDrafts(); } catch (e) { }
 
+                                        // P2: autoguardado en vivo de la DESCRIPCION con debounce 500ms. La memoria se actualiza
+                                        // en el acto (no perder al navegar); la persistencia en localStorage se debouncea.
+                                        window._opDescDebounce = {};
+                                        window.opDescInput = function (cacheKey, value) {
+                                            window._opCacheFor('desc')[cacheKey] = value;
+                                            clearTimeout(window._opDescDebounce[cacheKey]);
+                                            window._opDescDebounce[cacheKey] = setTimeout(function () { opSaveDraft('desc', cacheKey, value); }, 500);
+                                        };
+
                                         // Marca el estado en el nodo subyacente (activityElements[index]) con un data-attr
                                         // NO destructivo. La fuente autoritativa de persistencia es _opStateCache (memoria +
                                         // localStorage); esta marca es una senal secundaria y evita cirugia fragil sobre el HTML legacy.
@@ -3857,7 +3941,7 @@
                                                         + '  <div class="op-activity-desc mb-3 p-3 rounded" style="font-size:13px; line-height:1.6; color:#1e293b; font-weight:500; background:#f8fafc; border:1px solid #f1f5f9;">'
                                                         + '    <div class="d-flex align-items-center justify-content-between mb-1"><span class="badge badge-info" style="font-size:9px;">ACTIVIDAD ' + (subIndex + 1) + '</span>' + (isEditable ? '<span class="text-muted" style="font-size:10px;"><i class="fas fa-pen mr-1"></i>Descripción editable</span>' : '') + '</div>'
                                                         + (isEditable
-                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" data-orig="' + _descOrigAttr + '" oninput="opSaveDraft(\'desc\', \'' + cacheKey + '\', this.value)" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + _descBody + '</textarea>'
+                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" data-orig="' + _descOrigAttr + '" oninput="opDescInput(\'' + cacheKey + '\', this.value)" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + _descBody + '</textarea>'
                                                             : '    <div>' + descText + '</div>')
                                                         + (isEditable ? ('    <div class="op-doc-toolbar d-flex align-items-center flex-wrap mt-2" style="gap:6px;">'
                                                             + '      <span class="text-muted mr-1" style="font-size:10.5px;"><i class="fas fa-paperclip mr-1"></i>Anexar a la actividad:</span>'
