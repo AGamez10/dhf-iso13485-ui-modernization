@@ -669,3 +669,29 @@ lectura del código del widget; verificación funcional en navegador a cargo del
   `e4545c1` (upload/download con Bearer token).
 - **Estado:** IMPLEMENTADO, compilado y desplegado. Verificación funcional (subir → ver en Mis archivos → abrir con visor;
   clic-para-vincular) a cargo del usuario logueado en el navegador.
+
+### 8.14 Fix "Autocompletar y Finalizar": clasificación de actividades pendientes
+
+Bug: al usar "Autocompletar observaciones y Finalizar" (diálogo de cierre §8.9), la memoria cerraba a TERMINADO pero las
+actividades individuales quedaban en estado 1 ("En Proceso"), no en estado 3 (TERMINADA). Único archivo: `web/Contenedor_head.jsp`.
+
+- **Diagnóstico (cadena completa, backend congelado leído solo-lectura + BD viva):**
+  * `opc=13` (case 13, `Proyecto.java:647-653`) → `MemoriaDJpaController.Cambiar_estado_actividad`:
+    `UPDATE memoria_d SET estado=<e> WHERE id_memoria_d=<param>`. Persiste bien (BD: proyectos con todas est3).
+  * `cba_num` = `id_memoria_d` (confirmado: SP `sp_m_d_t_memoria` devuelve `m.id_memoria_d` como columna [0]).
+  * Estado en `Tag_memoria`: estado 1 → `<b class="text-info">EN PROCESO</b>`; estado 3 → `<b class="text-success">FINALIZADO</b>`.
+  * **CAUSA:** `opParseMemoriaMetrics` clasificaba finalizada con `t.querySelector('.text-success') || /FINALIZAD/i.test(txt)`.
+    La regex `/FINALIZAD/i` sobre TODO el texto de la tabla es demasiado laxa: matchea "FINALIZAD" en respuestas/adjuntos/
+    nombre de fase → marca pendientes como finalizadas → `pendingIds` incompleto/vacío → el loop no emite opc=13 para ellas
+    → quedan en estado 1, pero el proyecto cierra igual.
+- **Fix:**
+  * Clasificación precisa: finalizada solo si existe el marcador REAL `t.querySelector('b.text-success')` cuyo texto contiene
+    FINALIZAD. Sin la regex laxa. Así las pendientes se detectan y entran a `pendingIds` → se finalizan (opc=11 + opc=13).
+  * Guarda honesta: si aún quedaran pendientes cuyo `id_memoria_d` no está en el DOM (links permission-gated a otros
+    responsables), NO cierra en silencio; informa "puedo finalizar N de M; el resto requiere su responsable/backend" y el
+    usuario decide (`ctx.pendientes` agregado al contexto de cierre).
+- **Límite (escalado, §8.9):** finalizar server-side TODAS las pendientes (incl. de otros responsables, sin depender del DOM)
+  requiere un endpoint batch en el backend. Para admin (`id_cargo==6`) todos los ids están visibles → cobertura 100% client-side.
+- **Commit DHF:** `a1311a0`.
+- **Estado:** IMPLEMENTADO, compilado y desplegado. Verificación funcional (autocompletar → recargar → badges verdes
+  TERMINADA en la previsualización) a cargo del usuario en proyecto sandbox.
