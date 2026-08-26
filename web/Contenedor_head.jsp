@@ -1518,6 +1518,23 @@
                 color: #15803d;
             }
 
+            /* Paso 2 Cargue Masivo: lista compacta (sin "tarjeta dentro de tarjeta") */
+            .op-wiz-clause2 { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; overflow: hidden; background: #ffffff; }
+            .op-wiz-clause2-head { display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: #eef2f7; border-bottom: 1px solid #e2e8f0; }
+            .op-wiz-clause2-head .num { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #0f6fb5; font-weight: 700; }
+            .op-wiz-clause2-head .t { font-size: 12.5px; font-weight: 700; color: #1e293b; }
+            .op-wiz-clause2-head .cnt { margin-left: auto; font-size: 10px; font-weight: 700; background: #dbe4ee; color: #385166; padding: 1px 8px; border-radius: 10px; }
+            .op-wiz-sub-row { display: flex; flex-direction: column; gap: 5px; padding: 6px 12px; border-bottom: 1px solid #f1f5f9; background: transparent; transition: background-color 0.12s ease; }
+            .op-wiz-sub-row:last-child { border-bottom: none; }
+            .op-wiz-sub-row:hover { background-color: #f8fafc; }
+            .op-wiz-sub-row .op-wiz-sub-top { display: flex; align-items: center; gap: 8px; }
+            .op-wiz-sub-row .op-wiz-sub-top label { font-size: 12px; font-weight: 700; color: #1e293b; cursor: pointer; margin: 0; line-height: 1.3; }
+            .op-wiz-sub-row .op-wiz-sub-ctl { display: flex; gap: 8px; align-items: flex-start; padding-left: 24px; }
+            .op-wiz-sub-row .op-wiz-sub-ctl textarea.op-batch-desc { flex: 1 1 auto; min-width: 0; height: 30px; min-height: 30px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 8px; resize: vertical; transition: height 0.15s ease; background: #ffffff; }
+            .op-wiz-sub-row .op-wiz-sub-ctl textarea.op-batch-desc:focus { height: 58px; border-color: #0284c7; outline: none; }
+            .op-wiz-sub-row .op-wiz-sub-ctl select.op-batch-doc { flex: 0 0 160px; width: 160px; font-size: 11px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 6px; background: #ffffff; align-self: flex-start; }
+            .op-wiz-sub-row.op-wiz-sub-off { opacity: 0.5; }
+
             .op-wizard-stage-card {
                 background: #ffffff;
                 border: 1px solid var(--op-border-subtle);
@@ -5511,12 +5528,16 @@
                                                     var bodyId = 'op-wiz-clause-body-' + safe;
                                                     var parentId = 'op-wiz-clause-chk-' + safe;
                                                     var anySel = g.rows.some(function (r) { return r.tpl ? r.tpl.sel : true; });
-                                                    html += '<div class="op-wiz-clause" style="border:1px solid #e2e8f0; border-radius:10px; margin-bottom:14px; background:#ffffff; overflow:hidden;">'
-                                                        + '  <div class="op-wiz-clause-head" style="background:#f1f5f9; padding:10px 14px; display:flex; align-items:center; gap:8px;">'
+                                                    var titleHtml = (etapaKey === 'OTROS')
+                                                        ? '<span class="t">' + g.titulo + '</span>'
+                                                        : '<span class="num">' + g.etapa + '</span> <span class="t">' + g.titulo + '</span>';
+                                                    html += '<div class="op-wiz-clause2">'
+                                                        + '  <div class="op-wiz-clause2-head">'
                                                         + '    <input type="checkbox" id="' + parentId + '" data-body="' + bodyId + '" ' + (anySel ? 'checked' : '') + ' onchange="opToggleClauseChildren(this)">'
-                                                        + '    <label for="' + parentId + '" class="m-0 font-weight-bold text-dark" style="font-size:13px; cursor:pointer;"><i class="fas fa-folder text-warning mr-2" style="color:#f59e0b;"></i> ' + g.etapa + (g.etapa === 'OTROS' ? '' : ' — ') + g.titulo + '</label>'
+                                                        + '    <label for="' + parentId + '" style="cursor:pointer; margin:0; display:flex; gap:6px; align-items:baseline; flex-wrap:wrap;">' + titleHtml + '</label>'
+                                                        + '    <span class="cnt">' + g.rows.length + '</span>'
                                                         + '  </div>'
-                                                        + '  <div class="op-wiz-clause-body" id="' + bodyId + '" data-parent="' + parentId + '" style="padding:10px 14px; display:flex; flex-direction:column; gap:10px;' + (anySel ? '' : ' opacity:0.5;') + '">';
+                                                        + '  <div class="op-wiz-clause-body" id="' + bodyId + '" data-parent="' + parentId + '"' + (anySel ? '' : ' style="opacity:0.5;"') + '>';
                                                     g.rows.forEach(function (r) {
                                                         rowSeq++;
                                                         var sel = r.tpl ? r.tpl.sel : true;
@@ -5527,17 +5548,15 @@
                                                         var oblAttr = obl ? ' disabled' : '';
                                                         var oblTip = obl ? ' title="Requerido por ISO 13485 (evidencia de V&amp;V). Para excluirlo, desmarca la cláusula completa."' : '';
                                                         var oblBadge = obl ? ' <span class="badge badge-danger" style="font-size:9px;">Obligatorio</span>' : '';
-                                                        html += '<div class="op-wiz-act-row" data-stage="' + r.value + '" style="border:1px solid #eef2f7; border-radius:8px; padding:10px; background:#fbfdff;">'
-                                                            + '  <div style="display:flex; align-items:flex-start; gap:8px;">'
-                                                            + '    <input type="checkbox" class="op-wiz-sub-chk" id="' + chkId + '" ' + (sel ? 'checked' : '') + oblAttr + oblTip + ' onchange="opSyncClauseParent(this)" style="margin-top:3px;">'
-                                                            + '    <div style="flex:1; min-width:0;">'
-                                                            + '      <label for="' + chkId + '" class="m-0 font-weight-bold text-dark" style="font-size:12px; cursor:pointer;">' + faseTxt + oblBadge + '</label>'
-                                                            + '      <div style="display:grid; grid-template-columns:1fr 210px; gap:8px; margin-top:8px;">'
-                                                            + '        <textarea class="form-control form-control-sm op-batch-desc" rows="2" spellcheck="true" lang="es" placeholder="Observación técnica (editable)" style="width:100%; box-sizing:border-box; font-size:12px; resize:vertical;">' + (descDefault || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>'
-                                                            + '        <select class="form-control form-control-sm op-batch-doc" style="width:100%; box-sizing:border-box; align-self:start;"><option value="none" selected>Ninguno (Solo Texto / Observación)</option><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select>'
-                                                            + '      </div>'
-                                                            + '      <input type="hidden" class="op-batch-title" value="' + faseTxt.replace(/"/g, '&quot;') + '">'
-                                                            + '    </div>'
+                                                        html += '<div class="op-wiz-act-row op-wiz-sub-row" data-stage="' + r.value + '">'
+                                                            + '  <div class="op-wiz-sub-top">'
+                                                            + '    <input type="checkbox" class="op-wiz-sub-chk" id="' + chkId + '" ' + (sel ? 'checked' : '') + oblAttr + oblTip + ' onchange="opSyncClauseParent(this)">'
+                                                            + '    <label for="' + chkId + '">' + faseTxt + oblBadge + '</label>'
+                                                            + '  </div>'
+                                                            + '  <div class="op-wiz-sub-ctl">'
+                                                            + '    <textarea class="op-batch-desc" spellcheck="true" lang="es" placeholder="Observación técnica (editable)">' + (descDefault || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>'
+                                                            + '    <select class="op-batch-doc"><option value="none" selected>Sin documento</option><option value="docx">+ Word (.docx)</option><option value="xlsx">+ Excel (.xlsx)</option><option value="pptx">+ PowerPoint (.pptx)</option></select>'
+                                                            + '    <input type="hidden" class="op-batch-title" value="' + faseTxt.replace(/"/g, '&quot;') + '">'
                                                             + '  </div>'
                                                             + '</div>';
                                                     });
@@ -5553,6 +5572,11 @@
                                             }
                                         }
 
+                                        // FIX navegacion: opRenderWizardStep es local del IIFE; los onclick inline corren en
+                                        // scope GLOBAL, por eso "Volver a Etapas" (onclick=opRenderWizardStep(1)) no hacia nada.
+                                        // Se expone en window para que el boton de retroceso funcione.
+                                        window.opRenderWizardStep = opRenderWizardStep;
+
                                         window.opToggleSelectAllStages = function (select) {
                                             var chks = document.querySelectorAll('.op-wiz-stage-chk');
                                             chks.forEach(function (c) { c.checked = select; });
@@ -5564,6 +5588,8 @@
                                                 alert('Por favor selecciona al menos una etapa ISO.');
                                                 return;
                                             }
+                                            // Persistir la seleccion real del Paso 1 para conservarla al volver (opRenderWizardStep(1)).
+                                            window._opSelectedStages = Array.prototype.map.call(chks, function (c) { return c.value; });
                                             opRenderWizardStep(2);
                                         };
 
