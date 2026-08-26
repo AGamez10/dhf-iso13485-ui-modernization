@@ -2463,7 +2463,14 @@
                                     }
                                     var dl = 'http://localhost:8080/api/files/' + id + '/download';
                                     if (window.opToast) opToast('<i class="fas fa-spinner fa-spin mr-1"></i> Abriendo ' + (title || ('archivo ' + id)) + '...');
-                                    fetch(dl, { method: 'GET', headers: { 'X-Api-Key': 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0' } })
+                                    // Descarga con el BEARER token del usuario (abre sus archivos privados subidos por Subir PC);
+                                    // si da 401/403, reintenta con X-Api-Key (archivos globales/legacy). Sin token -> api-key directo.
+                                    var _dlTok = (document.querySelector('script[data-token]') || {}).getAttribute ? (document.querySelector('script[data-token]').getAttribute('data-token') || '') : '';
+                                    function _dlFetch(useBearer) {
+                                        var h = useBearer ? { 'Authorization': 'Bearer ' + _dlTok } : { 'X-Api-Key': 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0' };
+                                        return fetch(dl, { method: 'GET', headers: h });
+                                    }
+                                    (_dlTok ? _dlFetch(true).then(function (r) { return (r.status === 401 || r.status === 403) ? _dlFetch(false) : r; }) : _dlFetch(false))
                                         .then(function (res) {
                                             if (res.status === 404) { throw new Error('legacy'); }
                                             if (res.status === 403) { throw new Error('forbidden'); }
@@ -4272,26 +4279,30 @@
                                             var statusEl = document.getElementById('op-autosave-status-' + index + '-' + subIndex);
                                             if (statusEl) statusEl.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin mr-1"></i> Subiendo ' + file.name + '...</span>';
 
-                                            var _idUsuario = (document.querySelector('[name="id_usuario"]') || {}).value || '';
-                                            var _userName = (document.querySelector('[name="nombre_usuario"]') || document.querySelector('[name="usuario"]') || {}).value || 'Usuario DHF';
+                                            // FIX VISIBILIDAD EN EL GESTOR (verificado con curl): el widget sube/lista con el BEARER
+                                            // TOKEN del usuario (data-token del script del widget), no con la API-key. Al subir con
+                                            // X-Api-Key el archivo queda con dueno = api-key (no un usuario) -> NO aparece en "Mis
+                                            // archivos" del usuario que consulta el widget. Subimos IGUAL que el widget: Bearer token +
+                                            // scope=private en la query, sin userId explicito (el token porta la identidad). Asi el
+                                            // archivo aparece en "Mis archivos" y es descargable con el mismo token (opOpenOOFile usa Bearer).
+                                            var _tok = (document.querySelector('script[data-token]') || {}).getAttribute ? (document.querySelector('script[data-token]').getAttribute('data-token') || '') : '';
                                             var formData = new FormData();
                                             formData.append('file', file);
-                                            // Contrato REAL del endpoint (FileController.upload, verificado con curl):
-                                            // exige un part JSON @RequestPart("request") con originalFileName (@NotBlank);
-                                            // sin el, Spring devuelve MissingServletRequestPartException (500) y el upload falla.
-                                            // (projectId/category NO existen en la firma del backend -> se removieron.)
-                                            // scope=shared (NO private): un archivo privado solo lo descarga su dueno autenticado y
-                                            // GET /api/files/{id}/download da 403 con la API-key -> anexo IMPOSIBLE de bajar. shared/
-                                            // public -> global a la API-key -> descargable con X-Api-Key (verificado 200) y visible en
-                                            // la pestana "Compartidos" del gestor. Se conserva userId/userName para la atribucion.
+                                            // Contrato REAL (verificado): part JSON @RequestPart("request") con originalFileName obligatorio.
                                             formData.append('request', new Blob([JSON.stringify({ originalFileName: file.name })], { type: 'application/json' }));
-                                            formData.append('userId', _idUsuario);
-                                            formData.append('userName', _userName);
-                                            formData.append('scope', 'shared');
 
-                                            fetch('http://localhost:8080/api/files/upload', {
+                                            var _upUrl, _upHeaders;
+                                            if (_tok) {
+                                                _upUrl = 'http://localhost:8080/api/files/upload?scope=private';
+                                                _upHeaders = { 'Authorization': 'Bearer ' + _tok };
+                                            } else {
+                                                // Fallback sin token: api-key + scope=shared (global, descargable con la key).
+                                                _upUrl = 'http://localhost:8080/api/files/upload?scope=shared';
+                                                _upHeaders = { 'X-Api-Key': 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0' };
+                                            }
+                                            fetch(_upUrl, {
                                                 method: 'POST',
-                                                headers: { 'X-Api-Key': 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0' },
+                                                headers: _upHeaders,
                                                 body: formData
                                             })
                                                 .then(function (r) { return r.json(); })
