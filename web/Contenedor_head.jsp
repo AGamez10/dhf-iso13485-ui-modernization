@@ -5319,6 +5319,99 @@
                                             opRenderWizardStep(1);
                                         };
 
+                                        // ─── PLANTILLA ISO 13485:2016 (catalogo `fase` real de la BD, fuente oficial validada) ───
+                                        // Enriquece el Paso 2: agrupa las opciones REALES del select[name=numeral] bajo su clausula
+                                        // 7.3.x, pre-marca defaults y pre-rellena la observacion con el texto oficial del catalogo.
+                                        // NO define numerales: el numeral persistido SIEMPRE es el value real de la opcion.
+                                        // 'fase' = texto exacto del catalogo (obj_fases[2]) usado para matchear por contencion.
+                                        // sel = check por defecto; obl = obligatorio (checkbox deshabilitado dentro de su clausula).
+                                        window.OP_TEMPLATE_ISO_13485 = [
+                                            { etapa: '7.3.2', titulo: 'PLANIFICACIÓN DEL DISEÑO Y DESARROLLO', items: [
+                                                { letra: 'A', fase: 'LAS ETAPAS DE DISEÑO Y DESARROLLO', sel: true, obl: false },
+                                                { letra: 'B', fase: 'LAS REVISIONES NECESARIAS EN CADA ETAPA DE DISEÑO Y DESARROLLO', sel: true, obl: false },
+                                                { letra: 'C', fase: 'LAS ACTIVIDADES DE VERIFICACIÓN, VALIDACIÓN Y TRANSFERENCIA DE DISEÑO QUE SON APROPIADAS EN CADA ETAPADE DISEÑO Y DESARROLLO', sel: true, obl: false },
+                                                { letra: 'D-1', fase: 'RESPONSABILIDADES', sel: true, obl: false },
+                                                { letra: 'D-2', fase: 'AUTORIDADES PARA EL DISEÑO Y DESARROLLO', sel: true, obl: false },
+                                                { letra: 'E', fase: 'LOS MÉTODOS PARA ASEGURAR LA TRAZABILIDAD DE LAS SALIDAS DEL DISEÑO Y DESARROLLO A LAS ENTRADAS DE DISEÑO Y DESARROLLO', sel: true, obl: false },
+                                                { letra: 'F', fase: 'LOS RECURSOS NECESARIOS, INCLUIDA LA COMPETENCIA NECESARIA DEL PERSONAL', sel: true, obl: false }
+                                            ]},
+                                            { etapa: '7.3.3', titulo: 'ENTRADAS DE DISEÑO Y DESARROLLO', items: [
+                                                { letra: 'A', fase: 'REQUISITOS DE FUNCIONAMIENTO, DESEMPEÑO, USABILIDAD Y SEGURIDAD DE ACUERDO CON EL USO PREVISTO', sel: true, obl: false },
+                                                { letra: 'B', fase: 'NORMAS Y REQUISITOS REGULATORIOS APLICABLES', sel: true, obl: false },
+                                                { letra: 'C', fase: 'SALIDAS APLICABLES DE GESTIÓN DEL RIESGO', sel: true, obl: false },
+                                                { letra: 'D', fase: 'SEGÚN SEA APROPIADO, LA INFORMACIÓN DERIVADA DE DISEÑOS SIMILARES PREVIOS', sel: false, obl: false },
+                                                { letra: 'E', fase: 'OTROS REQUISITOS ESENCIALES PARA DISEÑO Y DESARROLLO DEL PRODUCTO Y DE LOS PROCESOS', sel: true, obl: false }
+                                            ]},
+                                            { etapa: '7.3.4', titulo: 'SALIDAS DE DISEÑO Y DESARROLLO', items: [
+                                                { letra: 'A', fase: 'CUMPLIR LOS REQUISITOS PARA LAS ENTRADAS DE DISEÑO Y DESARROLLO', sel: true, obl: false },
+                                                { letra: 'B', fase: 'SUMINISTRAR LA INFORMACIÓN APROPIADA PARA COMPRAS, PRODUCCIÓN Y PRESENTACIÓN DE SERVICIOS', sel: true, obl: false },
+                                                { letra: 'C', fase: 'CONTENER O REFERENCIAR CRITERIOS DE ACEPTACIÓN DEL PRODUCTO', sel: true, obl: false },
+                                                { letra: 'D', fase: 'ESPECIFICAR LAS CARACTERISTICAS DEL PRODUCTO QUE SON ESENCIALES PARA EL USO SEGURO Y APROPIADO', sel: true, obl: false }
+                                            ]},
+                                            { etapa: '7.3.5', titulo: 'REVISIÓN DEL DISEÑO Y DESARROLLO', items: [
+                                                { letra: 'A', fase: 'EVALUAR LA CAPACIDAD DE LOS RESULTADOS DEL DISEÑO Y DESARROLLO PARA CUMPLIRLOS REQUISITOS', sel: true, obl: false },
+                                                { letra: 'B', fase: 'IDENTIFICAR Y PROPONER LAS ACCIONES NECESARIAS', sel: true, obl: false }
+                                            ]},
+                                            { etapa: '7.3.6', titulo: 'VERIFICACIÓN DEL DISEÑO Y DESARROLLO', items: [
+                                                { letra: '', fase: 'VERIFICACIÓN DEL DISEÑO Y DESARROLLO', sel: true, obl: true }
+                                            ]},
+                                            { etapa: '7.3.7', titulo: 'VALIDACIÓN DEL DISEÑO Y DESARROLLO', items: [
+                                                { letra: '', fase: 'VALIDACIÓN DEL DISEÑO Y DESARROLLO', sel: true, obl: true }
+                                            ]},
+                                            { etapa: '7.3.8', titulo: 'TRANSFERENCIA DEL DISEÑO Y DESARROLLO', items: [
+                                                { letra: '', fase: 'RESULTADOS Y CONCLUSIONES DE LA TRANSFERENCIA', sel: true, obl: false }
+                                            ]},
+                                            { etapa: '7.3.9', titulo: 'CONTROL DE DISEÑO Y CAMBIOS EN EL DESARROLLO', items: [
+                                                { letra: 'A', fase: 'REVISAR', sel: false, obl: false },
+                                                { letra: 'B', fase: 'VERIFICAR', sel: false, obl: false },
+                                                { letra: 'C', fase: 'VALIDA; SEGUN SEA PROPIADO', sel: false, obl: false },
+                                                { letra: 'D', fase: 'APROBAR', sel: false, obl: false }
+                                            ]}
+                                        ];
+                                        // Normaliza texto para matching robusto: mayus, sin acentos, solo alfanumerico + espacios.
+                                        window._opNorm = function (s) {
+                                            var t = ('' + (s || '')).toUpperCase();
+                                            var map = { 'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ü': 'U', 'Ñ': 'N' };
+                                            t = t.replace(/[ÁÉÍÓÚÜÑ]/g, function (ch) { return map[ch] || ch; });
+                                            return t.replace(/[^A-Z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+                                        };
+                                        // Matchea el texto de una opcion real (letra + fase) a un item del template por contencion de
+                                        // la fase normalizada. Orden 7.3.2->7.3.9 evita falsos positivos de fases cortas (REVISAR, etc.).
+                                        window.opMatchTemplate = function (optionText) {
+                                            var norm = window._opNorm(optionText);
+                                            if (!norm) return null;
+                                            for (var c = 0; c < window.OP_TEMPLATE_ISO_13485.length; c++) {
+                                                var cl = window.OP_TEMPLATE_ISO_13485[c];
+                                                for (var i = 0; i < cl.items.length; i++) {
+                                                    var it = cl.items[i];
+                                                    var fnorm = window._opNorm(it.fase);
+                                                    if (fnorm && norm.indexOf(fnorm) !== -1) {
+                                                        return { etapa: cl.etapa, tituloEtapa: cl.titulo, letra: it.letra, fase: it.fase, sel: it.sel, obl: it.obl };
+                                                    }
+                                                }
+                                            }
+                                            return null;
+                                        };
+                                        // El check padre (clausula) togglea todos sus hijos (incluidos los obligatorios, para permitir
+                                        // excluir la clausula entera). Cada hijo sincroniza el estado visual del padre.
+                                        window.opToggleClauseChildren = function (clauseChk) {
+                                            var body = document.getElementById(clauseChk.getAttribute('data-body'));
+                                            if (!body) return;
+                                            body.querySelectorAll('.op-wiz-sub-chk').forEach(function (ch) { ch.checked = clauseChk.checked; });
+                                            body.style.opacity = clauseChk.checked ? '1' : '0.5';
+                                        };
+                                        window.opSyncClauseParent = function (childChk) {
+                                            var body = childChk.closest ? childChk.closest('.op-wiz-clause-body') : null;
+                                            if (!body) return;
+                                            var parent = document.getElementById(body.getAttribute('data-parent'));
+                                            if (!parent) return;
+                                            var all = body.querySelectorAll('.op-wiz-sub-chk');
+                                            var anyChecked = false;
+                                            all.forEach(function (ch) { if (ch.checked) anyChecked = true; });
+                                            parent.checked = anyChecked;
+                                            body.style.opacity = anyChecked ? '1' : '0.5';
+                                        };
+
                                         // Smart Card row para el Paso 2 del wizard (reutilizada por render inicial y "Agregar Actividad").
                                         // Conserva las clases que lee opExecuteBatchSubmit: .op-batch-title / .op-batch-doc / .op-batch-desc.
                                         function opWizRowHtml(titleVal) {
@@ -5394,19 +5487,60 @@
                                                 }
                                                 window._opSelectedStagesList = selected;
 
-                                                var html = '<div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Define las actividades y el tipo de documento OnlyOffice que se generará para cada Etapa ISO seleccionada.</div>'
-                                                    + '<div style="max-height: 50vh; overflow-y: auto; padding-right: 4px;">';
-
+                                                // Agrupar las opciones REALES por clausula 7.3.x via el template (match por texto).
+                                                // Cada opcion conserva su value REAL como numeral. Las no matcheadas -> grupo "Otros".
+                                                var groups = {}, order = [];
+                                                window.OP_TEMPLATE_ISO_13485.forEach(function (cl) { groups[cl.etapa] = { etapa: cl.etapa, titulo: cl.titulo, rows: [] }; order.push(cl.etapa); });
+                                                groups['OTROS'] = { etapa: 'OTROS', titulo: 'OTRAS SUB-ETAPAS (sin plantilla)', rows: [] };
                                                 selected.forEach(function (stg) {
-                                                    html += '<div class="op-wizard-stage-card" style="border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:16px; background:#ffffff;">'
-                                                        + '  <div class="op-wiz-stage-head" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px;">'
-                                                        + '    <div class="font-weight-bold text-dark" style="font-size:13px;"><i class="fas fa-folder text-warning mr-2" style="color:#f59e0b;"></i> ' + stg.text + '</div>'
-                                                        + '    <button type="button" class="btn btn-sm btn-outline-secondary font-weight-bold" onclick="opAddRowToStageTable(this)" style="white-space:nowrap;"><i class="fas fa-plus mr-1"></i> Agregar Actividad</button>'
+                                                    var m = opMatchTemplate(stg.text);
+                                                    if (m) groups[m.etapa].rows.push({ value: stg.value, text: stg.text, tpl: m });
+                                                    else groups['OTROS'].rows.push({ value: stg.value, text: stg.text, tpl: null });
+                                                });
+
+                                                var html = '<div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Plantilla ISO 13485 pre-cargada. Marca/desmarca sub-etapas y ajusta la observación técnica antes de generar. El numeral de cada actividad es el REAL del proyecto (nunca inventado).</div>'
+                                                    + '<div style="max-height: 55vh; overflow-y: auto; padding-right: 4px;">';
+
+                                                var allOrder = order.concat(['OTROS']);
+                                                var rowSeq = 0;
+                                                allOrder.forEach(function (etapaKey) {
+                                                    var g = groups[etapaKey];
+                                                    if (!g || g.rows.length === 0) return;
+                                                    var safe = etapaKey.replace(/[^a-z0-9]/gi, '');
+                                                    var bodyId = 'op-wiz-clause-body-' + safe;
+                                                    var parentId = 'op-wiz-clause-chk-' + safe;
+                                                    var anySel = g.rows.some(function (r) { return r.tpl ? r.tpl.sel : true; });
+                                                    html += '<div class="op-wiz-clause" style="border:1px solid #e2e8f0; border-radius:10px; margin-bottom:14px; background:#ffffff; overflow:hidden;">'
+                                                        + '  <div class="op-wiz-clause-head" style="background:#f1f5f9; padding:10px 14px; display:flex; align-items:center; gap:8px;">'
+                                                        + '    <input type="checkbox" id="' + parentId + '" data-body="' + bodyId + '" ' + (anySel ? 'checked' : '') + ' onchange="opToggleClauseChildren(this)">'
+                                                        + '    <label for="' + parentId + '" class="m-0 font-weight-bold text-dark" style="font-size:13px; cursor:pointer;"><i class="fas fa-folder text-warning mr-2" style="color:#f59e0b;"></i> ' + g.etapa + (g.etapa === 'OTROS' ? '' : ' — ') + g.titulo + '</label>'
                                                         + '  </div>'
-                                                        + '  <div class="op-wiz-stage-table" data-stage="' + stg.value + '" style="display:flex; flex-direction:column; gap:12px;">'
-                                                        + opWizRowHtml('Documento Técnico de ' + stg.text.substring(0, 25))
-                                                        + '  </div>'
-                                                        + '</div>';
+                                                        + '  <div class="op-wiz-clause-body" id="' + bodyId + '" data-parent="' + parentId + '" style="padding:10px 14px; display:flex; flex-direction:column; gap:10px;' + (anySel ? '' : ' opacity:0.5;') + '">';
+                                                    g.rows.forEach(function (r) {
+                                                        rowSeq++;
+                                                        var sel = r.tpl ? r.tpl.sel : true;
+                                                        var obl = r.tpl ? r.tpl.obl : false;
+                                                        var faseTxt = r.text; // texto real de la opcion (letra + fase)
+                                                        var descDefault = r.tpl ? r.tpl.fase : r.text; // observacion pre-rellenada (texto oficial del catalogo)
+                                                        var chkId = 'op-wiz-sub-' + rowSeq;
+                                                        var oblAttr = obl ? ' disabled' : '';
+                                                        var oblTip = obl ? ' title="Requerido por ISO 13485 (evidencia de V&amp;V). Para excluirlo, desmarca la cláusula completa."' : '';
+                                                        var oblBadge = obl ? ' <span class="badge badge-danger" style="font-size:9px;">Obligatorio</span>' : '';
+                                                        html += '<div class="op-wiz-act-row" data-stage="' + r.value + '" style="border:1px solid #eef2f7; border-radius:8px; padding:10px; background:#fbfdff;">'
+                                                            + '  <div style="display:flex; align-items:flex-start; gap:8px;">'
+                                                            + '    <input type="checkbox" class="op-wiz-sub-chk" id="' + chkId + '" ' + (sel ? 'checked' : '') + oblAttr + oblTip + ' onchange="opSyncClauseParent(this)" style="margin-top:3px;">'
+                                                            + '    <div style="flex:1; min-width:0;">'
+                                                            + '      <label for="' + chkId + '" class="m-0 font-weight-bold text-dark" style="font-size:12px; cursor:pointer;">' + faseTxt + oblBadge + '</label>'
+                                                            + '      <div style="display:grid; grid-template-columns:1fr 210px; gap:8px; margin-top:8px;">'
+                                                            + '        <textarea class="form-control form-control-sm op-batch-desc" rows="2" spellcheck="true" lang="es" placeholder="Observación técnica (editable)" style="width:100%; box-sizing:border-box; font-size:12px; resize:vertical;">' + (descDefault || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>'
+                                                            + '        <select class="form-control form-control-sm op-batch-doc" style="width:100%; box-sizing:border-box; align-self:start;"><option value="none" selected>Ninguno (Solo Texto / Observación)</option><option value="docx">Documento Word (.docx)</option><option value="xlsx">Hoja de Cálculo Excel (.xlsx)</option><option value="pptx">Presentación PowerPoint (.pptx)</option></select>'
+                                                            + '      </div>'
+                                                            + '      <input type="hidden" class="op-batch-title" value="' + faseTxt.replace(/"/g, '&quot;') + '">'
+                                                            + '    </div>'
+                                                            + '  </div>'
+                                                            + '</div>';
+                                                    });
+                                                    html += '  </div></div>';
                                                 });
 
                                                 html += '</div>';
@@ -5414,7 +5548,7 @@
 
                                                 footerBtns.innerHTML = ''
                                                     + '<button type="button" class="btn btn-outline-secondary btn-sm font-weight-bold mr-2" onclick="opRenderWizardStep(1)"><i class="fas fa-arrow-left mr-1"></i> Volver a Etapas</button>'
-                                                    + '<button type="button" class="btn btn-success btn-sm font-weight-bold" onclick="opExecuteBatchSubmit()"><i class="fas fa-bolt mr-1"></i> ⚡ Generar y Finalizar Memoria en Lote</button>';
+                                                    + '<button type="button" class="btn btn-success btn-sm font-weight-bold" onclick="opExecuteBatchSubmit()"><i class="fas fa-bolt mr-1"></i> ⚡ Generar Actividades en Lote</button>';
                                             }
                                         }
 
@@ -5446,29 +5580,28 @@
                                             var btnSubmit = document.querySelector('#op-wiz-footer-btns .btn-success');
                                             if (btnSubmit && btnSubmit.disabled) return;
 
-                                            var itemsToCreate = []; // [{ stage, title, docType }]
-                                            var stageTables = document.querySelectorAll('.op-wiz-stage-table');
-
-                                            stageTables.forEach(function (tbl) {
-                                                var stgVal = tbl.getAttribute('data-stage');
-                                                var rows = tbl.querySelectorAll('.op-wiz-act-row');
-                                                rows.forEach(function (r) {
-                                                    var titleInput = r.querySelector('.op-batch-title');
-                                                    var docSelect = r.querySelector('.op-batch-doc');
-                                                    var descInput = r.querySelector('.op-batch-desc');
-                                                    if (titleInput && titleInput.value.trim()) {
-                                                        itemsToCreate.push({
-                                                            stage: stgVal,
-                                                            title: titleInput.value.trim(),
-                                                            docType: docSelect ? docSelect.value : 'docx',
-                                                            desc: descInput ? descInput.value.trim() : ''
-                                                        });
-                                                    }
+                                            var itemsToCreate = []; // [{ stage, title, docType, desc }]
+                                            // Recorrer cada sub-etapa (fila) del arbol; incluir solo si su checkbox esta MARCADO.
+                                            // El numeral es el value REAL del select (data-stage de la fila), nunca inventado.
+                                            var actRows = document.querySelectorAll('.op-wiz-act-row');
+                                            actRows.forEach(function (r) {
+                                                var chk = r.querySelector('.op-wiz-sub-chk');
+                                                if (!chk || !chk.checked) return;
+                                                var stgVal = r.getAttribute('data-stage');
+                                                if (!stgVal) return;
+                                                var titleInput = r.querySelector('.op-batch-title');
+                                                var docSelect = r.querySelector('.op-batch-doc');
+                                                var descInput = r.querySelector('.op-batch-desc');
+                                                itemsToCreate.push({
+                                                    stage: stgVal,
+                                                    title: (titleInput && titleInput.value.trim()) || 'Actividad DHF',
+                                                    docType: docSelect ? docSelect.value : 'none',
+                                                    desc: descInput ? descInput.value.trim() : ''
                                                 });
                                             });
 
                                             if (itemsToCreate.length === 0) {
-                                                alert('Por favor ingresa al menos una actividad válida para generar.');
+                                                alert('Marca al menos una sub-etapa para generar sus actividades.');
                                                 return;
                                             }
 
