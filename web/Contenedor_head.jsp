@@ -2342,6 +2342,24 @@
                                     ov.addEventListener('click', function (e) { if (e.target === ov) opCloseFileViewer(); });
                                     document.body.appendChild(ov);
                                 };
+                                // P4: Gestor de Archivos completo (OfficePlatform.jsp) en un modal overlay con iframe,
+                                // sin salir del contexto de la memoria. Cierra por boton x o click en el overlay.
+                                window.opOpenFileManagerModal = function () {
+                                    var old = document.getElementById('op-fm-fullmodal'); if (old) old.remove();
+                                    var ov = document.createElement('div');
+                                    ov.id = 'op-fm-fullmodal';
+                                    ov.style.cssText = 'position:fixed; inset:0; z-index:100000; background:rgba(15,23,42,0.55); display:flex; align-items:center; justify-content:center; padding:20px;';
+                                    ov.innerHTML = '<div style="background:#fff; width:100%; max-width:1240px; height:90vh; border-radius:12px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+                                        + '  <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid #e2e8f0; background:#f8fafc;">'
+                                        + '    <i class="fas fa-folder-open text-warning"></i>'
+                                        + '    <span style="font-weight:700; font-size:14px; color:#1e293b; flex:1;">Gestor de Archivos — Office Platform</span>'
+                                        + '    <button type="button" class="btn btn-sm btn-light" onclick="var m=document.getElementById(\'op-fm-fullmodal\'); if(m) m.remove();" style="font-weight:700; line-height:1;">&times;</button>'
+                                        + '  </div>'
+                                        + '  <iframe src="OfficePlatform.jsp" style="flex:1; width:100%; border:none;" title="Gestor de Archivos"></iframe>'
+                                        + '</div>';
+                                    ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+                                    document.body.appendChild(ov);
+                                };
                                 window.opOpenOOFile = function (fileId, title) {
                                     var name = (title || '').toLowerCase();
                                     var isOO = /\.(docx?|xlsx?|pptx?|odt|ods|odp)$/.test(name);
@@ -2962,7 +2980,8 @@
                                             toolbar.className = 'op-view-toolbar mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2';
                                             toolbar.style.cssText = 'background: #ffffff !important; padding: 12px 20px !important; border-radius: 10px !important; border: 1px solid var(--op-border-strong) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; margin-bottom: 24px !important; width: 100% !important; display: flex !important; justify-content: space-between !important; align-items: center !important; position: relative !important; z-index: 10 !important;';
 
-                                            var toolbarActionsHtml = '<button type="button" class="btn btn-sm btn-outline-danger font-weight-bold mr-1" id="op-btn-export-pdf" onclick="opExportFullDocPDF();" title="Descargar Memoria de Diseño completa en PDF"><i class="fas fa-file-pdf mr-1"></i> Descargar Memoria (PDF)</button>';
+                                            var toolbarActionsHtml = '<button type="button" class="btn btn-sm btn-outline-info font-weight-bold mr-1" id="op-btn-file-manager" onclick="opOpenFileManagerModal()" title="Abrir el Gestor de Archivos completo (Office Platform)"><i class="fas fa-folder-open mr-1"></i> Gestor de Archivos</button>'
+                                                + '<button type="button" class="btn btn-sm btn-outline-danger font-weight-bold mr-1" id="op-btn-export-pdf" onclick="opExportFullDocPDF();" title="Descargar Memoria de Diseño completa en PDF"><i class="fas fa-file-pdf mr-1"></i> Descargar Memoria (PDF)</button>';
                                             if (isEditable) {
                                                 toolbarActionsHtml += '  <button type="button" class="op-action-tertiary" id="op-btn-batch-modal" onclick="if(typeof opShowBatchCreationModal===\'function\')opShowBatchCreationModal();"><i class="fas fa-bolt mr-1"></i> Cargue masivo</button>'
                                                     + '  <button type="button" class="op-action-primary" id="op-btn-save-all" onclick="alert(\'Memoria guardada correctamente.\');"><i class="fas fa-save mr-1"></i> Guardar memoria</button>';
@@ -5514,6 +5533,26 @@
                                             body.style.opacity = anyChecked ? '1' : '0.5';
                                         };
 
+                                        // P1: detecta que sub-etapas (fases) YA tienen actividades en el proyecto actual, leyendo el
+                                        // DOM real de la memoria (Tag_memoria): cada fase es una <table> con <thead th> = "letra fase"
+                                        // y <tbody id="mycard-collapse-N"> con las actividades. Si el tbody contiene "AUTOR" -> hay
+                                        // actividades -> esa fase esta cargada. Devuelve los textos de fase normalizados (para matchear
+                                        // contra las opciones del select por _opNorm).
+                                        window.opDetectLoadedFases = function () {
+                                            var loaded = [];
+                                            try {
+                                                var tbs = document.querySelectorAll('tbody[id^="mycard-collapse-"]');
+                                                for (var i = 0; i < tbs.length; i++) {
+                                                    var tb = tbs[i];
+                                                    if (!/AUTOR/i.test(tb.textContent || '')) continue;
+                                                    var tbl = tb.closest ? tb.closest('table') : null;
+                                                    var th = tbl ? tbl.querySelector('thead th') : null;
+                                                    if (th) { var n = window._opNorm(th.textContent); if (n && loaded.indexOf(n) === -1) loaded.push(n); }
+                                                }
+                                            } catch (e) { }
+                                            return loaded;
+                                        };
+
                                         // Smart Card row para el Paso 2 del wizard (reutilizada por render inicial y "Agregar Actividad").
                                         // Conserva las clases que lee opExecuteBatchSubmit: .op-batch-title / .op-batch-doc / .op-batch-desc.
                                         function opWizRowHtml(titleVal) {
@@ -5555,19 +5594,31 @@
                                             }
 
                                             if (step === 1) {
-                                                var html = '<div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Selecciona las Etapas ISO 13485 sobre las que deseas crear un lote de actividades.</div>'
-                                                    + '<div class="d-flex align-items-center justify-content-between mb-3">'
-                                                    + '  <label class="font-weight-bold m-0" style="font-size:13px;">Etapas ISO Disponibles en este Proyecto:</label>'
-                                                    + '  <button type="button" class="btn btn-sm btn-link text-primary font-weight-bold" onclick="opToggleSelectAllStages(true)"><i class="fas fa-check-square mr-1"></i> Seleccionar Todas</button>'
+                                                // P1: fases que ya tienen actividades -> deshabilitadas (no re-crear).
+                                                var loaded = (typeof opDetectLoadedFases === 'function') ? opDetectLoadedFases() : [];
+                                                var availableCount = 0;
+                                                availableStages.forEach(function (stg) { if (loaded.indexOf(window._opNorm(stg.text)) === -1) availableCount++; });
+
+                                                var html = '<div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Seleccioná las Etapas ISO 13485 <b>pendientes por inicializar</b>. Las que ya tienen actividades aparecen deshabilitadas.</div>';
+                                                if (availableCount === 0) {
+                                                    html += '<div class="alert alert-success py-2" style="font-size:12px;"><i class="fas fa-check-circle mr-1"></i> Esta memoria ya tiene todas las etapas ISO cargadas. No hay etapas pendientes por inicializar.</div>';
+                                                }
+                                                html += '<div class="d-flex align-items-center justify-content-between mb-3">'
+                                                    + '  <label class="font-weight-bold m-0" style="font-size:13px;">Etapas ISO de este Proyecto:</label>'
+                                                    + '  <button type="button" class="btn btn-sm btn-link text-primary font-weight-bold" onclick="opToggleSelectAllStages(true)"><i class="fas fa-check-square mr-1"></i> Seleccionar pendientes</button>'
                                                     + '</div>'
                                                     + '<div class="row" id="op-wiz-stages-list">';
 
                                                 availableStages.forEach(function (stg, idx) {
-                                                    var checked = (window._opSelectedStages.indexOf(stg.value) !== -1 || window._opSelectedStages.length === 0) ? 'checked' : '';
+                                                    var isLoaded = loaded.indexOf(window._opNorm(stg.text)) !== -1;
+                                                    var checked = (!isLoaded && (window._opSelectedStages.indexOf(stg.value) !== -1 || window._opSelectedStages.length === 0)) ? 'checked' : '';
+                                                    var dis = isLoaded ? ' disabled' : '';
+                                                    var wrapStyle = isLoaded ? ' style="opacity:0.5;"' : '';
+                                                    var badge = isLoaded ? ' <span class="text-muted font-weight-normal" style="font-size:10.5px;">(Ya cargada &#10003;)</span>' : '';
                                                     html += '<div class="col-md-6 mb-2">'
-                                                        + '  <div class="p-2 border rounded bg-white d-flex align-items-center gap-2">'
-                                                        + '    <input type="checkbox" class="op-wiz-stage-chk" value="' + stg.value + '" data-text="' + stg.text.replace(/"/g, '&quot;') + '" id="chk_stg_' + idx + '" ' + checked + '>'
-                                                        + '    <label for="chk_stg_' + idx + '" class="m-0 font-weight-bold text-dark" style="font-size:12px; cursor:pointer;">' + stg.text + '</label>'
+                                                        + '  <div class="p-2 border rounded bg-white d-flex align-items-center gap-2"' + wrapStyle + '>'
+                                                        + '    <input type="checkbox" class="op-wiz-stage-chk" value="' + stg.value + '" data-text="' + stg.text.replace(/"/g, '&quot;') + '" id="chk_stg_' + idx + '" ' + checked + dis + '>'
+                                                        + '    <label for="chk_stg_' + idx + '" class="m-0 font-weight-bold text-dark" style="font-size:12px; cursor:' + (isLoaded ? 'not-allowed' : 'pointer') + ';">' + stg.text + badge + '</label>'
                                                         + '  </div>'
                                                         + '</div>';
                                                 });
@@ -5575,7 +5626,8 @@
                                                 html += '</div>';
                                                 container.innerHTML = html;
 
-                                                footerBtns.innerHTML = '<button type="button" class="btn btn-primary btn-sm font-weight-bold" onclick="opBatchNextToStep2()"><i class="fas fa-arrow-right mr-1"></i> Siguiente: Configurar Actividades</button>';
+                                                var nextDis = (availableCount === 0) ? ' disabled' : '';
+                                                footerBtns.innerHTML = '<button type="button" class="btn btn-primary btn-sm font-weight-bold" onclick="opBatchNextToStep2()"' + nextDis + '><i class="fas fa-arrow-right mr-1"></i> Siguiente: Configurar Actividades</button>';
                                             } else if (step === 2) {
                                                 var chks = document.querySelectorAll('.op-wiz-stage-chk:checked');
                                                 var selected = [];
@@ -5663,7 +5715,7 @@
 
                                         window.opToggleSelectAllStages = function (select) {
                                             var chks = document.querySelectorAll('.op-wiz-stage-chk');
-                                            chks.forEach(function (c) { c.checked = select; });
+                                            chks.forEach(function (c) { if (!c.disabled) c.checked = select; });
                                         };
 
                                         window.opBatchNextToStep2 = function () {
