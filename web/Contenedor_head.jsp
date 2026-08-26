@@ -5327,6 +5327,7 @@
                                         // sel = check por defecto; obl = obligatorio (checkbox deshabilitado dentro de su clausula).
                                         window.OP_TEMPLATE_ISO_13485 = [
                                             { etapa: '7.3.2', titulo: 'PLANIFICACIÓN DEL DISEÑO Y DESARROLLO', items: [
+                                                { letra: '', fase: 'ESTABLECIMIENTO DE LOS OBJETIVOS DEL DISEÑO', sel: true, obl: false },
                                                 { letra: 'A', fase: 'LAS ETAPAS DE DISEÑO Y DESARROLLO', sel: true, obl: false },
                                                 { letra: 'B', fase: 'LAS REVISIONES NECESARIAS EN CADA ETAPA DE DISEÑO Y DESARROLLO', sel: true, obl: false },
                                                 { letra: 'C', fase: 'LAS ACTIVIDADES DE VERIFICACIÓN, VALIDACIÓN Y TRANSFERENCIA DE DISEÑO QUE SON APROPIADAS EN CADA ETAPADE DISEÑO Y DESARROLLO', sel: true, obl: false },
