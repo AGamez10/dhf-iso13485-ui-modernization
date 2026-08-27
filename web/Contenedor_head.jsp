@@ -3288,7 +3288,14 @@
                                                         var trs = tbl.querySelectorAll('tr');
                                                         var author = 'No especificado';
                                                         var date = 'No especificada';
-                                                        var estado = 'EN PROCESO';
+                                                        // Estado a NIVEL DE TABLA (robusto): el marcador real de Tag_memoria es
+                                                        // <b class="text-success">FINALIZADO</b>, que segun la vista/branch cae en una fila
+                                                        // distinta de la de AUTOR. Buscarlo solo en la fila de AUTOR fallaba -> badge EN PROCESO
+                                                        // para actividades que en BD estan en estado 3. Se busca en todo el tbl.
+                                                        var _fbTbl = tbl.querySelector('b.text-success');
+                                                        var _fwTbl = tbl.querySelector('b.text-warning');
+                                                        var estado = (_fbTbl && /FINALIZAD/i.test(_fbTbl.textContent || '')) ? 'FINALIZADO'
+                                                            : ((_fwTbl && /REVISION/i.test(_fwTbl.textContent || '')) ? 'EN REVISION' : 'EN PROCESO');
                                                         var desc = act.title || ('Actividad ' + (aIdx + 1));
                                                         var response = '';
 
@@ -3312,8 +3319,7 @@
                                                                     if (cD) date = cD.textContent.replace(/FECHA\s*:?/i, '').trim();
                                                                 }
 
-                                                                if (/FINALIZADO/i.test(rHtml) || row.querySelector('.text-success')) estado = 'FINALIZADO';
-                                                                else if (/PROCESO/i.test(rHtml)) estado = 'EN PROCESO';
+                                                                // (estado ya se calculo a nivel de tabla arriba; no se toca aqui)
                                                             } else if (/Actividad\s*\d*\s*:/i.test(rText)) {
                                                                 var mDesc = rHtml.match(/Actividad\s*\d*\s*:\s*<\/b>\s*([\s\S]+)/i);
                                                                 if (mDesc) desc = mDesc[1].replace(/<\/td>[\s\S]*/i, '').trim();
