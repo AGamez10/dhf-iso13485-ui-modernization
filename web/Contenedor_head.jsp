@@ -3207,6 +3207,15 @@
                                                 // quedar "EN PROCESO" (decision de negocio autorizada). Se usa como fallback cuando
                                                 // Tag_memoria omite el marcador <b class="text-success"> de una actividad sin respuesta.
                                                 var _opPreviewMemFin = (typeof window.opDetectProjectClosed === 'function') ? !!window.opDetectProjectClosed() : false;
+                                                // B1: saneador de texto legacy. Convierte saltos HTML a \n, elimina TODO tag
+                                                // (incluidos tags rotos/sin cerrar que corrompian los contenedores del preview),
+                                                // decodifica entidades y normaliza espacios. Devuelve texto plano seguro.
+                                                function opSanitizeLegacy(s) {
+                                                    if (s == null) return '';
+                                                    var t = ('' + s).replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|tr|li|h[1-6])\s*>/gi, '\n').replace(/<[^>]*>/g, '');
+                                                    try { var d = document.createElement('textarea'); d.innerHTML = t; t = d.value; } catch (e) { }
+                                                    return t.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+                                                }
                                                 var existingPreview = document.getElementById('op-continuous-preview-container');
                                                 if (existingPreview) existingPreview.remove();
 
@@ -3364,17 +3373,22 @@
                                                         var _dateDisp = _dateMissing ? '<span class="text-muted">s/f</span>' : ('<b>' + date + '</b>');
                                                         var _legacyBadge = _isLegacy ? ' <span class="badge badge-light border text-muted" style="font-size:9px; font-weight:600;" title="Registro anterior a la captura obligatoria de autoria/fecha; se preserva intacto en BD"><i class="fas fa-archive mr-1"></i>Legacy</span>' : '';
 
-                                                        actHtml += '<div class="op-preview-activity-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:18px 24px; margin-bottom:20px; page-break-inside:avoid;">'
-                                                            + '  <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="font-size:12px; color:#475569; font-weight:600;">'
-                                                            + '    <span><span class="badge badge-primary mr-2" style="font-size:10px;">ACTIVIDAD ' + (aIdx + 1) + '</span> Autor: ' + _authorDisp + _legacyBadge + '</span>'
-                                                            + '    <span>Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estado === 'FINALIZADO' ? 'background:#16a34a; color:#fff; font-weight:700;' : '') + '">' + (estado === 'FINALIZADO' ? 'TERMINADA' : estado) + '</span></span>'
+                                                        // B1: sanear desc/response (HTML legacy roto) antes de inyectar. desc -> texto plano
+                                                        // escapado; response -> saneado y luego formateado (oo:/URLs) para preservar los tags de anexos.
+                                                        var _descSafe = opSanitizeLegacy(desc).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                                        var _respSafe = opFormatHyperlinksAndTags(opSanitizeLegacy(response));
+                                                        var _wrapCss = 'width:100%; max-width:100%; box-sizing:border-box; overflow-wrap:break-word; word-break:break-word; white-space:pre-wrap;';
+                                                        actHtml += '<div class="op-preview-activity-card" style="width:100% !important; max-width:100% !important; box-sizing:border-box !important; display:block !important; float:none !important; clear:both !important; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:18px 24px; margin-bottom:16px !important; page-break-inside:avoid !important; break-inside:avoid !important; overflow:hidden;">'
+                                                            + '  <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="display:flex !important; justify-content:space-between !important; align-items:center !important; flex-wrap:wrap !important; gap:8px !important; width:100% !important; font-size:12px; color:#475569; font-weight:600;">'
+                                                            + '    <span style="min-width:0; overflow-wrap:break-word; word-break:break-word;"><span class="badge badge-primary mr-2" style="font-size:10px;">ACTIVIDAD ' + (aIdx + 1) + '</span> Autor: ' + _authorDisp + _legacyBadge + '</span>'
+                                                            + '    <span style="white-space:nowrap; flex-shrink:0;">Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estado === 'FINALIZADO' ? 'background:#16a34a; color:#fff; font-weight:700;' : '') + '">' + (estado === 'FINALIZADO' ? 'TERMINADA' : estado) + '</span></span>'
                                                             + '  </div>'
-                                                            + '  <div class="font-weight-bold text-dark mb-2" style="font-size:13.5px; line-height:1.55; color:#0f172a;">' + desc + '</div>'
+                                                            + '  <div class="font-weight-bold text-dark mb-2" style="' + _wrapCss + ' font-size:13.5px; line-height:1.55; color:#0f172a;">' + _descSafe + '</div>'
                                                             // Tarea 1: solo mostrar el recuadro de avance si HAY respuesta real; nunca la caja vacía.
                                                             + (hasResponse
-                                                                ? ('  <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #0284c7; border-radius:6px; padding:14px 18px;">'
+                                                                ? ('  <div style="' + _wrapCss + ' background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #0284c7; border-radius:6px; padding:14px 18px;">'
                                                                     + '    <div class="font-weight-bold mb-1" style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.3px;"><i class="fas fa-reply text-primary mr-1"></i> Registro de Avance / Observaciones</div>'
-                                                                    + '    <div style="font-size:13.5px; color:#1e293b; line-height:1.6;">' + opFormatHyperlinksAndTags(response) + '</div>'
+                                                                    + '    <div style="' + _wrapCss + ' font-size:13.5px; color:#1e293b; line-height:1.6;">' + _respSafe + '</div>'
                                                                     + '  </div>')
                                                                 : '')
                                                             + '</div>';
@@ -4047,10 +4061,17 @@
 
                                                     window._opResponsesCache = window._opResponsesCache || {};
                                                     var cachedVal = opReadDraft('resp', cacheKey);
-                                                    if (cachedVal !== undefined && cachedVal.trim() !== '') {
+                                                    // El borrador en sesion es autoritativo sobre el parse estatico del servidor,
+                                                    // INCLUSO si esta vacio: al desvincular el ultimo anexo (B3) la respuesta queda ''
+                                                    // y debe ganar, de lo contrario el parse del server reinyecta el tag oo: y la
+                                                    // tarjeta de anexo reaparece ("no hace nada"). opAutoSaveResponse nunca guarda ''
+                                                    // (self-guard), asi que un borrador 'resp' vacio solo existe por una desvinculacion.
+                                                    if (cachedVal !== undefined && cachedVal !== null) {
                                                         existingResponse = cachedVal;
-                                                        statusHtml = '<div class="d-block mb-1"><span class="op-status-atendida"><i class="fas fa-check-circle mr-1"></i> Atendida</span></div>'
-                                                            + '<div class="p-3 bg-light rounded text-dark font-weight-normal border-left-success" style="font-size:12px; border-left:4px solid #10b981; line-height:1.5; margin-top:6px; box-shadow:inset 0 1px 3px rgba(0,0,0,0.02);">' + opFormatHyperlinksAndTags(existingResponse) + '</div>';
+                                                        if (cachedVal.trim() !== '') {
+                                                            statusHtml = '<div class="d-block mb-1"><span class="op-status-atendida"><i class="fas fa-check-circle mr-1"></i> Atendida</span></div>'
+                                                                + '<div class="p-3 bg-light rounded text-dark font-weight-normal border-left-success" style="font-size:12px; border-left:4px solid #10b981; line-height:1.5; margin-top:6px; box-shadow:inset 0 1px 3px rgba(0,0,0,0.02);">' + opFormatHyperlinksAndTags(existingResponse) + '</div>';
+                                                        }
                                                     }
 
                                                     // Fallback de estado si no se definió en las filas
@@ -4084,7 +4105,7 @@
                                                         + '  <div class="op-activity-desc mb-3 p-3 rounded" style="font-size:13px; line-height:1.6; color:#1e293b; font-weight:500; background:#f8fafc; border:1px solid #f1f5f9;">'
                                                         + '    <div class="d-flex align-items-center justify-content-between mb-1"><span class="badge badge-info" style="font-size:9px;">ACTIVIDAD ' + (subIndex + 1) + '</span>' + (isEditable ? '<span class="text-muted" style="font-size:10px;"><i class="fas fa-pen mr-1"></i>Descripción editable</span>' : '') + '</div>'
                                                         + (isEditable
-                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" data-orig="' + _descOrigAttr + '" oninput="opDescInput(\'' + cacheKey + '\', this.value)" onchange="opSaveDraft(\'desc\', \'' + cacheKey + '\', this.value)" onblur="opSaveDraft(\'desc\', \'' + cacheKey + '\', this.value)" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + _descBody + '</textarea>'
+                                                            ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" autocorrect="on" autocapitalize="sentences" data-orig="' + _descOrigAttr + '" oninput="opDescInput(\'' + cacheKey + '\', this.value)" onchange="opSaveDraft(\'desc\', \'' + cacheKey + '\', this.value)" onblur="opSaveDraft(\'desc\', \'' + cacheKey + '\', this.value)" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + _descBody + '</textarea>'
                                                             : '    <div>' + descText + '</div>')
                                                         + (isEditable ? ('    <div class="op-doc-toolbar d-flex align-items-center flex-wrap mt-2" style="gap:6px;">'
                                                             + '      <span class="text-muted mr-1" style="font-size:10.5px;"><i class="fas fa-paperclip mr-1"></i>Anexar a la actividad:</span>'
@@ -4268,9 +4289,18 @@
                                                 presentation: 'http://localhost:8080/api/files/new/presentation'
                                             };
 
+                                            // B4: crear el documento con el BEARER TOKEN del usuario (data-token del widget), no solo
+                                            // con la API-key. Con X-Api-Key el archivo queda con dueno = api-key y NO aparece en "Mis
+                                            // archivos" del usuario. Con Bearer el archivo se registra bajo su userId (igual que el
+                                            // widget y que opUploadLocalFileForActivity). Fallback a X-Api-Key si no hay token.
+                                            var _tok = (document.querySelector('script[data-token]') || {}).getAttribute ? (document.querySelector('script[data-token]').getAttribute('data-token') || '') : '';
+                                            var _newHeaders = { 'Content-Type': 'application/json' };
+                                            if (_tok) { _newHeaders['Authorization'] = 'Bearer ' + _tok; }
+                                            else { _newHeaders['X-Api-Key'] = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0'; }
+
                                             fetch(urlMap[type] || urlMap.document, {
                                                 method: 'POST',
-                                                headers: { 'Content-Type': 'application/json', 'X-Api-Key': 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0' }
+                                                headers: _newHeaders
                                             })
                                                 .then(function (r) { return r.json(); })
                                                 .then(function (resp) {
@@ -4283,7 +4313,11 @@
                                                             var tag = 'oo:' + fileId + ':' + title;
                                                             ta.value = cur ? (cur + '\n' + tag) : tag;
                                                             opAutoSaveResponse(index, subIndex);
+                                                            // Defensivo: persistir el borrador aunque opAutoSaveResponse hiciera early-return,
+                                                            // para que el anexo no se pierda al navegar entre actividades (mismo patron que upload).
+                                                            opSaveDraft('resp', index + '-' + subIndex, ta.value);
                                                         }
+                                                        if (window.opToast) opToast('<i class="fas fa-cloud-upload-alt mr-1"></i> Documento creado en Gestor Descentralizado y vinculado a la actividad');
                                                         if (typeof OfficePlatform !== 'undefined' && OfficePlatform.openEditor) {
                                                             OfficePlatform.openEditor({ fileId: fileId });
                                                         }
@@ -4577,15 +4611,27 @@
 
                                         // Quitar adjunto de una actividad
                                         window.opRemoveAttachmentFromActivity = function (index, subIndex, fileId) {
+                                            // B3: desvincular anexo. Confirmacion explicita antes de tocar el registro.
+                                            if (!window.confirm('¿Deseas desvincular este documento de la actividad?')) return;
+                                            var cacheKey = index + '-' + subIndex;
                                             var ta = document.getElementById('op-detail-response-text-' + index + '-' + subIndex);
+                                            var newVal = '';
                                             if (ta) {
                                                 var cur = (ta.value || '');
                                                 var regex = new RegExp('oo:' + fileId + ':[^\\r\\n]*', 'g');
-                                                ta.value = cur.replace(regex, '').replace(/\n\s*\n/g, '\n').trim();
-                                                opAutoSaveResponse(index, subIndex);
+                                                newVal = cur.replace(regex, '').replace(/\n\s*\n/g, '\n').trim();
+                                                ta.value = newVal;
                                             }
+                                            // Persistir SIEMPRE el borrador (aun vacio): el lector del panel lo trata como
+                                            // autoritativo sobre el parse del servidor, evitando que el tag oo: reaparezca.
+                                            opSaveDraft('resp', cacheKey, newVal);
+                                            // Si aun queda observacion, empujar a BD (opc=11). Con newVal vacio, opAutoSaveResponse
+                                            // hace no-op por su propio guard: la desvinculacion queda como capa PE (borrador de sesion).
+                                            if (newVal) { opAutoSaveResponse(index, subIndex); }
                                             // Refrescar panel de detalle
                                             opShowActivityDetail(index, window._opActivityElements, document.getElementById('op-detail-panel'), document.getElementById('op-master-panel'));
+                                            // Toast de exito
+                                            if (window.opToast) opToast('<i class="fas fa-unlink mr-1"></i> Documento desvinculado con éxito');
                                         };
 
                                         // Normalizar texto para búsquedas robustas
