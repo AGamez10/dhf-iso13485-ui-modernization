@@ -3298,11 +3298,12 @@
                                                         // para actividades que en BD estan en estado 3. Se busca en todo el tbl.
                                                         var _fbTbl = tbl.querySelector('b.text-success');
                                                         var _fwTbl = tbl.querySelector('b.text-warning');
-                                                        // 1) marcador explicito FINALIZADO -> FINALIZADO. 2) marcador EN REVISION -> EN REVISION.
-                                                        // 3) sin marcador (Tag_memoria lo omite si la actividad no tiene respuesta): si la memoria
-                                                        //    global esta TERMINADA -> FINALIZADO (no puede haber pendientes en una memoria cerrada);
-                                                        //    si no, EN PROCESO.
-                                                        var estado = (_fbTbl && /FINALIZAD/i.test(_fbTbl.textContent || '')) ? 'FINALIZADO'
+                                                        // Estado real GESTIONADO en vivo: si en esta sesion se marco la actividad como estado 3
+                                                        // (opSetActivityState/opMarkActivityFinalized -> _opStateCache), gana sobre el DOM stale.
+                                                        var _cacheFin = (typeof window.opNodeFinalizedFromCache === 'function') && window.opNodeFinalizedFromCache(act.globalIndex);
+                                                        // Prioridad: 1) cache live estado 3  2) marcador explicito FINALIZADO  3) EN REVISION
+                                                        //            4) memoria global TERMINADA (Tag_memoria omite el marcador sin respuesta)  5) EN PROCESO.
+                                                        var estado = (_cacheFin || (_fbTbl && /FINALIZAD/i.test(_fbTbl.textContent || ''))) ? 'FINALIZADO'
                                                             : ((_fwTbl && /REVISION/i.test(_fwTbl.textContent || '')) ? 'EN REVISION'
                                                                 : (_opPreviewMemFin ? 'FINALIZADO' : 'EN PROCESO'));
                                                         var desc = act.title || ('Actividad ' + (aIdx + 1));
@@ -3645,6 +3646,9 @@
                                         // Actualiza EN VIVO (sin reload) el badge del detalle, el punto del arbol y el contador.
                                         function opReflectActivityState(index, idMemoria, estadoNum, subIndex) {
                                             var isFin = (estadoNum === 3 || estadoNum === '3');
+                                            // Mapa por id_memoria_d (clave ESTABLE que sirve tanto al preview como a las metricas,
+                                            // que parsean por cba_num=id_memoria_d). Refleja el estado gestionado en vivo en esta sesion.
+                                            if (idMemoria) { window._opStateByIdMemoria = window._opStateByIdMemoria || {}; window._opStateByIdMemoria[String(idMemoria).trim()] = (estadoNum === 3 || estadoNum === '3') ? 3 : (parseInt(estadoNum, 10) || 1); }
                                             // Badge de cabecera: primero por ID UNICO (robusto, no depende de data-id-memoria);
                                             // fallback a la card por data-id-memoria por compatibilidad.
                                             var badge = (subIndex !== undefined && subIndex !== null)
@@ -5305,23 +5309,21 @@
                                                     var txt = (t.textContent || '');
                                                     if (/AUTOR/i.test(txt)) {
                                                         total++;
-                                                        // FINALIZADA solo si tiene el marcador REAL de estado de Tag_memoria:
-                                                        // <b class="text-success">FINALIZADO/FINALIZADA</b>. La regex laxa /FINALIZAD/
-                                                        // sobre todo el texto marcaba pendientes como finalizadas (respuestas/adjuntos/
-                                                        // fase con esa palabra) -> pendingIds incompleto -> actividades no se finalizaban.
+                                                        // id_memoria_d de la actividad (cba_num / ProyectoEstado / id_memoria). Clave estable.
+                                                        var _ih = (t.innerHTML || '');
+                                                        var oc = _ih.match(/cba_num=(\d+)/i)
+                                                            || _ih.match(/ProyectoEstado\d\(\s*\d+\s*,\s*\d+\s*,\s*(\d+)/)
+                                                            || _ih.match(/(?:id_memoria|id_memoria_d|idm)\s*[:=]\s*['"]?(\d+)/i);
+                                                        var _idm = oc ? oc[1] : null;
+                                                        // Estado gestionado en vivo (por id_memoria_d) GANA sobre el DOM stale del fetch.
+                                                        var _byId = (window._opStateByIdMemoria && _idm) ? window._opStateByIdMemoria[String(_idm)] : undefined;
+                                                        // Marcador REAL de Tag_memoria: <b class="text-success">FINALIZADO/FINALIZADA</b>.
                                                         var _fb = t.querySelector('b.text-success');
-                                                        if (_fb && /FINALIZAD/i.test(_fb.textContent || '')) {
+                                                        var _domFin = _fb && /FINALIZAD/i.test(_fb.textContent || '');
+                                                        if (_byId === 3 || (_byId === undefined && _domFin)) {
                                                             fin++;
                                                         } else {
-                                                            // pendiente -> id_memoria. Fuente AUTORITATIVA presente en TODA actividad
-                                                            // (no permission-gated): el param cba_num de los links historial/modificar/
-                                                            // adjuntos = id_memoria (Tag_memoria: id_memoria = getAttribute("cba_num")).
-                                                            // Fallbacks: radios ProyectoEstado, o id_memoria/id_memoria_d explicitos.
-                                                            var _ih = (t.innerHTML || '');
-                                                            var oc = _ih.match(/cba_num=(\d+)/i)
-                                                                || _ih.match(/ProyectoEstado\d\(\s*\d+\s*,\s*\d+\s*,\s*(\d+)/)
-                                                                || _ih.match(/(?:id_memoria|id_memoria_d|idm)\s*[:=]\s*['"]?(\d+)/i);
-                                                            if (oc && !seen[oc[1]]) { seen[oc[1]] = 1; pendingIds.push(oc[1]); }
+                                                            if (_idm && !seen[_idm]) { seen[_idm] = 1; pendingIds.push(_idm); }
                                                         }
                                                     }
                                                 }
@@ -5440,6 +5442,8 @@
                                                     var r13 = await fetch('Proyecto?opc=13', { method: 'POST', headers: H, credentials: 'same-origin',
                                                         body: body({ ipy: ctx.id, id_memoria: idm, estado: 3, estadoM: ctx.estadoM }) });
                                                     if (!r13 || !(r13.ok || r13.status === 302)) throw new Error('opc=13 ' + (r13 && r13.status));
+                                                    // Reflejar en el mapa live por id_memoria_d -> preview/metricas consistentes aun antes del reload.
+                                                    window._opStateByIdMemoria = window._opStateByIdMemoria || {}; window._opStateByIdMemoria[String(idm)] = 3;
                                                     ok++;
                                                 } catch (e) { fail++; }
                                             }
