@@ -3203,6 +3203,10 @@
 
                                             // Renderizar Previsualizador de Documento Continuo Ejecutivo Limpio
                                             window.opRenderExecutivePreviewDocument = function () {
+                                                // Estado GLOBAL de la memoria: si esta TERMINADO/FINALIZADO, ninguna actividad puede
+                                                // quedar "EN PROCESO" (decision de negocio autorizada). Se usa como fallback cuando
+                                                // Tag_memoria omite el marcador <b class="text-success"> de una actividad sin respuesta.
+                                                var _opPreviewMemFin = (typeof window.opDetectProjectClosed === 'function') ? !!window.opDetectProjectClosed() : false;
                                                 var existingPreview = document.getElementById('op-continuous-preview-container');
                                                 if (existingPreview) existingPreview.remove();
 
@@ -3294,8 +3298,13 @@
                                                         // para actividades que en BD estan en estado 3. Se busca en todo el tbl.
                                                         var _fbTbl = tbl.querySelector('b.text-success');
                                                         var _fwTbl = tbl.querySelector('b.text-warning');
+                                                        // 1) marcador explicito FINALIZADO -> FINALIZADO. 2) marcador EN REVISION -> EN REVISION.
+                                                        // 3) sin marcador (Tag_memoria lo omite si la actividad no tiene respuesta): si la memoria
+                                                        //    global esta TERMINADA -> FINALIZADO (no puede haber pendientes en una memoria cerrada);
+                                                        //    si no, EN PROCESO.
                                                         var estado = (_fbTbl && /FINALIZAD/i.test(_fbTbl.textContent || '')) ? 'FINALIZADO'
-                                                            : ((_fwTbl && /REVISION/i.test(_fwTbl.textContent || '')) ? 'EN REVISION' : 'EN PROCESO');
+                                                            : ((_fwTbl && /REVISION/i.test(_fwTbl.textContent || '')) ? 'EN REVISION'
+                                                                : (_opPreviewMemFin ? 'FINALIZADO' : 'EN PROCESO'));
                                                         var desc = act.title || ('Actividad ' + (aIdx + 1));
                                                         var response = '';
 
