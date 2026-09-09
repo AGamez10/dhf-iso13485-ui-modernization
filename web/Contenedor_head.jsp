@@ -9,7 +9,48 @@
         <link href="Interfaz/Contenido/assets/Alertas/dist/sweetalert.css" rel="stylesheet" type="text/css" />
         <link href="Interfaz/Contenido/assets/Validacion/StyleSheetLiveValidation.css" rel="stylesheet"
             type="text/css" />
+        <script>
+            (function () {
+                try {
+                    var s = window.location.search || '';
+                    var p = window.location.pathname || '';
+                    if (s.indexOf('opc=7') !== -1 || s.indexOf('opc=14') !== -1 || s.indexOf('opc=18') !== -1 ||
+                        p.indexOf('Memorias') !== -1 || p.indexOf('Entradas') !== -1 || p.indexOf('Pruebas') !== -1 ||
+                        s.indexOf('ipy=') !== -1) {
+                        document.documentElement.classList.add('op-dhf-init');
+                    }
+                } catch (e) {}
+            })();
+        </script>
         <style>
+            /* ═══════════════════════════════════════════════════════════════
+               ANTI-FOUC (Flash of Untransformed Content) — DHF / MEMORIAS
+               ═══════════════════════════════════════════════════════════════
+               Mantiene oculto visualmente el contenido legacy (#myTab, #myTab2Content, etc.)
+               mientras el orquestador JS inicializa el Modo Gestión o Previsualizador.
+               Usamos opacity: 0 en lugar de display: none para preservar la geometría y el
+               árbol DOM intacto para que opInitSplitScreen() pueda leer datos sin fallos. */
+            html.op-dhf-init:not(.op-dhf-ready) #Formulario,
+            html.op-dhf-init:not(.op-dhf-ready) #Formulario > .row,
+            html.op-dhf-init:not(.op-dhf-ready) #myTab,
+            html.op-dhf-init:not(.op-dhf-ready) #myTab2Content,
+            html.op-dhf-init:not(.op-dhf-ready) .floating-button,
+            html.op-dhf-init:not(.op-dhf-ready) .objeto {
+                opacity: 0 !important;
+                pointer-events: none !important;
+            }
+
+            /* Transición suave para los nuevos contenedores */
+            #op-view-toolbar,
+            #op-split-workspace,
+            #op-continuous-preview-container {
+                animation: opFadeIn 0.12s ease-in-out;
+            }
+            @keyframes opFadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+
             /* ═══════════════════════════════════════════════════════════════
                ENTERPRISE DESIGN SYSTEM (FASE 7) — 3-COLUMN WORKSPACE CSS
                ═══════════════════════════════════════════════════════════════ */
@@ -337,7 +378,11 @@
 
             /* Container 3-Column Grid Layout */
             .main-content {
-                padding-top: 85px !important;
+                /* FIX layout global: la navbar Stisla es position:absolute height:70px (style.css:1611);
+                   el theme la despejaba con padding-top:122px. Un 85px previo quedaba muy justo y el
+                   titulo de cada vista (Proyectos, Pruebas, etc.) se recortaba bajo la navbar. 100px
+                   despeja los 70px + 30px de aire, sin reintroducir el hueco grande de 122px. */
+                padding-top: 100px !important;
                 padding-left: 265px !important;
                 padding-right: 20px !important;
                 position: relative !important;
@@ -1076,6 +1121,49 @@
                 flex-shrink: 0;
             }
 
+            /* SPRINT 10: resalte temporal de la tarjeta de actividad enfocada (scroll-to). */
+            .op-activity-item-card.op-block-focus-glow {
+                border-color: #0284c7 !important;
+                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.35), 0 6px 20px rgba(2, 132, 199, 0.25) !important;
+                transition: box-shadow 0.25s ease, border-color 0.25s ease;
+            }
+
+            /* SPRINT 11: control "Omitir / No aplica" por etapa en el arbol. */
+            .op-stage-skip-toggle {
+                background: transparent;
+                border: none;
+                color: #94a3b8;
+                font-size: 11px;
+                padding: 2px 6px;
+                margin-right: 2px;
+                cursor: pointer;
+                border-radius: 4px;
+                transition: color 0.15s ease, background 0.15s ease;
+            }
+
+            .op-stage-skip-toggle:hover {
+                color: #ef4444;
+                background: rgba(239, 68, 68, 0.12);
+            }
+
+            .op-tree-section.op-stage-skipped {
+                opacity: 0.55;
+            }
+
+            .op-tree-section.op-stage-skipped .op-tree-section-header {
+                filter: grayscale(0.6);
+            }
+
+            .op-stage-skip-badge {
+                background: #64748b !important;
+                color: #ffffff !important;
+                font-size: 9px !important;
+                font-weight: 700 !important;
+                padding: 2px 7px !important;
+                border-radius: 6px !important;
+                margin-left: 6px !important;
+            }
+
             .op-activity-card-title {
                 display: -webkit-box;
                 -webkit-line-clamp: 2;
@@ -1401,34 +1489,65 @@
 
             /* Hierarchical Tree Navigation in Master Panel */
             .op-tree-section {
-                margin-bottom: 8px;
-                border: 1px solid var(--op-border-subtle);
+                margin-bottom: 9px;
+                border: 1px solid #cbd5e1;
                 border-radius: var(--op-radius-md);
                 overflow: hidden;
                 background: #ffffff;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+                transition: all 0.2s ease;
+            }
+
+            .op-tree-section.active-stage {
+                border-color: #38bdf8;
+                box-shadow: 0 3px 10px rgba(15, 23, 42, 0.12);
             }
 
             .op-tree-section-header {
-                background: #f8fafc;
-                padding: 8px 12px;
-                font-size: 12px;
-                font-weight: 700;
-                color: #1e293b;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                user-select: none;
-                transition: background 0.15s ease;
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+                padding: 9px 12px !important;
+                font-size: 11.5px !important;
+                font-weight: 700 !important;
+                color: #ffffff !important;
+                cursor: pointer !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                user-select: none !important;
+                border-left: 4px solid #0284c7 !important;
+                transition: all 0.15s ease !important;
             }
 
             .op-tree-section-header:hover {
-                background: #e2e8f0;
+                background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+                color: #ffffff !important;
+            }
+
+            .op-tree-section.active-stage .op-tree-section-header {
+                border-left-color: #38bdf8 !important;
+                background: linear-gradient(135deg, #0b1f3a 0%, #1e3a5f 100%) !important;
+            }
+
+            .op-tree-section-header .op-stage-title-text {
+                color: #ffffff !important;
+                font-weight: 700 !important;
+                letter-spacing: 0.2px;
+            }
+
+            .op-tree-section-header .op-stage-count-badge {
+                background: rgba(255, 255, 255, 0.18) !important;
+                color: #ffffff !important;
+                border: 1px solid rgba(255, 255, 255, 0.28) !important;
+                font-size: 10px !important;
+                font-weight: 700 !important;
+                padding: 2px 7px !important;
+                border-radius: 10px !important;
             }
 
             .op-tree-section-body {
-                padding: 4px;
+                padding: 6px 8px;
                 display: block;
+                background: #ffffff;
             }
 
             .op-tree-section.collapsed .op-tree-section-body {
@@ -1442,21 +1561,52 @@
             .op-tree-icon {
                 transition: transform 0.2s ease;
                 font-size: 10px;
-                color: #64748b;
+                color: #94a3b8;
+                margin-left: 6px;
             }
 
             /* Detail Breadcrumb & Navigation */
             .op-detail-breadcrumb {
                 font-size: 12px;
-                color: var(--op-text-secondary);
                 background: #f8fafc;
-                padding: 6px 12px;
-                border-radius: var(--op-radius-sm);
-                border: 1px solid var(--op-border-subtle);
+                padding: 8px 12px;
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 14px;
+            }
+
+            .op-stage-chip {
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                color: #ffffff !important;
+                font-weight: 700;
+                font-size: 11px;
+                padding: 4px 10px;
+                border-radius: 6px;
                 display: inline-flex;
                 align-items: center;
                 gap: 6px;
-                margin-bottom: 12px;
+                letter-spacing: 0.3px;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
+                border-left: 3.5px solid #38bdf8;
+            }
+
+            .op-stage-chip-mini {
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                color: #ffffff !important;
+                font-weight: 700;
+                font-size: 10.5px;
+                padding: 3px 9px;
+                border-radius: 5px;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                letter-spacing: 0.2px;
+                border-left: 3px solid #38bdf8;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
             }
 
             .op-detail-nav-footer {
@@ -1848,6 +1998,204 @@
                - .op-col-main table.table-bordered { margin, border-radius, etc. }
                Cleanup in a dedicated sprint after full verification.
                ═══════════════════════════════════════════════════════════════ */
+
+            /* ═══════════════════════════════════════════════════════════════
+               P3 · Modal "Lista de distribucion" (#Ventana3): dimensionamiento
+               compacto + selector legible + boton con jerarquia.
+               El backdrop (.sweet-local[id^=Ventana]) y el centrado del cuadro
+               (.cont_reg) los define la regla generica de arriba; aqui solo se
+               ESTRECHA y estiliza el cuadro de ESTE modal (mas especifico).
+               ═══════════════════════════════════════════════════════════════ */
+            /* Backdrop del modal por encima del resto (mas especifico que la regla generica). */
+            #Ventana3 {
+                z-index: 100010 !important;
+            }
+
+            /* Cuadro del modal: angosto, blanco, redondeado, con sombra elegante.
+               overflow VISIBLE + position relative: el dropdown de Select2 (parented a
+               .cont_reg) puede FLOTAR sobre el modal en vez de recortarse por debajo. */
+            #Ventana3 .cont_reg {
+                width: 90% !important;
+                max-width: 580px !important;
+                background: #ffffff !important;
+                border: 1px solid #e2e8f0 !important;
+                border-radius: 12px !important;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+                padding: 24px 28px !important;
+                position: relative !important;
+                overflow: visible !important;
+                z-index: 100015 !important;
+            }
+
+            /* Cabecera: titulo moderno + boton de cierre alineado arriba a la derecha. */
+            #Ventana3 .cont_reg > div:first-child {
+                align-items: center !important;
+                margin-bottom: 8px !important;
+            }
+
+            #Ventana3 .cont_reg h4 {
+                color: #1e293b !important;
+                font-weight: 700 !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.3px !important;
+                font-size: 18px !important;
+                margin: 0 !important;
+            }
+
+            #Ventana3 .cont_reg .btn-outline-secondary {
+                flex: 0 0 auto !important;
+                border-radius: 8px !important;
+            }
+
+            /* Aplanar el "card sobre card" interno (el Tag envuelve el select en
+               .container > .card > .card-body): sin borde/sombra/relleno extra. */
+            #Ventana3 .cont_form_user,
+            #Ventana3 .container,
+            #Ventana3 .card,
+            #Ventana3 .card-body {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+            }
+
+            #Ventana3 .form-group {
+                margin: 6px 0 0 0 !important;
+            }
+
+            /* Helper descriptivo inyectado por JS antes del select. */
+            #Ventana3 .op-dist-helper {
+                display: block !important;
+                font-size: 13px !important;
+                font-weight: 600 !important;
+                color: #334155 !important;
+                margin-bottom: 8px !important;
+            }
+
+            /* Respaldo NATIVO (si Select2 no inicializa): alto util, scroll, legible. */
+            #Ventana3 select[name="personas"] {
+                width: 100% !important;
+                min-height: 180px !important;
+                max-height: 240px !important;
+                overflow-y: auto !important;
+                color: #1e293b !important;
+                background: #ffffff !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 8px !important;
+                padding: 6px !important;
+                font-size: 13px !important;
+                line-height: 1.5 !important;
+            }
+
+            #Ventana3 select[name="personas"] option {
+                color: #1e293b !important;
+                background: #ffffff !important;
+                padding: 8px 12px !important;
+                border-radius: 4px !important;
+            }
+
+            #Ventana3 select[name="personas"] option:checked,
+            #Ventana3 select[name="personas"] option:hover {
+                background: #e0f2fe !important;
+                color: #0284c7 !important;
+                font-weight: 600 !important;
+            }
+
+            /* Select2 (cuando inicializa), scoped a #Ventana3. */
+            #Ventana3 .select2-container {
+                width: 100% !important;
+                z-index: 100020 !important;
+            }
+
+            #Ventana3 .select2-selection--multiple {
+                min-height: 46px !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 8px !important;
+                background: #ffffff !important;
+                padding: 3px 6px !important;
+            }
+
+            #Ventana3 .select2-container--default .select2-selection--multiple .select2-selection__choice {
+                background: #0284c7 !important;
+                color: #ffffff !important;
+                border: none !important;
+                border-radius: 6px !important;
+                padding: 2px 8px !important;
+                font-size: 12px !important;
+                margin-top: 5px !important;
+            }
+
+            #Ventana3 .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+                color: #e0f2fe !important;
+                margin-right: 4px !important;
+            }
+
+            #Ventana3 .select2-search__field {
+                color: #1e293b !important;
+            }
+
+            /* SOLUCION DEFINITIVA: dropdown anclado al BODY (dropdownParent: body). Al vivir fuera
+               del .cont_reg (que usa transform: translate(-50%,-50%)), Select2 posiciona bien y el
+               menu FLOTA sobre el modal. GLOBAL solo el z-index (benigno: solo afecta el dropdown
+               abierto en ese instante, no cambia apariencia de ningun select2). */
+            .select2-container--open {
+                z-index: 999999 !important;
+            }
+
+            /* Restyle visual SCOPED via dropdownCssClass 'op-dist-dd' -> solo el dropdown de este
+               modal, sin tocar los demas select2 de la app. Fondo blanco 100% OPACO. */
+            .select2-dropdown.op-dist-dd {
+                z-index: 999999 !important;
+                background: #ffffff !important;
+                opacity: 1 !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 8px !important;
+                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25) !important;
+            }
+
+            .select2-dropdown.op-dist-dd .select2-results__options {
+                max-height: 220px !important;
+                overflow-y: auto !important;
+                background: #ffffff !important;
+            }
+
+            .select2-dropdown.op-dist-dd .select2-results__option {
+                color: #1e293b !important;
+                font-size: 13px !important;
+                padding: 8px 14px !important;
+                background: #ffffff !important;
+                border-bottom: 1px solid #f1f5f9 !important;
+            }
+
+            .select2-dropdown.op-dist-dd .select2-results__option--highlighted[aria-selected],
+            .select2-dropdown.op-dist-dd .select2-results__option[aria-selected="true"] {
+                background: #0284c7 !important;
+                color: #ffffff !important;
+                font-weight: 600 !important;
+            }
+
+            /* Boton "Asignar": jerarquia clara, azul corporativo, centrado.
+               Anula el inline margin-left:46% que lo hacia "flotar". */
+            #Ventana3 input[type="submit"] {
+                display: block !important;
+                margin: 20px auto 4px auto !important;
+                background: #0284c7 !important;
+                border: none !important;
+                border-radius: 8px !important;
+                color: #ffffff !important;
+                font-weight: 600 !important;
+                font-size: 14px !important;
+                padding: 10px 24px !important;
+                box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3) !important;
+                transition: background-color 0.15s ease, box-shadow 0.15s ease !important;
+            }
+
+            #Ventana3 input[type="submit"]:hover {
+                background: #0369a1 !important;
+                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4) !important;
+            }
         </style>
     </head>
 
@@ -1924,7 +2272,6 @@
                 fetch(url, { method: 'POST', headers: headers })
                     .then(function (r) { return r.json(); })
                     .then(function (resp) {
-                        console.log('[OO] Create response:', JSON.stringify(resp));
                         if (!resp || !resp.data) {
                             throw new Error('Respuesta inesperada del servidor: ' + JSON.stringify(resp));
                         }
@@ -1948,7 +2295,6 @@
                                     inlineTa.value = 'Documento OnlyOffice adjunto';
                                 }
                                 window.opAutoSaveResponse(window._ooActiveIndex, window._ooActiveSubIndex);
-                                console.log('[OO] Auto-saved OnlyOffice reference for activity', window._ooActiveIndex, window._ooActiveSubIndex);
                             }
                         }, 500);
                     })
@@ -1976,7 +2322,6 @@
                 fetch(SERVER + '/api/editor/' + fileId, { headers: headers })
                     .then(function (r) { return r.json(); })
                     .then(function (resp) {
-                        console.log('[OO] Editor config response:', JSON.stringify(resp));
                         if (!resp || !resp.data) {
                             throw new Error('Config incompleta: ' + JSON.stringify(resp));
                         }
@@ -2418,6 +2763,10 @@
                                     if (typeof opSaveDraft === 'function') opSaveDraft('resp', idx + '-' + sub, ta.value);
                                     if (window.opToast) opToast('<i class="fas fa-link mr-1"></i> Archivo vinculado con éxito');
                                     opCloseFileManagerModal();
+                                    // Re-render INMEDIATO del panel -> la tarjeta del anexo (con [Abrir] y [Papelera]) aparece al instante.
+                                    if (typeof opShowActivityDetail === 'function') {
+                                        opShowActivityDetail(idx, window._opActivityElements, document.getElementById('op-detail-panel'), document.getElementById('op-master-panel'));
+                                    }
                                 };
                                 // Puente same-origin: lee del iframe del widget la(s) tarjeta(s) seleccionada(s) (.op-card/.op-row con
                                 // .op-selected y data-id) e inserta oo:<id>:<nombre> en la observacion de la actividad que abrio el modal.
@@ -2451,6 +2800,10 @@
                                     if (typeof opSaveDraft === 'function') opSaveDraft('resp', idx + '-' + sub, ta.value);
                                     if (window.opToast) opToast('<i class="fas fa-link mr-1"></i> ' + linked + ' archivo(s) vinculado(s) a la actividad');
                                     opCloseFileManagerModal();
+                                    // Re-render INMEDIATO del panel -> las tarjetas de anexos aparecen al instante.
+                                    if (typeof opShowActivityDetail === 'function') {
+                                        opShowActivityDetail(idx, window._opActivityElements, document.getElementById('op-detail-panel'), document.getElementById('op-master-panel'));
+                                    }
                                 };
                                 window.opOpenOOFile = function (fileId, title) {
                                     var name = (title || '').toLowerCase();
@@ -2899,10 +3252,33 @@
                                                 var m = headerTxt.match(/ESTADO\s*:?\s*([A-ZÁÉÍÓÚÑ ]{2,25})/i);
                                                 if (m) {
                                                     var v = m[1].toUpperCase();
-                                                    if (/TERMINAD|FINALIZAD|CERRAD/.test(v)) return true;   // proyecto cerrado
-                                                    if (/PROCESO|ABIERT|ACTIV|CURSO|REVISION/.test(v)) return false; // en curso
+                                                    // REVISION se trata como SOLO LECTURA (igual que TERMINADA/FINALIZADA): una memoria
+                                                    // en revision queda bloqueada en el Previsualizador Ejecutivo, sin modo Gestion/Split.
+                                                    if (/TERMINAD|FINALIZAD|CERRAD|REVISI/.test(v)) return true;   // cerrado o en revision -> solo lectura
+                                                    if (/PROCESO|ABIERT|ACTIV|CURSO/.test(v)) return false; // en curso (editable)
                                                 }
-                                                return /\b(TERMINAD[OA]|FINALIZAD[OA])\b/.test(headerTxt);
+                                                return /\b(TERMINAD[OA]|FINALIZAD[OA]|REVISI[OÓ]N)\b/.test(headerTxt);
+                                            } catch (e) { return false; }
+                                        };
+
+                                        // Detecta el estado REVISION especificamente (no TERMINADA/FINALIZADA). Usa la MISMA cabecera
+                                        // ESTADO del DOM que opDetectProjectClosed. Sirve para mostrar el boton "Finalizar Revision y
+                                        // firmar" SOLO cuando la memoria esta en revision.
+                                        window.opDetectRevision = function () {
+                                            try {
+                                                var candidates = document.querySelectorAll('.card-header table, #Formulario table');
+                                                var headerTxt = '';
+                                                for (var i = 0; i < candidates.length; i++) {
+                                                    var tt = candidates[i].innerText || candidates[i].textContent || '';
+                                                    if (/CONSECUTIVO|MEMORIAS DE DISE|DOCUMENTO CONFIDENCIAL/i.test(tt) && /ESTADO/i.test(tt)) { headerTxt = tt; break; }
+                                                }
+                                                if (!headerTxt) return false;
+                                                var m = headerTxt.match(/ESTADO\s*:?\s*([A-ZÁÉÍÓÚÑ ]{2,25})/i);
+                                                if (m) {
+                                                    var v = m[1].toUpperCase();
+                                                    if (/REVISI/.test(v) && !/TERMINAD|FINALIZAD|CERRAD/.test(v)) return true;
+                                                }
+                                                return false;
                                             } catch (e) { return false; }
                                         };
 
@@ -2916,11 +3292,19 @@
                                                 window.location.pathname.indexOf('Pruebas') !== -1
                                             ) && (document.title.toLowerCase().indexOf('memorias') !== -1 || document.title.toLowerCase().indexOf('entradas') !== -1 || window.location.search.indexOf('ipy=') !== -1);
 
-                                            if (!isDHFPage) return;
+                                            if (!isDHFPage) {
+                                                document.documentElement.classList.add('op-dhf-ready');
+                                                document.documentElement.classList.remove('op-dhf-init');
+                                                return;
+                                            }
 
                                             var mainCard = document.querySelector('.main-content .card') || document.querySelector('.card');
                                             var cardBody = mainCard ? (mainCard.querySelector('.card-body') || mainCard) : (document.getElementById('Formulario') || document.querySelector('.main-content') || document.body);
-                                            if (!cardBody) return;
+                                            if (!cardBody) {
+                                                document.documentElement.classList.add('op-dhf-ready');
+                                                document.documentElement.classList.remove('op-dhf-init');
+                                                return;
+                                            }
 
                                             // Cleanup existing workspace if present
                                             var existingWorkspace = document.getElementById('op-split-workspace');
@@ -3045,7 +3429,11 @@
                                                 }
                                             }
 
-                                            if (activityElements.length === 0) return;
+                                            if (activityElements.length === 0) {
+                                                document.documentElement.classList.add('op-dhf-ready');
+                                                document.documentElement.classList.remove('op-dhf-init');
+                                                return;
+                                            }
 
                                             // Create placeholders for DOM movement
                                             for (var j = 0; j < activityElements.length; j++) {
@@ -3062,6 +3450,33 @@
                                             sections.forEach(function (sec) {
                                                 sec.activities.forEach(function (act) {
                                                     _opActivitiesList[act.globalIndex] = act;
+                                                });
+                                            });
+
+                                            // SPRINT 10: modelo plano por BLOQUE (actividad real). Cada tabla-fase se descompone en
+                                            // sus bloques AUTOR:; se asigna globalBlockIndex secuencial. El arbol/nav/metricas/dots
+                                            // operan sobre esto (no sobre tablas). El movimiento DOM sigue siendo por tabla (intacto).
+                                            window._opBlocks = [];
+                                            sections.forEach(function (sec) {
+                                                sec.blocks = [];
+                                                sec.key = sec.id || sec.title; // clave estable de etapa para "Omitir/No aplica"
+                                                sec.activities.forEach(function (act) {
+                                                    var blks = window.opSplitTableBlocks(act.element);
+                                                    if (!blks.length) blks = [{ subIndex: 0, title: act.title, idMemoria: '', estadoText: '' }];
+                                                    blks.forEach(function (b) {
+                                                        var entry = {
+                                                            tableIndex: act.globalIndex,
+                                                            subIndex: b.subIndex,
+                                                            globalBlockIndex: window._opBlocks.length,
+                                                            title: b.title,
+                                                            idMemoria: b.idMemoria,
+                                                            estadoText: b.estadoText,
+                                                            sectionTitle: sec.title,
+                                                            sectionKey: sec.key
+                                                        };
+                                                        window._opBlocks.push(entry);
+                                                        sec.blocks.push(entry);
+                                                    });
                                                 });
                                             });
 
@@ -3083,6 +3498,11 @@
                                             if (isEditable) {
                                                 toolbarActionsHtml += '  <button type="button" class="op-action-tertiary" id="op-btn-batch-modal" onclick="if(typeof opShowBatchCreationModal===\'function\')opShowBatchCreationModal();"><i class="fas fa-bolt mr-1"></i> Cargue masivo</button>'
                                                     + '  <button type="button" class="op-action-primary" id="op-btn-save-all" onclick="alert(\'Memoria guardada correctamente.\');"><i class="fas fa-save mr-1"></i> Guardar memoria</button>';
+                                            } else if (typeof window.opDetectRevision === 'function' && window.opDetectRevision()) {
+                                                // Memoria en REVISION: solo lectura, pero se permite finalizar/firmar desde aqui
+                                                // (mismo endpoint/params que la tabla externa: opc=6 + f_salida=FINALIZADO).
+                                                toolbarActionsHtml += '  <button type="button" class="btn btn-sm btn-dark font-weight-bold mr-1" id="op-btn-firmar-memoria" onclick="opSignRevision()" title="Finalizar la revisión y firmar la memoria (queda TERMINADA)"><i class="fas fa-file-signature mr-1"></i> Finalizar Revisión y firmar</button>'
+                                                    + '  <span class="badge badge-info font-weight-bold px-3 py-2" style="font-size:12px;"><i class="fas fa-search mr-1"></i> En Revisión (Solo Lectura)</span>';
                                             } else {
                                                 toolbarActionsHtml += '  <span class="badge badge-danger font-weight-bold px-3 py-2" style="font-size:12px;"><i class="fas fa-lock mr-1"></i> Memoria Finalizada (Solo Lectura)</span>';
                                             }
@@ -3125,30 +3545,41 @@
                                             masterPanel.id = 'op-master-panel';
                                             masterPanel.style.cssText = 'width:340px; min-width:300px; background:#f8fafc; border:1px solid var(--op-border-strong); border-radius:10px; padding:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04); height:auto; max-height:82vh; overflow-y:auto; position:sticky; top:20px;';
 
-                                            // EJE G: contar finalizadas para la barra de progreso del índice
+                                            // EJE G / SPRINT 10-11: progreso por ACTIVIDADES REALES (bloques), excluyendo etapas
+                                            // omitidas ("No aplica"). No cuenta tablas ni etapas descartadas de la vista.
+                                            var _opBlocksAll = window._opBlocks || [];
+                                            var _opTotalReal = 0;
                                             var _opFinalized = 0;
-                                            for (var _fi = 0; _fi < activityElements.length; _fi++) {
-                                                if (activityElements[_fi].querySelector('.text-success')) _opFinalized++;
-                                            }
-                                            var _opPct = activityElements.length ? Math.round(_opFinalized * 100 / activityElements.length) : 0;
+                                            _opBlocksAll.forEach(function (b) {
+                                                if (window.opIsStageSkipped && window.opIsStageSkipped(b.sectionKey)) return;
+                                                _opTotalReal++;
+                                                if ((window.opBlockFinalizedFromCache && window.opBlockFinalizedFromCache(b.tableIndex, b.subIndex, b.idMemoria)) || /FINALIZAD/i.test(b.estadoText || '')) _opFinalized++;
+                                            });
+                                            var _opPct = _opTotalReal ? Math.round(_opFinalized * 100 / _opTotalReal) : 0;
                                             var masterHeader = document.createElement('div');
                                             masterHeader.className = 'op-master-header mb-3 pb-2 border-bottom';
                                             masterHeader.innerHTML = '<h6 class="m-0 font-weight-bold text-primary" style="font-size:13px;"><i class="fas fa-project-diagram mr-1"></i> Índice DHF ISO 13485</h6>'
                                                 + '<div class="op-progress-wrap"><div class="op-progress-bar" style="width:' + _opPct + '%;"></div></div>'
-                                                + '<div class="op-progress-label">' + _opFinalized + ' / ' + activityElements.length + ' actividades terminadas</div>';
+                                                + '<div class="op-progress-label">' + _opFinalized + ' / ' + _opTotalReal + ' actividades terminadas</div>'
+                                                + ((typeof opProjectIsEditable === 'function' && opProjectIsEditable())
+                                                    ? '<button type="button" class="btn btn-sm btn-outline-primary btn-block font-weight-bold mt-2" style="font-size:11px; border-style:dashed;" onclick="opShowAddActivityModal()"><i class="fas fa-plus mr-1"></i> Agregar actividad</button>'
+                                                    : '');
                                             masterPanel.appendChild(masterHeader);
 
-                                            // Render Sections Tree in Master Panel (Etapas desplegadas de forma clara y directa)
+                                            // Render Sections Tree in Master Panel (Etapas desplegadas con alto contraste corporativo)
                                             sections.forEach(function (sec, secIdx) {
                                                 var secCard = document.createElement('div');
                                                 secCard.className = 'op-tree-section';
-                                                secCard.style.cssText = 'background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:8px; overflow:hidden; transition:all 0.15s; box-shadow:0 1px 3px rgba(0,0,0,0.02);';
+                                                secCard.style.cssText = 'background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; margin-bottom:9px; overflow:hidden; transition:all 0.15s; box-shadow:0 1px 3px rgba(0,0,0,0.04);';
 
                                                 var header = document.createElement('div');
                                                 header.className = 'op-tree-section-header';
-                                                header.style.cssText = 'padding:10px 12px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:11.5px; font-weight:700; color:#1e293b; user-select:none; background:#f1f5f9;';
-                                                header.innerHTML = '<span class="text-truncate" style="max-width:215px;" title="' + sec.title + '"><i class="fas fa-folder text-warning mr-2" style="color:#f59e0b;"></i> ' + sec.title + '</span>'
-                                                    + '<span class="badge badge-secondary" style="font-size:10px; font-weight:700; padding:3px 7px; border-radius:6px;">' + sec.activities.length + '</span>';
+                                                header.innerHTML = '<span class="text-truncate op-stage-title-text" style="max-width:190px; color:#ffffff !important;" title="' + sec.title + '"><i class="fas fa-folder-open text-warning mr-2" style="color:#fbbf24 !important;"></i>' + sec.title + '</span>'
+                                                    + '<div class="d-flex align-items-center">'
+                                                    + '  <button type="button" class="op-stage-skip-toggle" title="Omitir etapa (No aplica a este proyecto)" onclick="event.stopPropagation(); opToggleStageSkip(this);"><i class="fas fa-ban"></i></button>'
+                                                    + '  <span class="badge op-stage-count-badge">' + sec.blocks.length + '</span>'
+                                                    + '  <i class="fas fa-chevron-down op-tree-icon" style="color:#94a3b8; font-size:9px; margin-left:6px; transition:transform 0.2s;"></i>'
+                                                    + '</div>';
 
                                                 var secBody = document.createElement('div');
                                                 secBody.className = 'op-tree-section-body';
@@ -3156,31 +3587,40 @@
 
                                                 header.onclick = function () {
                                                     var isCollapsed = secCard.classList.toggle('collapsed');
-                                                    if (!isCollapsed && sec.activities.length > 0) {
-                                                        opShowActivityDetail(sec.activities[0].globalIndex, activityElements, detailPanel, masterPanel);
+                                                    if (!isCollapsed && sec.blocks.length > 0) {
+                                                        window.opFocusBlock(sec.blocks[0].tableIndex, sec.blocks[0].subIndex);
                                                     }
                                                 };
 
-                                                sec.activities.forEach(function (act) {
+                                                // SPRINT 10: un item del arbol por BLOQUE (actividad real), no por tabla.
+                                                sec.blocks.forEach(function (blk) {
                                                     var card = document.createElement('div');
                                                     card.className = 'op-activity-card p-2 mb-1';
-                                                    card.setAttribute('data-activity-index', act.globalIndex);
+                                                    card.setAttribute('data-activity-index', blk.tableIndex);
+                                                    card.setAttribute('data-subindex', blk.subIndex);
+                                                    card.setAttribute('data-block-index', blk.globalBlockIndex);
+                                                    if (blk.idMemoria) card.setAttribute('data-id-memoria', blk.idMemoria);
                                                     card.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:11.5px; font-weight:600; color:#334155; transition:all 0.15s; margin-left:4px;';
 
                                                     var _stTok = 'muted', _stLbl = 'Sin iniciar';
-                                                    if (window.opNodeFinalizedFromCache && window.opNodeFinalizedFromCache(act.globalIndex)) { _stTok = 'finalizado'; _stLbl = 'Terminada'; }
-                                                    else if (act.element.querySelector('.text-success')) { _stTok = 'finalizado'; _stLbl = 'Terminada'; }
-                                                    else if (act.element.querySelector('.text-warning')) { _stTok = 'revision'; _stLbl = 'En revisión'; }
-                                                    else if (/EN PROCESO|PROCESO/i.test(act.element.textContent || '')) { _stTok = 'proceso'; _stLbl = 'En proceso'; }
-                                                    card.setAttribute('title', act.title + ' — ' + _stLbl);
+                                                    if (window.opBlockFinalizedFromCache && window.opBlockFinalizedFromCache(blk.tableIndex, blk.subIndex, blk.idMemoria)) { _stTok = 'finalizado'; _stLbl = 'Terminada'; }
+                                                    else if (/FINALIZAD/i.test(blk.estadoText || '')) { _stTok = 'finalizado'; _stLbl = 'Terminada'; }
+                                                    else if (/REVISION/i.test(blk.estadoText || '')) { _stTok = 'revision'; _stLbl = 'En revisión'; }
+                                                    else if (/PROCESO/i.test(blk.estadoText || '')) { _stTok = 'proceso'; _stLbl = 'En proceso'; }
+                                                    card.setAttribute('title', blk.title + ' — ' + _stLbl);
                                                     card.innerHTML = '<span class="op-status-dot" style="background:var(--op-status-' + _stTok + '-dot, var(--op-text-muted));"></span>'
-                                                        + '<span class="op-activity-card-title">' + act.title + '</span>';
+                                                        + '<span class="op-activity-card-title">' + blk.title + '</span>';
                                                     secBody.appendChild(card);
                                                 });
 
+                                                secCard.setAttribute('data-stage-key', sec.key);
                                                 secCard.appendChild(header);
                                                 secCard.appendChild(secBody);
                                                 masterPanel.appendChild(secCard);
+                                                // SPRINT 11: restaurar estado "No aplica" persistido (por ipy) en el reload.
+                                                if (window.opIsStageSkipped && window.opIsStageSkipped(sec.key)) {
+                                                    window.opApplyStageSkipUI(secCard, true);
+                                                }
                                             });
 
                                             // Detail Panel
@@ -3315,6 +3755,10 @@
                                                         var estado = (_cacheFin || (_fbTbl && /FINALIZAD/i.test(_fbTbl.textContent || ''))) ? 'FINALIZADO'
                                                             : ((_fwTbl && /REVISION/i.test(_fwTbl.textContent || '')) ? 'EN REVISION'
                                                                 : (_opPreviewMemFin ? 'FINALIZADO' : 'EN PROCESO'));
+                                                        // ANULADA (Opcion 2) gana sobre cualquier estado: la actividad esta descartada de la memoria.
+                                                        if (typeof window.opIsAnnulled === 'function' && window.opIsAnnulled(tbl.textContent || '')) {
+                                                            estado = 'ANULADA';
+                                                        }
                                                         var desc = act.title || ('Actividad ' + (aIdx + 1));
                                                         var response = '';
 
@@ -3381,7 +3825,7 @@
                                                         actHtml += '<div class="op-preview-activity-card" style="width:100% !important; max-width:100% !important; box-sizing:border-box !important; display:block !important; float:none !important; clear:both !important; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:18px 24px; margin-bottom:16px !important; page-break-inside:avoid !important; break-inside:avoid !important; overflow:hidden;">'
                                                             + '  <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="display:flex !important; justify-content:space-between !important; align-items:center !important; flex-wrap:wrap !important; gap:8px !important; width:100% !important; font-size:12px; color:#475569; font-weight:600;">'
                                                             + '    <span style="min-width:0; overflow-wrap:break-word; word-break:break-word;"><span class="badge badge-primary mr-2" style="font-size:10px;">ACTIVIDAD ' + (aIdx + 1) + '</span> Autor: ' + _authorDisp + _legacyBadge + '</span>'
-                                                            + '    <span style="white-space:nowrap; flex-shrink:0;">Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning') + '" style="' + (estado === 'FINALIZADO' ? 'background:#16a34a; color:#fff; font-weight:700;' : '') + '">' + (estado === 'FINALIZADO' ? 'TERMINADA' : estado) + '</span></span>'
+                                                            + '    <span style="white-space:nowrap; flex-shrink:0;">Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'ANULADA' ? 'badge-danger' : (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning')) + '" style="' + (estado === 'ANULADA' ? 'background:#dc2626; color:#fff; font-weight:700;' : (estado === 'FINALIZADO' ? 'background:#16a34a; color:#fff; font-weight:700;' : '')) + '">' + (estado === 'FINALIZADO' ? 'TERMINADA' : estado) + '</span></span>'
                                                             + '  </div>'
                                                             + '  <div class="font-weight-bold text-dark mb-2" style="' + _wrapCss + ' font-size:13.5px; line-height:1.55; color:#0f172a;">' + _descSafe + '</div>'
                                                             // Tarea 1: solo mostrar el recuadro de avance si HAY respuesta real; nunca la caja vacía.
@@ -3488,8 +3932,15 @@
                                                 var card = e.target.closest('.op-activity-card');
                                                 if (!card) return;
                                                 var idx = parseInt(card.getAttribute('data-activity-index'), 10);
-                                                opShowActivityDetail(idx, activityElements, detailPanel, masterPanel);
+                                                var sub = parseInt(card.getAttribute('data-subindex'), 10);
+                                                if (isNaN(sub)) sub = 0;
+                                                // SPRINT 10: enfoca el BLOQUE (actividad real) clickeado, con scroll + resalte.
+                                                opShowActivityDetail(idx, activityElements, detailPanel, masterPanel, sub);
                                             });
+
+                                            // Marca fin de inicialización: retira bloqueo anti-FOUC
+                                            document.documentElement.classList.add('op-dhf-ready');
+                                            document.documentElement.classList.remove('op-dhf-init');
                                         }
 
                                         // ═══ EJE H-b: adjuntos por AJAX en el documento continuo ═══
@@ -3551,6 +4002,60 @@
                                             document.body.appendChild(t);
                                             requestAnimationFrame(function () { t.style.opacity = '1'; });
                                             setTimeout(function () { t.style.opacity = '0'; setTimeout(function () { if (t.parentNode) t.remove(); }, 250); }, 2600);
+                                        };
+
+                                        // Dialogo moderno (reemplaza window.confirm/prompt nativos "localhost dice"). Promise-based:
+                                        // opConfirm(opts) resuelve true/false; opPrompt(opts) resuelve el texto o null si se cancela.
+                                        // opts: { title, message, okText, cancelText, prompt(bool), placeholder, value }.
+                                        window.opConfirm = function (opts) {
+                                            opts = opts || {};
+                                            var isPrompt = !!opts.prompt;
+                                            return new Promise(function (resolve) {
+                                                var old = document.getElementById('op-confirm-modal'); if (old) old.remove();
+                                                var esc = function (s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); };
+                                                var ov = document.createElement('div');
+                                                ov.id = 'op-confirm-modal';
+                                                ov.style.cssText = 'position:fixed; inset:0; z-index:2147483600; background:rgba(15,23,42,0.55); display:flex; align-items:center; justify-content:center; padding:24px; font-family:Arial,Helvetica,sans-serif;';
+                                                var inputHtml = isPrompt
+                                                    ? '<input id="op-confirm-input" type="text" placeholder="' + esc(opts.placeholder) + '" value="' + esc(opts.value) + '" style="width:100%; box-sizing:border-box; margin-top:14px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; color:#1e293b; outline:none;">'
+                                                    : '';
+                                                ov.innerHTML = '<div style="background:#ffffff; width:90%; max-width:440px; border-radius:12px; box-shadow:0 20px 40px rgba(0,0,0,0.2); padding:24px 26px; box-sizing:border-box;">'
+                                                    + '<div style="font-size:17px; font-weight:700; color:#1e293b; margin-bottom:8px;">' + (opts.title || 'Confirmar') + '</div>'
+                                                    + (opts.message ? ('<div style="font-size:13.5px; color:#475569; line-height:1.5;">' + opts.message + '</div>') : '')
+                                                    + inputHtml
+                                                    + '<div style="display:flex; justify-content:flex-end; gap:10px; margin-top:22px;">'
+                                                    + '  <button id="op-confirm-cancel" type="button" style="background:#e2e8f0; color:#334155; border:none; border-radius:8px; padding:9px 18px; font-weight:600; font-size:13px; cursor:pointer;">' + (opts.cancelText || 'Cancelar') + '</button>'
+                                                    + '  <button id="op-confirm-ok" type="button" style="background:#0284c7; color:#ffffff; border:none; border-radius:8px; padding:9px 18px; font-weight:600; font-size:13px; cursor:pointer;">' + (opts.okText || 'Aceptar') + '</button>'
+                                                    + '</div>'
+                                                    + '</div>';
+                                                document.body.appendChild(ov);
+                                                var input = document.getElementById('op-confirm-input');
+                                                if (input) {
+                                                    input.addEventListener('focus', function () { this.style.borderColor = '#0284c7'; this.style.boxShadow = '0 0 0 3px rgba(2,132,199,0.15)'; });
+                                                    input.addEventListener('blur', function () { this.style.borderColor = '#cbd5e1'; this.style.boxShadow = 'none'; });
+                                                    setTimeout(function () { input.focus(); }, 30);
+                                                }
+                                                var done = false;
+                                                var onKey;
+                                                function close(val) {
+                                                    if (done) return; done = true;
+                                                    document.removeEventListener('keydown', onKey);
+                                                    if (ov.parentNode) ov.remove();
+                                                    resolve(val);
+                                                }
+                                                onKey = function (e) {
+                                                    if (e.key === 'Escape') { close(isPrompt ? null : false); }
+                                                    else if (e.key === 'Enter') { var ok = document.getElementById('op-confirm-ok'); if (ok) ok.click(); }
+                                                };
+                                                document.addEventListener('keydown', onKey);
+                                                document.getElementById('op-confirm-cancel').onclick = function () { close(isPrompt ? null : false); };
+                                                document.getElementById('op-confirm-ok').onclick = function () { close(isPrompt ? (input ? input.value : '') : true); };
+                                                ov.addEventListener('click', function (e) { if (e.target === ov) close(isPrompt ? null : false); });
+                                            });
+                                        };
+                                        window.opPrompt = function (opts) {
+                                            opts = opts || {}; opts.prompt = true;
+                                            return window.opConfirm(opts);
                                         };
 
                                         // Borradores persistentes: mantienen descripcion/observaciones en MEMORIA (sobreviven al
@@ -3657,6 +4162,145 @@
                                             } catch (e) { }
                                             return false;
                                         };
+
+                                        // SPRINT 10 — Granularidad por ACTIVIDAD REAL (bloque MemoriaD). Una <table> de fase agrupa
+                                        // N actividades separadas por filas "AUTOR:". Este splitter REPRODUCE EXACTAMENTE la division
+                                        // de opShowActivityDetail (mismo criterio AUTOR) para que el subIndex coincida 1:1 con sus tarjetas.
+                                        window.opSplitTableBlocks = function (tableEl) {
+                                            var out = [];
+                                            if (!tableEl) return out;
+                                            var trs = tableEl.querySelectorAll('tr');
+                                            var blocks = [], cur = [], started = false;
+                                            for (var r = 0; r < trs.length; r++) {
+                                                var row = trs[r];
+                                                if (row.querySelector('th') && row.textContent.indexOf('AUTOR:') === -1) continue;
+                                                var isAutor = row.innerHTML.indexOf('AUTOR:') !== -1;
+                                                if (isAutor) {
+                                                    if (started && cur.length > 0) { blocks.push(cur); }
+                                                    cur = []; started = true;
+                                                }
+                                                // SPRINT 11: descartar filas espaciadoras/vacias legacy ANTES del primer AUTOR:
+                                                // (Tag_memoria imprime <tr style='height:10px;...'></tr>) que creaban un Bloque 0 fantasma.
+                                                if (!started) continue;
+                                                cur.push(row);
+                                            }
+                                            if (started && cur.length > 0) blocks.push(cur);
+                                            blocks.forEach(function (rows, subIndex) {
+                                                var idMemoria = '', title = '', estadoText = '';
+                                                rows.forEach(function (row) {
+                                                    var link = row.querySelector('a[href*="cba_num="]');
+                                                    if (link) { var m = link.getAttribute('href').match(/cba_num=(\d+)/); if (m) idMemoria = m[1]; }
+                                                    var btn = row.querySelector('button[onclick*="ProyectoEstado2"]');
+                                                    if (btn) { var mb = btn.getAttribute('onclick').match(/ProyectoEstado2\([^,]+,[^,]+,(\d+)/); if (mb) idMemoria = mb[1]; }
+                                                    var cells = row.querySelectorAll('td, th');
+                                                    for (var c = 0; c < cells.length; c++) {
+                                                        var ct = (cells[c].textContent || '').replace(/\s+/g, ' ').trim();
+                                                        if (!title && /^ACTIVIDAD\s*\d*\s*:/i.test(ct)) { title = ct.substring(0, 80); }
+                                                    }
+                                                    var tc = (row.textContent || '');
+                                                    if (!estadoText && /AUTOR/i.test(tc)) {
+                                                        var rh = row.innerHTML;
+                                                        if (/FINALIZADO/i.test(rh)) estadoText = 'FINALIZADO';
+                                                        else if (/REVISION/i.test(rh)) estadoText = 'EN REVISION';
+                                                        else if (/PROCESO/i.test(rh)) estadoText = 'EN PROCESO';
+                                                    }
+                                                });
+                                                out.push({ subIndex: subIndex, title: title || ('Actividad ' + (subIndex + 1)), idMemoria: idMemoria, estadoText: estadoText });
+                                            });
+                                            return out;
+                                        };
+
+                                        // Estado FINALIZADO por BLOQUE, persistente a F5 (detail #3). Evalua el cacheKey EXACTO
+                                        // tableIndex-subIndex (no cualquier subIndex de la tabla) y el idMemoria del bloque.
+                                        window.opBlockFinalizedFromCache = function (tableIndex, subIndex, idMemoria) {
+                                            try {
+                                                var key = tableIndex + '-' + subIndex;
+                                                var sc = window._opStateCache || {};
+                                                if (sc[key] === 3 || sc[key] === '3') return true;
+                                                if (idMemoria && window._opStateByIdMemoria && window._opStateByIdMemoria[String(idMemoria).trim()] === 3) return true;
+                                                var lk = window._opDraftNS() + 'state:' + key;
+                                                var raw = localStorage.getItem(lk);
+                                                if (raw) { var o = null; try { o = JSON.parse(raw); } catch (e) { o = null; } if (o && (o.v === 3 || o.v === '3')) return true; }
+                                            } catch (e) { }
+                                            return false;
+                                        };
+
+                                        // Resuelve un bloque global -> muestra su tabla y enfoca (scroll+glow) su tarjeta.
+                                        window.opFocusBlock = function (tableIndex, subIndex) {
+                                            var mp = document.getElementById('op-master-panel');
+                                            var dp = document.getElementById('op-detail-panel');
+                                            if (window._opActivityElements && mp && dp) {
+                                                opShowActivityDetail(tableIndex, window._opActivityElements, dp, mp, subIndex);
+                                            }
+                                        };
+                                        window.opGoToBlock = function (globalBlockIndex) {
+                                            var b = (window._opBlocks || [])[globalBlockIndex];
+                                            if (!b) return;
+                                            window.opFocusBlock(b.tableIndex, b.subIndex);
+                                        };
+
+                                        // SPRINT 11: "Omitir / No aplica" por etapa. Preferencia de VISTA persistida por proyecto
+                                        // (ipy) en localStorage. NO toca la BD ni los registros historicos: solo descarta de la vista
+                                        // y de la metrica ACTIVA una etapa que no aplica al proyecto. Reversible.
+                                        window._opSkipNS = function () {
+                                            var up = new URLSearchParams(window.location.search);
+                                            return 'opskip:' + (up.get('ipy') || '') + ':';
+                                        };
+                                        window.opIsStageSkipped = function (key) {
+                                            try { return localStorage.getItem(window._opSkipNS() + key) === '1'; } catch (e) { return false; }
+                                        };
+                                        window.opSetStageSkipped = function (key, skipped) {
+                                            try {
+                                                if (skipped) localStorage.setItem(window._opSkipNS() + key, '1');
+                                                else localStorage.removeItem(window._opSkipNS() + key);
+                                            } catch (e) { }
+                                        };
+                                        // Recalcula barra/label excluyendo etapas omitidas (No aplica) de la metrica activa.
+                                        window.opRecomputeStageProgress = function () {
+                                            try {
+                                                var blocks = window._opBlocks || [];
+                                                var total = 0, fin = 0;
+                                                blocks.forEach(function (b) {
+                                                    if (window.opIsStageSkipped(b.sectionKey)) return;
+                                                    total++;
+                                                    if ((window.opBlockFinalizedFromCache && window.opBlockFinalizedFromCache(b.tableIndex, b.subIndex, b.idMemoria)) || /FINALIZAD/i.test(b.estadoText || '')) fin++;
+                                                });
+                                                var lbl = document.querySelector('#op-master-panel .op-progress-label');
+                                                if (lbl) lbl.textContent = fin + ' / ' + total + ' actividades terminadas';
+                                                var bar = document.querySelector('#op-master-panel .op-progress-bar');
+                                                if (bar) bar.style.width = (total ? Math.round(fin * 100 / total) : 0) + '%';
+                                            } catch (e) { }
+                                        };
+                                        window.opApplyStageSkipUI = function (secCard, skipped) {
+                                            if (!secCard) return;
+                                            if (skipped) {
+                                                secCard.classList.add('op-stage-skipped', 'collapsed');
+                                                var hdr = secCard.querySelector('.op-tree-section-header');
+                                                if (hdr && !hdr.querySelector('.op-stage-skip-badge')) {
+                                                    var b = document.createElement('span');
+                                                    b.className = 'badge op-stage-skip-badge';
+                                                    b.textContent = 'No aplica';
+                                                    hdr.appendChild(b);
+                                                }
+                                            } else {
+                                                secCard.classList.remove('op-stage-skipped');
+                                                var ex = secCard.querySelector('.op-stage-skip-badge');
+                                                if (ex) ex.remove();
+                                            }
+                                        };
+                                        window.opToggleStageSkip = function (btn) {
+                                            var secCard = btn ? btn.closest('.op-tree-section') : null;
+                                            if (!secCard) return;
+                                            var key = secCard.getAttribute('data-stage-key') || '';
+                                            var next = !window.opIsStageSkipped(key);
+                                            window.opSetStageSkipped(key, next);
+                                            window.opApplyStageSkipUI(secCard, next);
+                                            btn.title = next ? 'Reactivar etapa (vuelve a aplicar)' : 'Omitir etapa (No aplica a este proyecto)';
+                                            var ic = btn.querySelector('i');
+                                            if (ic) ic.className = next ? 'fas fa-eye-slash' : 'fas fa-ban';
+                                            window.opRecomputeStageProgress();
+                                        };
+
                                         // Actualiza EN VIVO (sin reload) el badge del detalle, el punto del arbol y el contador.
                                         function opReflectActivityState(index, idMemoria, estadoNum, subIndex) {
                                             var isFin = (estadoNum === 3 || estadoNum === '3');
@@ -3676,7 +4320,11 @@
                                                 badge.style.cssText = isFin ? 'background:#16a34a !important;color:#fff !important;font-weight:700 !important;' : '';
                                                 badge.textContent = isFin ? 'TERMINADA' : 'EN PROCESO';
                                             }
-                                            var mc = document.querySelector('#op-master-panel .op-activity-card[data-activity-index="' + index + '"]');
+                                            // SPRINT 10: el dot del arbol es POR BLOQUE. Ubicar el item por id_memoria (clave estable
+                                            // del bloque); fallback a data-activity-index + data-subindex.
+                                            var mc = (idMemoria ? document.querySelector('#op-master-panel .op-activity-card[data-id-memoria="' + idMemoria + '"]') : null)
+                                                || ((subIndex !== undefined && subIndex !== null) ? document.querySelector('#op-master-panel .op-activity-card[data-activity-index="' + index + '"][data-subindex="' + subIndex + '"]') : null)
+                                                || document.querySelector('#op-master-panel .op-activity-card[data-activity-index="' + index + '"]');
                                             if (mc) {
                                                 var dot = mc.querySelector('.op-status-dot');
                                                 if (dot) dot.style.background = 'var(--op-status-' + (isFin ? 'finalizado' : 'proceso') + '-dot, var(--op-text-muted))';
@@ -3812,8 +4460,17 @@
                                             }
                                         };
 
-                                        function opShowActivityDetail(index, activityElements, detailPanel, masterPanel) {
+                                        function opShowActivityDetail(index, activityElements, detailPanel, masterPanel, focusSubIndex) {
                                             if (index < 0 || index >= activityElements.length) return;
+                                            // SPRINT 10: bloque (actividad real) enfocado dentro de la tabla. Default: primer bloque.
+                                            var _focusSub = (typeof focusSubIndex === 'number' && !isNaN(focusSubIndex)) ? focusSubIndex : 0;
+                                            var _blocksAll = window._opBlocks || [];
+                                            var _focusBlock = null;
+                                            for (var _bi = 0; _bi < _blocksAll.length; _bi++) {
+                                                if (_blocksAll[_bi].tableIndex === index && _blocksAll[_bi].subIndex === _focusSub) { _focusBlock = _blocksAll[_bi]; break; }
+                                            }
+                                            var _globalBlockIdx = _focusBlock ? _focusBlock.globalBlockIndex : 0;
+                                            var _totalReal = _blocksAll.length || activityElements.length;
 
                                             // Update styles in Master Panel
                                             var cards = masterPanel.querySelectorAll('.op-activity-card');
@@ -3822,15 +4479,21 @@
                                                 cards[i].style.borderColor = '#e2e8f0';
                                                 cards[i].style.color = '#334155';
                                             }
-                                            var activeCard = masterPanel.querySelector('.op-activity-card[data-activity-index="' + index + '"]');
+                                            var activeCard = masterPanel.querySelector('.op-activity-card[data-activity-index="' + index + '"][data-subindex="' + _focusSub + '"]')
+                                                || masterPanel.querySelector('.op-activity-card[data-activity-index="' + index + '"]');
                                             if (activeCard) {
                                                 activeCard.style.background = '#e0f2fe';
                                                 activeCard.style.borderColor = '#0284c7';
                                                 activeCard.style.color = '#0369a1';
 
-                                                // Auto expand parent section if collapsed
+                                                // Auto expand parent section if collapsed & mark as active-stage
+                                                var allSecs = masterPanel.querySelectorAll('.op-tree-section');
+                                                for (var _si = 0; _si < allSecs.length; _si++) { allSecs[_si].classList.remove('active-stage'); }
                                                 var parentSec = activeCard.closest('.op-tree-section');
-                                                if (parentSec) parentSec.classList.remove('collapsed');
+                                                if (parentSec) {
+                                                    parentSec.classList.remove('collapsed');
+                                                    parentSec.classList.add('active-stage');
+                                                }
                                             }
 
                                             // Restore previous active activity to its placeholder
@@ -3875,34 +4538,41 @@
                                             var isEditable = (estadoM === '1' || estadoM === 1) && !window.opDetectProjectClosed();
 
                                             var meta = _opActivitiesList[index] || {};
-                                            var title = meta.title || ('Actividad DHF ' + (index + 1));
-                                            var sectionTitle = meta.sectionTitle || 'Etapa ISO';
+                                            // SPRINT 10: cabecera refleja el BLOQUE enfocado (nombre + numero), no la tabla general.
+                                            var title = (_focusBlock && _focusBlock.title) || meta.title || ('Actividad DHF ' + (index + 1));
+                                            var sectionTitle = (_focusBlock && _focusBlock.sectionTitle) || meta.sectionTitle || 'Etapa ISO';
 
-                                            var prevDisabled = index === 0 ? 'disabled' : '';
-                                            var nextDisabled = index === (activityElements.length - 1) ? 'disabled' : '';
+                                            var prevDisabled = _globalBlockIdx <= 0 ? 'disabled' : '';
+                                            var nextDisabled = _globalBlockIdx >= (_totalReal - 1) ? 'disabled' : '';
 
                                             // Build Detail Panel base HTML
                                             detailPanel.innerHTML = ''
                                                 + '<div class="op-detail-breadcrumb">'
-                                                + '  <i class="fas fa-layer-group text-primary"></i>'
-                                                + '  <span>' + sectionTitle + '</span>'
+                                                + '  <span class="op-stage-chip" title="Etapa ISO 13485 actual">'
+                                                + '    <i class="fas fa-folder-open" style="color:#fbbf24 !important;"></i>'
+                                                + '    <span style="color:#94a3b8; font-size:10px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">ETAPA:</span>'
+                                                + '    <span style="color:#ffffff !important;">' + sectionTitle + '</span>'
+                                                + '  </span>'
                                                 + '  <i class="fas fa-chevron-right text-muted mx-1" style="font-size:10px;"></i>'
-                                                + '  <span class="font-weight-bold text-dark">' + title + '</span>'
+                                                + '  <span class="font-weight-bold text-dark" style="font-size:11.5px; display:inline-flex; align-items:center; gap:5px;"><i class="fas fa-tasks text-primary" style="font-size:11px;"></i> ' + title + '</span>'
                                                 + '</div>'
                                                 + '<div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom">'
                                                 + '  <div>'
-                                                + '    <span class="badge badge-primary px-2 py-1 mb-1">DHF ISO 13485</span>'
+                                                + '    <div class="d-flex align-items-center gap-2 mb-1">'
+                                                + '      <span class="op-stage-chip-mini" title="Etapa ISO 13485"><i class="fas fa-layer-group" style="color:#38bdf8; font-size:10px;"></i> <span style="color:#94a3b8; font-size:9px; text-transform:uppercase; font-weight:600;">ETAPA</span> ' + sectionTitle + '</span>'
+                                                + '      <span class="badge badge-primary px-2 py-1" style="font-size:10.5px;">DHF ISO 13485</span>'
+                                                + '    </div>'
                                                 + '    <h5 class="m-0 font-weight-bold text-dark">' + title + '</h5>'
                                                 + '  </div>'
                                                 + '  <div class="d-flex align-items-center gap-2">'
-                                                + '    <span class="text-muted font-weight-bold" style="font-size:12px;">Actividad ' + (index + 1) + ' de ' + activityElements.length + '</span>'
+                                                + '    <span class="text-muted font-weight-bold" style="font-size:12px;">Actividad ' + (_globalBlockIdx + 1) + ' de ' + _totalReal + '</span>'
                                                 + '  </div>'
                                                 + '</div>'
                                                 + '<div class="op-detail-content-wrapper mb-3" style="max-height: 58vh; overflow-y: auto; padding-right: 5px;"></div>'
                                                 + '<div class="op-detail-nav-footer">'
-                                                + '  <button type="button" class="btn btn-sm btn-outline-secondary font-weight-bold" ' + prevDisabled + ' onclick="opGoToActivity(' + (index - 1) + ')"><i class="fas fa-arrow-left mr-1"></i> Anterior Actividad</button>'
-                                                + '  <span class="text-muted font-weight-bold" style="font-size:12px;">' + (index + 1) + ' / ' + activityElements.length + '</span>'
-                                                + '  <button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" ' + nextDisabled + ' onclick="opGoToActivity(' + (index + 1) + ')">Siguiente Actividad <i class="fas fa-arrow-right ml-1"></i></button>'
+                                                + '  <button type="button" class="btn btn-sm btn-outline-secondary font-weight-bold" ' + prevDisabled + ' onclick="opGoToBlock(' + (_globalBlockIdx - 1) + ')"><i class="fas fa-arrow-left mr-1"></i> Anterior Actividad</button>'
+                                                + '  <span class="text-muted font-weight-bold" style="font-size:12px;">' + (_globalBlockIdx + 1) + ' / ' + _totalReal + '</span>'
+                                                + '  <button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" ' + nextDisabled + ' onclick="opGoToBlock(' + (_globalBlockIdx + 1) + ')">Siguiente Actividad <i class="fas fa-arrow-right ml-1"></i></button>'
                                                 + '</div>';
 
                                             window._opActivityElements = activityElements;
@@ -3912,21 +4582,26 @@
                                             var trs = clonedNode.querySelectorAll('tr');
                                             var blocks = [];
                                             var currentRows = [];
+                                            var _started = false;
 
                                             for (var r = 0; r < trs.length; r++) {
                                                 var row = trs[r];
                                                 if (row.querySelector('th') && (row.textContent.indexOf('AUTOR:') === -1)) {
                                                     continue; // Skip the phase table header row
                                                 }
-                                                if (row.innerHTML.indexOf('AUTOR:') !== -1) {
-                                                    if (currentRows.length > 0) {
+                                                var _isAutor = row.innerHTML.indexOf('AUTOR:') !== -1;
+                                                if (_isAutor) {
+                                                    if (_started && currentRows.length > 0) {
                                                         blocks.push(currentRows);
-                                                        currentRows = [];
                                                     }
+                                                    currentRows = [];
+                                                    _started = true;
                                                 }
+                                                // SPRINT 11: descartar filas espaciadoras legacy previas al primer AUTOR: (Bloque 0 fantasma).
+                                                if (!_started) continue;
                                                 currentRows.push(row);
                                             }
-                                            if (currentRows.length > 0) {
+                                            if (_started && currentRows.length > 0) {
                                                 blocks.push(currentRows);
                                             }
 
@@ -3986,6 +4661,8 @@
                                                             // Extraer los enlaces de control nativos
                                                             var actionLinks = row.querySelectorAll('a, button');
                                                             actionLinks.forEach(function (btnLink) {
+                                                                // Omitir botones huerfanos sin funcion util: sobre/correo (fa-envelope) y engranaje (fa-cog).
+                                                                if (/fa-envelope|fa-cog/i.test(btnLink.innerHTML || '')) return;
                                                                 var cloned = btnLink.cloneNode(true);
                                                                 cloned.className = 'btn btn-xs btn-outline-secondary font-weight-bold ml-1 px-2 py-1';
                                                                 cloned.style.cssText = 'font-size: 11px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; text-decoration: none;';
@@ -4091,7 +4768,7 @@
                                                     var _descOrigAttr = _origDesc.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                                                     var _descBody = ('' + _descVal).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-                                                    cardsHtml += '<div class="op-activity-item-card mb-4 p-4 border rounded" style="border-radius:12px; background:#ffffff; box-shadow:0 4px 15px rgba(0,0,0,0.04); border:1px solid #cbd5e1;" data-id-memoria="' + idMemoria + '">'
+                                                    cardsHtml += '<div class="op-activity-item-card mb-4 p-4 border rounded" style="border-radius:12px; background:#ffffff; box-shadow:0 4px 15px rgba(0,0,0,0.04); border:1px solid #cbd5e1;" data-id-memoria="' + idMemoria + '" data-subindex="' + subIndex + '">'
                                                         + '  <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom" style="font-size:11px; color:#64748b; font-weight:600; flex-wrap: wrap; gap: 8px;">'
                                                         + '    <div class="d-flex flex-wrap gap-3" style="gap: 15px;">'
                                                         + '      <div><i class="fas fa-user-edit mr-1 text-primary"></i> <b>AUTOR:</b> ' + authorText + '</div>'
@@ -4103,7 +4780,14 @@
                                                         + '    <div class="d-flex align-items-center op-card-actions">' + actionsHtml + '</div>'
                                                         + '  </div>'
                                                         + '  <div class="op-activity-desc mb-3 p-3 rounded" style="font-size:13px; line-height:1.6; color:#1e293b; font-weight:500; background:#f8fafc; border:1px solid #f1f5f9;">'
-                                                        + '    <div class="d-flex align-items-center justify-content-between mb-1"><span class="badge badge-info" style="font-size:9px;">ACTIVIDAD ' + (subIndex + 1) + '</span>' + (isEditable ? '<span class="text-muted" style="font-size:10px;"><i class="fas fa-pen mr-1"></i>Descripción editable</span>' : '') + '</div>'
+                                                        + '    <div class="d-flex align-items-center justify-content-between mb-1"><span class="badge badge-info" style="font-size:9px;">ACTIVIDAD ' + (subIndex + 1) + '</span>'
+                                                        + '      <div class="d-flex align-items-center" style="gap:8px;">'
+                                                        + ((typeof opIsAnnulled === 'function' && opIsAnnulled(existingResponse))
+                                                            ? '<span class="badge badge-danger font-weight-bold" style="font-size:10px;"><i class="fas fa-ban mr-1"></i>ANULADA</span>'
+                                                            : ((isEditable ? '<span class="text-muted" style="font-size:10px;"><i class="fas fa-pen mr-1"></i>Descripción editable</span>' : '')
+                                                                + ((isEditable && idMemoria) ? ('<button type="button" class="btn btn-xs btn-outline-danger font-weight-bold" onclick="opAnnulActivity(\'' + idMemoria + '\', ' + index + ', ' + subIndex + ')" title="Anular / descartar esta actividad (queda registrada en el historial, no se elimina)" style="font-size:10px; line-height:1.2;"><i class="fas fa-ban mr-1"></i>Anular / Descartar</button>') : '')))
+                                                        + '      </div>'
+                                                        + '    </div>'
                                                         + (isEditable
                                                             ? '    <textarea class="form-control op-detail-desc" id="op-detail-desc-' + index + '-' + subIndex + '" rows="2" spellcheck="true" lang="es" autocorrect="on" autocapitalize="sentences" data-orig="' + _descOrigAttr + '" oninput="opDescInput(\'' + cacheKey + '\', this.value)" onchange="opSaveDraft(\'desc\', \'' + cacheKey + '\', this.value)" onblur="opSaveDraft(\'desc\', \'' + cacheKey + '\', this.value)" style="width:100%; box-sizing:border-box; font-size:13px; background:#ffffff;">' + _descBody + '</textarea>'
                                                             : '    <div>' + descText + '</div>')
@@ -4145,11 +4829,13 @@
                                                         }
                                                     }
 
-                                                    // Detección de archivo adjunto en esta actividad específica (sin duplicar en otras)
-                                                    var ooMatch = (existingResponse || '').match(/oo:(\d+):([^\r\n]+)/);
-                                                    if (ooMatch) {
-                                                        var fileId = ooMatch[1];
-                                                        var fileName = ooMatch[2].trim();
+                                                    // P2: renderizar TODAS las evidencias adjuntas de esta actividad (multi-anexo),
+                                                    // no solo la primera. Cada tarjeta lleva su propio boton de desvincular por fileId.
+                                                    var _ooRe = /oo:(\d+):([^\r\n]+)/g;
+                                                    var _ooM;
+                                                    while ((_ooM = _ooRe.exec(existingResponse || '')) !== null) {
+                                                        var fileId = _ooM[1];
+                                                        var fileName = _ooM[2].trim();
                                                         var icon = 'far fa-file-alt text-primary';
                                                         if (/\.(docx|doc)$/i.test(fileName)) icon = 'far fa-file-word text-primary';
                                                         else if (/\.(xlsx|xls|csv)$/i.test(fileName)) icon = 'far fa-file-excel text-success';
@@ -4166,7 +4852,7 @@
                                                             + '    </div>'
                                                             + '    <div class="d-flex align-items-center gap-1">'
                                                             + '      <button type="button" class="btn btn-xs btn-outline-primary font-weight-bold mr-1" onclick="opOpenOOFile(' + fileId + ', \'' + fileName.replace(/'/g, "\\'") + '\')" title="Abre en el editor si es Office; descarga si es correo/binario"><i class="fas fa-eye mr-1"></i> Abrir</button>'
-                                                            + '      <button type="button" class="btn btn-xs btn-outline-danger font-weight-bold" onclick="opRemoveAttachmentFromActivity(' + index + ', ' + subIndex + ', ' + fileId + ')" title="Quitar archivo adjunto de esta actividad"><i class="fas fa-trash"></i></button>'
+                                                            + (isEditable ? ('      <button type="button" class="btn btn-xs btn-outline-danger font-weight-bold" onclick="opRemoveAttachmentFromActivity(' + index + ', ' + subIndex + ', ' + fileId + ')" title="Quitar archivo adjunto de esta actividad"><i class="fas fa-trash"></i></button>') : '')
                                                             + '    </div>'
                                                             + '  </div>';
                                                     }
@@ -4250,6 +4936,21 @@
                                             contentWrapper.innerHTML = cardsHtml;
                                             detailPanel.scrollTop = 0;
                                             sessionStorage.setItem('op_split_selected', index);
+
+                                            // SPRINT 10 (detail #1): scroll suave + resalte (glow) hacia la tarjeta del BLOQUE enfocado,
+                                            // para que el usuario identifique al instante cual actividad quedo seleccionada.
+                                            try {
+                                                var _wrap = detailPanel.querySelector('.op-detail-content-wrapper');
+                                                var _itemCards = _wrap ? _wrap.querySelectorAll('.op-activity-item-card') : [];
+                                                var _target = _itemCards[_focusSub] || _itemCards[0];
+                                                if (_target) {
+                                                    setTimeout(function () {
+                                                        try { _target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { _target.scrollIntoView(); }
+                                                        _target.classList.add('op-block-focus-glow');
+                                                        setTimeout(function () { _target.classList.remove('op-block-focus-glow'); }, 1600);
+                                                    }, 60);
+                                                }
+                                            } catch (e) { }
                                         }
 
                                         // Navegación fluida global entre actividades en Vista Dividida
@@ -4298,7 +4999,12 @@
                                             if (_tok) { _newHeaders['Authorization'] = 'Bearer ' + _tok; }
                                             else { _newHeaders['X-Api-Key'] = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0'; }
 
-                                            fetch(urlMap[type] || urlMap.document, {
+                                            // P1: mirror EXACTO de createBlankFile del widget (office-platform-widget.js): el archivo
+                                            // debe crearse con ?scope=private para caer en el espacio personal del usuario. Sin scope,
+                                            // se crea pero NO aparece en "Mis archivos" (que lista con ?scope=private). El Bearer porta
+                                            // la identidad; scope=private lo ubica en su espacio.
+                                            var _newUrl = (urlMap[type] || urlMap.document) + '?scope=private';
+                                            fetch(_newUrl, {
                                                 method: 'POST',
                                                 headers: _newHeaders
                                             })
@@ -4316,6 +5022,10 @@
                                                             // Defensivo: persistir el borrador aunque opAutoSaveResponse hiciera early-return,
                                                             // para que el anexo no se pierda al navegar entre actividades (mismo patron que upload).
                                                             opSaveDraft('resp', index + '-' + subIndex, ta.value);
+                                                            // Re-render INMEDIATO -> la tarjeta del anexo (con [Abrir] y [Papelera]) aparece al instante.
+                                                            if (typeof opShowActivityDetail === 'function') {
+                                                                opShowActivityDetail(index, window._opActivityElements, document.getElementById('op-detail-panel'), document.getElementById('op-master-panel'));
+                                                            }
                                                         }
                                                         if (window.opToast) opToast('<i class="fas fa-cloud-upload-alt mr-1"></i> Documento creado en Gestor Descentralizado y vinculado a la actividad');
                                                         if (typeof OfficePlatform !== 'undefined' && OfficePlatform.openEditor) {
@@ -4609,29 +5319,234 @@
                                             if (modal) modal.remove();
                                         };
 
-                                        // Quitar adjunto de una actividad
+                                        // Quitar adjunto de una actividad (P2: multi-anexo + defensivo)
                                         window.opRemoveAttachmentFromActivity = function (index, subIndex, fileId) {
-                                            // B3: desvincular anexo. Confirmacion explicita antes de tocar el registro.
-                                            if (!window.confirm('¿Deseas desvincular este documento de la actividad?')) return;
-                                            var cacheKey = index + '-' + subIndex;
-                                            var ta = document.getElementById('op-detail-response-text-' + index + '-' + subIndex);
-                                            var newVal = '';
-                                            if (ta) {
-                                                var cur = (ta.value || '');
-                                                var regex = new RegExp('oo:' + fileId + ':[^\\r\\n]*', 'g');
-                                                newVal = cur.replace(regex, '').replace(/\n\s*\n/g, '\n').trim();
-                                                ta.value = newVal;
+                                            // Confirmacion con modal moderno (sin window.confirm nativo).
+                                            window.opConfirm({
+                                                title: 'Desvincular documento',
+                                                message: '¿Deseas desvincular este documento de la actividad? El archivo sigue en el gestor; solo se quita el vínculo con esta actividad.',
+                                                okText: 'Desvincular', cancelText: 'Cancelar'
+                                            }).then(function (ok) {
+                                                if (!ok) return;
+                                                var cacheKey = index + '-' + subIndex;
+                                                var ta = document.getElementById('op-detail-response-text-' + index + '-' + subIndex);
+                                                // FUENTE ROBUSTA del valor actual: textarea si existe, si no el borrador de sesion.
+                                                // NUNCA asumir '' cuando el textarea no esta: eso borraria otros anexos/observaciones.
+                                                var cur = '';
+                                                if (ta) { cur = (ta.value || ''); }
+                                                else { var _d = opReadDraft('resp', cacheKey); cur = (_d === undefined || _d === null) ? '' : _d; }
+                                                // Remover SOLO el tag del fileId clickeado (todas sus repeticiones), preservando los
+                                                // demas anexos y el texto de observacion. El fileId SIEMPRE es numerico (la tarjeta solo
+                                                // renderiza con oo:(\d+):), asi que se saneia a digitos y se usa tal cual, SIN una clase
+                                                // de regex con dollar+llave: esa secuencia es interpretada como Expression Language por el
+                                                // parser JSP y rompe el render de TODA la pagina (jsp:include de Contenedor_head) -> pantalla negra.
+                                                var _fid = String(fileId).replace(/[^0-9]/g, '');
+                                                var regex = new RegExp('oo:' + _fid + ':[^\\r\\n]*', 'g');
+                                                var newVal = cur.replace(regex, '').replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').trim();
+                                                if (ta) { ta.value = newVal; }
+                                                // Persistir SIEMPRE el borrador (aun vacio): el lector del panel lo trata como
+                                                // autoritativo sobre el parse del servidor, evitando que el tag oo: reaparezca.
+                                                opSaveDraft('resp', cacheKey, newVal);
+                                                // Si queda contenido y hay textarea, empujar a BD (opc=11). Con newVal vacio o sin
+                                                // textarea, opAutoSaveResponse hace no-op por su guard: queda como capa PE (borrador de sesion).
+                                                if (newVal && ta) { opAutoSaveResponse(index, subIndex); }
+                                                // Refrescar panel de detalle (re-render inmediato: la tarjeta desaparece al instante)
+                                                opShowActivityDetail(index, window._opActivityElements, document.getElementById('op-detail-panel'), document.getElementById('op-master-panel'));
+                                                // Toast de exito
+                                                if (window.opToast) opToast('<i class="fas fa-unlink mr-1"></i> Documento desvinculado con éxito');
+                                            });
+                                        };
+
+                                        // Marcador de anulacion (trazable). Se detecta en la respuesta de la actividad para
+                                        // representar el estado "ANULADA" en capa cliente (metricas/preview/detalle) SIN tocar
+                                        // el estado real en BD (Opcion 2: sin backend nuevo). La fila NUNCA se borra.
+                                        window.OP_ANNUL_MARK = '[ANULADA]';
+                                        window.opIsAnnulled = function (text) {
+                                            return !!text && /\[ANULADA\]/i.test(String(text));
+                                        };
+
+                                        // ANULAR / DESCARTAR ACTIVIDAD (Opcion 2, trazable, sin borrar en BD). Registra via opc=11
+                                        // (Responder_actividad + Log_memoria_d RESPONSABLE -> queda en el audit trail MemoriaDLog) una
+                                        // observacion con el marcador [ANULADA]. NO cambia el estado real; el "no cuenta como pendiente"
+                                        // y el reflejo en Previsualizador/PDF los resuelve la capa cliente detectando el marcador.
+                                        window.opAnnulActivity = function (idMemoria, index, subIndex) {
+                                            var _fid = String(idMemoria || '').replace(/[^0-9]/g, '');
+                                            if (!_fid) {
+                                                if (window.opToast) opToast('<i class="fas fa-exclamation-triangle mr-1"></i> No se pudo identificar la actividad', false);
+                                                return;
                                             }
-                                            // Persistir SIEMPRE el borrador (aun vacio): el lector del panel lo trata como
-                                            // autoritativo sobre el parse del servidor, evitando que el tag oo: reaparezca.
-                                            opSaveDraft('resp', cacheKey, newVal);
-                                            // Si aun queda observacion, empujar a BD (opc=11). Con newVal vacio, opAutoSaveResponse
-                                            // hace no-op por su propio guard: la desvinculacion queda como capa PE (borrador de sesion).
-                                            if (newVal) { opAutoSaveResponse(index, subIndex); }
-                                            // Refrescar panel de detalle
-                                            opShowActivityDetail(index, window._opActivityElements, document.getElementById('op-detail-panel'), document.getElementById('op-master-panel'));
-                                            // Toast de exito
-                                            if (window.opToast) opToast('<i class="fas fa-unlink mr-1"></i> Documento desvinculado con éxito');
+                                            // Flujo con modal moderno (opConfirm -> opPrompt), sin window.confirm/prompt nativos.
+                                            function _opProceedAnnul(motivo) {
+                                                var urlParams = new URLSearchParams(window.location.search);
+                                                var ipy = urlParams.get('ipy') || (document.querySelector('input[name="ipy"]') || {}).value || '';
+                                                var estadoM = urlParams.get('estadoM') || (document.querySelector('input[name="estado"]') || {}).value || '1';
+                                                var idUsuario = (document.querySelector('input[name="id_usuario"]') || {}).value || '';
+                                                var userName = ((document.querySelector('script[data-token]') || {}).getAttribute ? (document.querySelector('script[data-token]').getAttribute('data-user-name') || '') : '') || 'USUARIO';
+                                                var todayYMD = new Date().toISOString().substring(0, 10);
+                                                var obs = window.OP_ANNUL_MARK + ' Actividad anulada / descartada de la memoria de diseño (no aplica).' + (motivo && motivo.trim() ? (' Motivo: ' + motivo.trim()) : '');
+                                                var params = new URLSearchParams();
+                                                params.append('estado', estadoM);
+                                                params.append('ipy', ipy);
+                                                params.append('id_memoria', _fid);
+                                                params.append('id_usuario', idUsuario);
+                                                params.append('usuario', userName);
+                                                params.append('fecha_reg', todayYMD);
+                                                params.append('observacion', obs);
+                                                params.append('Tipo_log', 'RESPONSABLE');
+                                                params.append('Cbx_enviar_autor', '0');
+                                                if (window.opToast) opToast('<i class="fas fa-spinner fa-spin mr-1"></i> Anulando actividad...');
+                                                fetch('Proyecto?opc=11', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                                    body: params.toString()
+                                                })
+                                                    .then(function () {
+                                                        // marcador local para reflejo inmediato antes de la recarga
+                                                        if (typeof opSaveDraft === 'function') {
+                                                            var prev = (typeof opReadDraft === 'function') ? (opReadDraft('resp', index + '-' + subIndex) || '') : '';
+                                                            opSaveDraft('resp', index + '-' + subIndex, (prev ? (prev + '\n') : '') + obs);
+                                                        }
+                                                        if (window.opToast) opToast('<i class="fas fa-ban mr-1"></i> Actividad anulada (registrada en el historial)');
+                                                        // Recarga desde BD -> la observacion [ANULADA] queda persistida y la capa cliente
+                                                        // la refleja en indice, contadores, previsualizador y PDF.
+                                                        setTimeout(function () { window.location.reload(); }, 400);
+                                                    })
+                                                    .catch(function () {
+                                                        if (window.opToast) opToast('<i class="fas fa-exclamation-triangle mr-1"></i> Error de red al anular', false);
+                                                    });
+                                            }
+                                            window.opConfirm({
+                                                title: 'Anular / Descartar actividad',
+                                                message: 'Quedará registrada como <b>ANULADA</b> en el historial (audit trail) y dejará de contar como pendiente. <b>No se elimina</b> de la base de datos.',
+                                                okText: 'Anular actividad', cancelText: 'Cancelar'
+                                            }).then(function (ok) {
+                                                if (!ok) return;
+                                                window.opPrompt({
+                                                    title: 'Motivo de la anulación',
+                                                    message: 'Opcional. Quedará registrado en el historial de la actividad.',
+                                                    placeholder: 'Ej.: actividad duplicada / no aplica a este proyecto',
+                                                    okText: 'Confirmar anulación', cancelText: 'Cancelar'
+                                                }).then(function (motivo) {
+                                                    if (motivo === null) return; // cancelado
+                                                    _opProceedAnnul(motivo);
+                                                });
+                                            });
+                                        };
+
+                                        // Editabilidad de la memoria: modo GESTION (estadoM==1) y proyecto NO cerrado.
+                                        window.opProjectIsEditable = function () {
+                                            try {
+                                                var estadoM = new URLSearchParams(window.location.search).get('estadoM') || '1';
+                                                var closed = (typeof window.opDetectProjectClosed === 'function') && window.opDetectProjectClosed();
+                                                return (String(estadoM) === '1') && !closed;
+                                            } catch (e) { return false; }
+                                        };
+
+                                        // AGREGAR ACTIVIDAD: modal que reusa el endpoint EXISTENTE opc=9 (cero backend nuevo). La ETAPA
+                                        // se toma del select[name="numeral"] REAL (value = id de fase por-proyecto) para no inventar el
+                                        // numeral (evita misfiling en el audit trail, §8.8). El RESPONSABLE se envia via personas para que
+                                        // opc=9 registre la actividad en estado 1 (EN PROCESO/pendiente), no en 3 (Proyecto.java:383-386).
+                                        window.opShowAddActivityModal = function () {
+                                            if (!opProjectIsEditable()) {
+                                                if (window.opToast) opToast('<i class="fas fa-info-circle mr-1"></i> La memoria no está en modo edición', false);
+                                                return;
+                                            }
+                                            var realNumeral = document.querySelector('#Ventana1 select[name="numeral"]') || document.querySelector('select[name="numeral"]');
+                                            if (!realNumeral || !realNumeral.options.length) {
+                                                if (window.opToast) opToast('<i class="fas fa-exclamation-triangle mr-1"></i> No hay etapas disponibles para agregar', false);
+                                                return;
+                                            }
+                                            // Opciones de etapa (numeral): value real de la fase, texto legible.
+                                            var stageOpts = '';
+                                            for (var i = 0; i < realNumeral.options.length; i++) {
+                                                var o = realNumeral.options[i];
+                                                if (!o.value) continue;
+                                                stageOpts += '<option value="' + o.value + '">' + (o.textContent || o.value) + '</option>';
+                                            }
+                                            // Responsable: del select[name="personas"] real si existe; si no, "asignarme a mi".
+                                            var realPers = document.querySelector('select[name="personas"]');
+                                            var persOpts = '';
+                                            if (realPers && realPers.options.length) {
+                                                for (var p = 0; p < realPers.options.length; p++) {
+                                                    var po = realPers.options[p];
+                                                    if (!po.value) continue;
+                                                    persOpts += '<option value="' + po.value + '">' + (po.textContent || po.value) + '</option>';
+                                                }
+                                            }
+                                            if (!persOpts) {
+                                                var idU = (document.querySelector('input[name="id_usuario"]') || {}).value || '';
+                                                persOpts = '<option value="[' + idU + ']">Asignarme a mí (usuario actual)</option>';
+                                            }
+                                            var old = document.getElementById('op-add-activity-modal');
+                                            if (old) old.remove();
+                                            var ov = document.createElement('div');
+                                            ov.id = 'op-add-activity-modal';
+                                            ov.style.cssText = 'position:fixed; inset:0; z-index:2147483000; background:rgba(15,23,42,0.55); display:flex; align-items:center; justify-content:center; padding:24px;';
+                                            ov.innerHTML = ''
+                                                + '<div style="background:#ffffff; width:90%; max-width:560px; border-radius:12px; box-shadow:0 20px 40px rgba(0,0,0,0.25); padding:24px 28px; box-sizing:border-box;">'
+                                                + '  <div class="d-flex align-items-center justify-content-between mb-3">'
+                                                + '    <h5 class="m-0 font-weight-bold" style="color:#1e293b;"><i class="fas fa-plus-circle text-primary mr-2"></i>Agregar actividad</h5>'
+                                                + '    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="var m=document.getElementById(\'op-add-activity-modal\');if(m)m.remove();" title="Cerrar"><i class="fas fa-times"></i></button>'
+                                                + '  </div>'
+                                                + '  <div class="form-group mb-2">'
+                                                + '    <label class="font-weight-600" style="font-size:13px; color:#334155;">Etapa / Numeral ISO</label>'
+                                                + '    <select id="op-add-stage" class="form-control" style="font-size:13px; color:#1e293b;">' + stageOpts + '</select>'
+                                                + '  </div>'
+                                                + '  <div class="form-group mb-2">'
+                                                + '    <label class="font-weight-600" style="font-size:13px; color:#334155;">Responsable</label>'
+                                                + '    <select id="op-add-resp" class="form-control" style="font-size:13px; color:#1e293b;">' + persOpts + '</select>'
+                                                + '  </div>'
+                                                + '  <div class="form-group mb-3">'
+                                                + '    <label class="font-weight-600" style="font-size:13px; color:#334155;">Descripción de la actividad</label>'
+                                                + '    <textarea id="op-add-desc" class="form-control" rows="3" spellcheck="true" lang="es" autocorrect="on" autocapitalize="sentences" placeholder="Describa la actividad de diseño a registrar..." style="font-size:13px; color:#1e293b;"></textarea>'
+                                                + '  </div>'
+                                                + '  <div class="d-flex justify-content-end" style="gap:8px;">'
+                                                + '    <button type="button" class="btn btn-outline-secondary font-weight-bold" onclick="var m=document.getElementById(\'op-add-activity-modal\');if(m)m.remove();">Cancelar</button>'
+                                                + '    <button type="button" id="op-add-save" class="btn btn-primary font-weight-bold" onclick="opSubmitAddActivity()"><i class="fas fa-save mr-1"></i> Guardar actividad</button>'
+                                                + '  </div>'
+                                                + '</div>';
+                                            document.body.appendChild(ov);
+                                            var f = document.getElementById('op-add-desc'); if (f) f.focus();
+                                        };
+
+                                        window.opSubmitAddActivity = function () {
+                                            var modal = document.getElementById('op-add-activity-modal');
+                                            if (!modal) return;
+                                            var numeral = (document.getElementById('op-add-stage') || {}).value || '';
+                                            var resp = (document.getElementById('op-add-resp') || {}).value || '';
+                                            var descEl = document.getElementById('op-add-desc');
+                                            var descVal = descEl ? (descEl.value || '').trim() : '';
+                                            if (!numeral) { alert('Selecciona la etapa/numeral de la actividad.'); return; }
+                                            if (!descVal) { alert('Escribe la descripción de la actividad.'); if (descEl) descEl.focus(); return; }
+                                            var idProyecto = (document.querySelector('input[name="ipy"]') || {}).value || (new URLSearchParams(window.location.search).get('ipy') || '');
+                                            var idUsuario = (document.querySelector('input[name="id_usuario"]') || {}).value || '';
+                                            var estadoM = (document.querySelector('input[name="estado"]') || {}).value || (new URLSearchParams(window.location.search).get('estadoM') || '1');
+                                            var todayYMD = new Date().toISOString().substring(0, 10);
+                                            var params = new URLSearchParams();
+                                            params.append('estado', estadoM);
+                                            params.append('ipy', idProyecto);
+                                            params.append('id_usuario', idUsuario);
+                                            params.append('fecha_reg', todayYMD);
+                                            params.append('numeral', numeral);
+                                            params.append('observacion', descVal);
+                                            // personas -> opc=9 registra en estado 1 (EN PROCESO) y notifica al responsable.
+                                            if (resp) { params.append('personas', resp); }
+                                            var saveBtn = document.getElementById('op-add-save');
+                                            if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Guardando...'; }
+                                            fetch('Proyecto?opc=9', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                                body: params.toString()
+                                            })
+                                                .then(function () {
+                                                    if (window.opToast) opToast('<i class="fas fa-check mr-1"></i> Actividad agregada a la memoria');
+                                                    // Recarga desde BD -> indice, contadores, previsualizador y PDF reflejan la actividad nueva.
+                                                    setTimeout(function () { window.location.reload(); }, 400);
+                                                })
+                                                .catch(function () {
+                                                    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save mr-1"></i> Guardar actividad'; }
+                                                    if (window.opToast) opToast('<i class="fas fa-exclamation-triangle mr-1"></i> Error al agregar la actividad', false);
+                                                });
                                         };
 
                                         // Normalizar texto para búsquedas robustas
@@ -5328,6 +6243,27 @@
                                             var tipo = (tipoEl && tipoEl.value) ? tipoEl.value : '0';
                                             window.location.href = 'Proyecto?opc=6&id_proyecto=' + id + '&Rdb_consulta=' + encodeURIComponent(tipo) + '&f_salida=' + (finalState || 'TERMINADO');
                                         };
+
+                                        // Finalizar Revisión y firmar DESDE la vista interna de la memoria. Reusa EXACTAMENTE el
+                                        // endpoint/params de la tabla externa (ProyectoRevision -> opc=6 & f_salida=FINALIZADO), vía
+                                        // opConfirmProjectClose. La firma se atribuye al usuario de sesión en el backend
+                                        // (Estado_f_salida_revision). opc=6 forwardea al listado de proyectos (opc=1) tras firmar.
+                                        window.opSignRevision = function () {
+                                            var ipy = new URLSearchParams(window.location.search).get('ipy') || (document.querySelector('input[name="ipy"]') || {}).value || '';
+                                            if (!ipy) {
+                                                if (window.opToast) opToast('<i class="fas fa-exclamation-triangle mr-1"></i> No se pudo identificar el proyecto', false);
+                                                return;
+                                            }
+                                            window.opConfirm({
+                                                title: 'Finalizar Revisión y firmar',
+                                                message: 'Vas a <b>finalizar la revisión y firmar</b> esta memoria de diseño. Quedará <b>TERMINADA</b> (solo lectura) y la firma se registrará a tu usuario. ¿Confirmar?',
+                                                okText: 'Finalizar y firmar', cancelText: 'Cancelar'
+                                            }).then(function (ok) {
+                                                if (!ok) return;
+                                                if (window.opToast) opToast('<i class="fas fa-file-signature mr-1"></i> Firmando y finalizando revisión...');
+                                                setTimeout(function () { window.opConfirmProjectClose(ipy, 'FINALIZADO'); }, 300);
+                                            });
+                                        };
                                         // Listener DELEGADO en fase de captura: corre antes de que SweetAlert v1 gestione el
                                         // click, garantizando que los 3 botones del modal disparen aunque el inline falle.
                                         (function opInstallCloseButtonsDelegate() {
@@ -5348,13 +6284,19 @@
                                             try {
                                                 var doc = new DOMParser().parseFromString(html, 'text/html');
                                                 var tables = doc.querySelectorAll('table.table-bordered');
-                                                var total = 0, fin = 0, pendingIds = [], seen = {};
+                                                var total = 0, fin = 0, anul = 0, pendingIds = [], seen = {};
                                                 for (var i = 0; i < tables.length; i++) {
                                                     var t = tables[i];
                                                     if (t.querySelector('img') || t.classList.contains('op-wiz-stage-table')) continue;
                                                     var txt = (t.textContent || '');
                                                     if (/AUTOR/i.test(txt)) {
                                                         total++;
+                                                        // ANULADA (Opcion 2): trazada via observacion [ANULADA]. No cuenta como pendiente
+                                                        // ni como finalizada; se contabiliza aparte. La fila sigue viva en BD.
+                                                        if (typeof window.opIsAnnulled === 'function' && window.opIsAnnulled(txt)) {
+                                                            anul++;
+                                                            continue;
+                                                        }
                                                         // id_memoria_d de la actividad (cba_num / ProyectoEstado / id_memoria). Clave estable.
                                                         var _ih = (t.innerHTML || '');
                                                         var oc = _ih.match(/cba_num=(\d+)/i)
@@ -5376,7 +6318,7 @@
                                                 var idU = (doc.querySelector('[name="id_usuario"]') || {}).value || '';
                                                 var usr = (doc.querySelector('[name="usuario"]') || {}).value || '';
                                                 var em = (doc.querySelector('[name="estadoM"]') || {}).value || (doc.querySelector('[name="estado"]') || {}).value || '1';
-                                                return { total: total, finalizadas: fin, pendientes: total - fin, pendingIds: pendingIds, idUsuario: idU, usuario: usr, estadoM: em };
+                                                return { total: total, finalizadas: fin, anuladas: anul, pendientes: total - fin - anul, pendingIds: pendingIds, idUsuario: idU, usuario: usr, estadoM: em };
                                             } catch (e) { return null; }
                                         }
                                         function opShowCloseDialog(m, id, finalState) {
@@ -5840,7 +6782,7 @@
                                                     else groups['OTROS'].rows.push({ value: stg.value, text: stg.text, tpl: null });
                                                 });
 
-                                                var html = '<div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Plantilla ISO 13485 pre-cargada. Marca/desmarca sub-etapas y ajusta la observación técnica antes de generar. El numeral de cada actividad es el REAL del proyecto (nunca inventado).</div>'
+                                                var html = '<div class="alert alert-info py-2" style="font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Plantilla ISO 13485 pre-cargada con <b>1 actividad por etapa</b> por defecto (más los obligatorios de V&amp;V). Marca sub-etapas adicionales si las necesitás y ajustá la observación antes de generar. El numeral de cada actividad es el REAL del proyecto (nunca inventado).</div>'
                                                     + '<div style="max-height: 55vh; overflow-y: auto; padding-right: 4px;">';
 
                                                 var allOrder = order.concat(['OTROS']);
@@ -5851,7 +6793,7 @@
                                                     var safe = etapaKey.replace(/[^a-z0-9]/gi, '');
                                                     var bodyId = 'op-wiz-clause-body-' + safe;
                                                     var parentId = 'op-wiz-clause-chk-' + safe;
-                                                    var anySel = g.rows.some(function (r) { return r.tpl ? r.tpl.sel : true; });
+                                                    var anySel = g.rows.length > 0; // 1 actividad por etapa ISO por defecto -> la clausula queda expandida
                                                     var titleHtml = (etapaKey === 'OTROS')
                                                         ? '<span class="t">' + g.titulo + '</span>'
                                                         : '<span class="num">' + g.etapa + '</span> <span class="t">' + g.titulo + '</span>';
@@ -5862,10 +6804,13 @@
                                                         + '    <span class="cnt">' + g.rows.length + '</span>'
                                                         + '  </div>'
                                                         + '  <div class="op-wiz-clause-body" id="' + bodyId + '" data-parent="' + parentId + '"' + (anySel ? '' : ' style="opacity:0.5;"') + '>';
-                                                    g.rows.forEach(function (r) {
+                                                    g.rows.forEach(function (r, ri) {
                                                         rowSeq++;
-                                                        var sel = r.tpl ? r.tpl.sel : true;
                                                         var obl = r.tpl ? r.tpl.obl : false;
+                                                        // DEFAULT: 1 actividad por etapa ISO -> marcar solo la PRIMERA fila de la clausula.
+                                                        // Los obligatorios (evidencia V&V, ISO 13485) siguen marcados aunque no sean la primera.
+                                                        // El usuario puede marcar mas sub-etapas manualmente si lo desea.
+                                                        var sel = obl || (ri === 0);
                                                         var faseTxt = r.text; // texto real de la opcion (letra + fase)
                                                         var descDefault = r.tpl ? r.tpl.fase : r.text; // observacion pre-rellenada (texto oficial del catalogo)
                                                         var chkId = 'op-wiz-sub-' + rowSeq;
@@ -6213,13 +7158,19 @@
 
                                         // --- SPRINT 7: ORQUESTADOR ÚNICO DE INICIALIZACIÓN DE LA CAPA .op-* ---
                                         function opInit() {
-                                            setTimeout(restoreContext, 100);
-                                            setTimeout(opForceExpandAll, 150);
-                                            setTimeout(opInitStickyHeader, 180);
-                                            setTimeout(opInitSplitScreen, 250);
-                                            setTimeout(opSetupRegisterAvance, 200);
+                                            restoreContext();
+                                            opForceExpandAll();
+                                            opInitStickyHeader();
+                                            opInitSplitScreen();
+                                            opSetupRegisterAvance();
                                             // Sprint 10: adapt activity tables to card layout
-                                            setTimeout(opAdaptActivityCard, 280);
+                                            opAdaptActivityCard();
+
+                                            // Fallback de seguridad: asegura que nunca quede nada oculto
+                                            setTimeout(function () {
+                                                document.documentElement.classList.add('op-dhf-ready');
+                                                document.documentElement.classList.remove('op-dhf-init');
+                                            }, 1000);
 
                                             // Re-inicializar al cambiar de tab
                                             document.addEventListener('click', function (e) {
@@ -6244,6 +7195,39 @@
                                                 }
                                             });
 
+                                            // P3: inicializar Select2 en el modal "Lista de distribucion" (#Ventana3). El Tag_proyecto
+                                            // (backend congelado) genera <select class='select2' multiple name='personas'> pero Proyecto.jsp
+                                            // NUNCA llama .select2(), asi que quedaba nativo/roto (recuadro en blanco). PE tolerante a fallos:
+                                            // si $.fn.select2 no existe, el CSS de respaldo .op-* deja el select nativo legible.
+                                            window.opInitDistribSelect2 = function () {
+                                                try {
+                                                    var sel = document.querySelector('#Ventana3 select[name="personas"]');
+                                                    if (!sel) return;
+                                                    // Inyectar (una sola vez) el helper descriptivo arriba del select.
+                                                    var grp = sel.closest ? sel.closest('.form-group') : sel.parentNode;
+                                                    if (grp && !grp.querySelector('.op-dist-helper')) {
+                                                        var hint = document.createElement('label');
+                                                        hint.className = 'op-dist-helper';
+                                                        hint.textContent = 'Seleccione los usuarios que recibirán la memoria:';
+                                                        grp.insertBefore(hint, grp.firstChild);
+                                                    }
+                                                    if (!window.jQuery || !jQuery.fn || !jQuery.fn.select2) return;
+                                                    var $sel = jQuery(sel);
+                                                    if ($sel.hasClass('select2-hidden-accessible')) return; // ya inicializado
+                                                    // dropdownParent = BODY: el menu vive fuera del .cont_reg (que usa transform:
+                                                    // translate, lo que descuadra el posicionamiento absoluto de Select2) y flota sobre
+                                                    // el modal con z-index 999999. dropdownCssClass 'op-dist-dd' scopa el restyle visual
+                                                    // a ESTE dropdown, sin tocar los demas select2 de la app.
+                                                    $sel.select2({
+                                                        width: '100%',
+                                                        placeholder: 'Buscar y seleccionar usuarios...',
+                                                        closeOnSelect: false,
+                                                        dropdownParent: jQuery('body'),
+                                                        dropdownCssClass: 'op-dist-dd'
+                                                    });
+                                                } catch (e) { /* tolerante: el CSS de respaldo mantiene el select nativo legible */ }
+                                            };
+
                                             // Intercept legacy modal triggers to move them to body before display
                                             if (typeof window.mostrarConvencion === 'function') {
                                                 var originalMostrarConvencion = window.mostrarConvencion;
@@ -6253,8 +7237,13 @@
                                                         document.body.appendChild(modal);
                                                     }
                                                     originalMostrarConvencion(id);
+                                                    // Al abrir la Lista de distribucion, (re)inicializar select2 con el contenedor ya visible.
+                                                    if (String(id) === '3') { setTimeout(window.opInitDistribSelect2, 60); }
                                                 };
                                             }
+
+                                            // Init inicial: el modal puede venir renderizado por el servidor (Templdd==1) al cargar.
+                                            setTimeout(window.opInitDistribSelect2, 120);
 
                                             setInterval(checkOpenVentanas, 300);
                                         }
