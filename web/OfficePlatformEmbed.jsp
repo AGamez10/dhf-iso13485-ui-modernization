@@ -12,6 +12,16 @@
     String nombreStr = (usuarioObj != null && !usuarioObj.toString().trim().isEmpty()) ? usuarioObj.toString().trim() : "FABIAN GAONA";
     String token = "";
     try { token = Methods.OfficePlatformResolver.resolveToken(cedulaStr, nombreStr); } catch (Exception e) { token = ""; }
+    // C2/C1 — resolucion dinamica del host + api-key (misma jerarquia que Contenedor_head.jsp):
+    // -D system property -> env var -> host de acceso. Fallback backward-compatible a localhost.
+    String opServerUrl = System.getProperty("OFFICE_PLATFORM_URL");
+    if (opServerUrl == null || opServerUrl.trim().isEmpty()) { opServerUrl = System.getenv("OFFICE_PLATFORM_URL"); }
+    if (opServerUrl == null || opServerUrl.trim().isEmpty()) { opServerUrl = request.getScheme() + "://" + request.getServerName() + ":8080"; }
+    opServerUrl = opServerUrl.trim();
+    String opApiKey = System.getProperty("OFFICE_PLATFORM_API_KEY");
+    if (opApiKey == null || opApiKey.trim().isEmpty()) { opApiKey = System.getenv("OFFICE_PLATFORM_API_KEY"); }
+    if (opApiKey == null || opApiKey.trim().isEmpty()) { opApiKey = "opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0"; }
+    opApiKey = opApiKey.trim();
 %>
 <!DOCTYPE html>
 <html>
@@ -29,9 +39,9 @@
     <div id="office-platform"></div>
     <script src="Interfaz/Contenido/assets/modules/jquery.min.js"></script>
     <script
-        src="http://localhost:8080/office-platform-widget.js?v=<%= System.currentTimeMillis() %>"
-        data-api-key="opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0"
-        data-container="office-platform" data-server="http://localhost:8080"
+        src="<%= opServerUrl %>/office-platform-widget.js?v=<%= System.currentTimeMillis() %>"
+        data-api-key="<%= opApiKey %>"
+        data-container="office-platform" data-server="<%= opServerUrl %>"
         data-token="<%= token %>" data-user-id="<%= cedulaStr %>" data-user-name="<%= nombreStr %>">
     </script>
 </body>

@@ -1,10 +1,39 @@
 <%@page contentType="text/html" pageEncoding="UTF-8" %>
+<%
+    // C2 — Resolucion dinamica del host de Office Platform (:8080) con fallback backward-compatible.
+    // Prioridad: -D system property -> env var -> host desde el que se accede (localhost/IP/dominio).
+    // Si se accede por localhost resuelve a localhost; en red/produccion resuelve al host real, sin tocar codigo.
+    String opServerUrl = System.getProperty("OFFICE_PLATFORM_URL");
+    if (opServerUrl == null || opServerUrl.trim().isEmpty()) {
+        opServerUrl = System.getenv("OFFICE_PLATFORM_URL");
+    }
+    if (opServerUrl == null || opServerUrl.trim().isEmpty()) {
+        opServerUrl = request.getScheme() + "://" + request.getServerName() + ":8080";
+    }
+    opServerUrl = opServerUrl.trim();
+    // C1 — API-key centralizada en un unico punto (fallback de minimo privilegio; el Bearer token de
+    // sesion sigue siendo prioridad 1). Se puede sobreescribir por -D/env sin recompilar.
+    String opApiKey = System.getProperty("OFFICE_PLATFORM_API_KEY");
+    if (opApiKey == null || opApiKey.trim().isEmpty()) {
+        opApiKey = System.getenv("OFFICE_PLATFORM_API_KEY");
+    }
+    if (opApiKey == null || opApiKey.trim().isEmpty()) {
+        opApiKey = "opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0";
+    }
+    opApiKey = opApiKey.trim();
+%>
     <!DOCTYPE html>
     <html>
 
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <title>JSP Page</title>
+        <script>
+            // C1/C2: configuracion de Office Platform resuelta en el servidor y expuesta al cliente.
+            // Todas las rutinas del gestor consumen estas globales con fallback a localhost (backward-compatible).
+            window.OP_SERVER = '<%= opServerUrl %>';
+            window.OP_FALLBACK_KEY = '<%= opApiKey %>';
+        </script>
         <link rel="stylesheet" href="Interfaz/Contenido/assets/modules/izitoast/css/iziToast.min.css">
         <link href="Interfaz/Contenido/assets/Alertas/dist/sweetalert.css" rel="stylesheet" type="text/css" />
         <link href="Interfaz/Contenido/assets/Validacion/StyleSheetLiveValidation.css" rel="stylesheet"
@@ -2253,8 +2282,8 @@
                 var loading = document.getElementById('oo-editor-loading');
                 if (loading) loading.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando documento...';
 
-                var API_KEY = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0';
-                var SERVER = 'http://localhost:8080';
+                var API_KEY = (window.OP_FALLBACK_KEY || 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0');
+                var SERVER = window.OP_SERVER || 'http://localhost:8080';
 
                 var url = SERVER + '/api/files/new';
                 if (type === 'spreadsheet') url = SERVER + '/api/files/new/spreadsheet';
@@ -2306,8 +2335,8 @@
             };
 
             window.ooRenderInline = function (fileId) {
-                var API_KEY = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0';
-                var SERVER = 'http://localhost:8080';
+                var API_KEY = (window.OP_FALLBACK_KEY || 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0');
+                var SERVER = window.OP_SERVER || 'http://localhost:8080';
                 var loading = document.getElementById('oo-editor-loading');
 
                 var headers = { 'Content-Type': 'application/json' };
@@ -2430,9 +2459,9 @@
                              login). Con defer descarga en paralelo y ejecuta tras el parse -> el DOM se pinta siempre.
                              El widget igual auto-monta en DOMContentLoaded (defer corre antes de DCL). --%>
                         <script defer
-                            src="http://localhost:8080/office-platform-widget.js?v=<%= System.currentTimeMillis() %>"
-                            data-api-key="opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0"
-                            data-container="office-platform" data-server="http://localhost:8080"
+                            src="<%= opServerUrl %>/office-platform-widget.js?v=<%= System.currentTimeMillis() %>"
+                            data-api-key="<%= opApiKey %>"
+                            data-container="office-platform" data-server="<%= opServerUrl %>"
                             data-token="<%= token %>" data-user-id="<%= cedulaStr %>" data-user-name="<%= nombreStr %>">
                             </script>
                         <script>
@@ -2443,8 +2472,8 @@
                             //    - Editor DocsAPI renderizado inline (480px alto)
                             // ===================================================================
                             (function () {
-                                var OO_API_KEY = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0';
-                                var OO_SERVER = 'http://localhost:8080';
+                                var OO_API_KEY = (window.OP_FALLBACK_KEY || 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0');
+                                var OO_SERVER = window.OP_SERVER || 'http://localhost:8080';
                                 var _apiScriptLoaded = false;
                                 var _ooToken = '';
 
@@ -2818,13 +2847,13 @@
                                         else if (typeof window.ooInitEditor === 'function') { window.ooInitEditor({ containerId: 'office-platform', inputId: 'textInput', existingFileId: id, autoLoad: true }); }
                                         return;
                                     }
-                                    var dl = 'http://localhost:8080/api/files/' + id + '/download';
+                                    var dl = (window.OP_SERVER || 'http://localhost:8080') + '/api/files/' + id + '/download';
                                     if (window.opToast) opToast('<i class="fas fa-spinner fa-spin mr-1"></i> Abriendo ' + (title || ('archivo ' + id)) + '...');
                                     // Descarga con el BEARER token del usuario (abre sus archivos privados subidos por Subir PC);
                                     // si da 401/403, reintenta con X-Api-Key (archivos globales/legacy). Sin token -> api-key directo.
                                     var _dlTok = (document.querySelector('script[data-token]') || {}).getAttribute ? (document.querySelector('script[data-token]').getAttribute('data-token') || '') : '';
                                     function _dlFetch(useBearer) {
-                                        var h = useBearer ? { 'Authorization': 'Bearer ' + _dlTok } : { 'X-Api-Key': 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0' };
+                                        var h = useBearer ? { 'Authorization': 'Bearer ' + _dlTok } : { 'X-Api-Key': (window.OP_FALLBACK_KEY || 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0') };
                                         return fetch(dl, { method: 'GET', headers: h });
                                     }
                                     (_dlTok ? _dlFetch(true).then(function (r) { return (r.status === 401 || r.status === 403) ? _dlFetch(false) : r; }) : _dlFetch(false))
@@ -4985,9 +5014,9 @@
                                             if (statusEl) statusEl.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin mr-1"></i> Creando documento OnlyOffice...</span>';
 
                                             var urlMap = {
-                                                document: 'http://localhost:8080/api/files/new',
-                                                spreadsheet: 'http://localhost:8080/api/files/new/spreadsheet',
-                                                presentation: 'http://localhost:8080/api/files/new/presentation'
+                                                document: (window.OP_SERVER || 'http://localhost:8080') + '/api/files/new',
+                                                spreadsheet: (window.OP_SERVER || 'http://localhost:8080') + '/api/files/new/spreadsheet',
+                                                presentation: (window.OP_SERVER || 'http://localhost:8080') + '/api/files/new/presentation'
                                             };
 
                                             // B4: crear el documento con el BEARER TOKEN del usuario (data-token del widget), no solo
@@ -4997,7 +5026,7 @@
                                             var _tok = (document.querySelector('script[data-token]') || {}).getAttribute ? (document.querySelector('script[data-token]').getAttribute('data-token') || '') : '';
                                             var _newHeaders = { 'Content-Type': 'application/json' };
                                             if (_tok) { _newHeaders['Authorization'] = 'Bearer ' + _tok; }
-                                            else { _newHeaders['X-Api-Key'] = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0'; }
+                                            else { _newHeaders['X-Api-Key'] = (window.OP_FALLBACK_KEY || 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0'); }
 
                                             // P1: mirror EXACTO de createBlankFile del widget (office-platform-widget.js): el archivo
                                             // debe crearse con ?scope=private para caer en el espacio personal del usuario. Sin scope,
@@ -5060,12 +5089,12 @@
 
                                             var _upUrl, _upHeaders;
                                             if (_tok) {
-                                                _upUrl = 'http://localhost:8080/api/files/upload?scope=private';
+                                                _upUrl = (window.OP_SERVER || 'http://localhost:8080') + '/api/files/upload?scope=private';
                                                 _upHeaders = { 'Authorization': 'Bearer ' + _tok };
                                             } else {
                                                 // Fallback sin token: api-key + scope=shared (global, descargable con la key).
-                                                _upUrl = 'http://localhost:8080/api/files/upload?scope=shared';
-                                                _upHeaders = { 'X-Api-Key': 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0' };
+                                                _upUrl = (window.OP_SERVER || 'http://localhost:8080') + '/api/files/upload?scope=shared';
+                                                _upHeaders = { 'X-Api-Key': (window.OP_FALLBACK_KEY || 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0') };
                                             }
                                             fetch(_upUrl, {
                                                 method: 'POST',
@@ -5117,13 +5146,13 @@
                                             var userMenu = document.querySelector('.dropdown-toggle') || document.querySelector('.d-sm-none.d-lg-inline-block');
                                             var userName = (userMenu ? (userMenu.textContent || '') : '').trim().replace(/Hola,\s*/i, '') || 'Usuario';
 
-                                            return fetch('http://localhost:8080/api/auth/resolve', {
+                                            return fetch((window.OP_SERVER || 'http://localhost:8080') + '/api/auth/resolve', {
                                                 method: 'POST',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({
                                                     cedula: cedula,
                                                     nombre: userName,
-                                                    apiKey: 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0'
+                                                    apiKey: (window.OP_FALLBACK_KEY || 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0')
                                                 })
                                             })
                                             .then(function (r) { return r.json(); })
@@ -5194,12 +5223,12 @@
                                             opGetWidgetToken().then(function (token) {
                                                 var headers = {};
                                                 if (token) headers['Authorization'] = 'Bearer ' + token;
-                                                headers['X-Api-Key'] = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0';
+                                                headers['X-Api-Key'] = (window.OP_FALLBACK_KEY || 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0');
 
                                                 Promise.all([
-                                                    fetch('http://localhost:8080/api/files/all?scope=shared', { headers: headers }).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; }),
-                                                    fetch('http://localhost:8080/api/files/all?scope=private', { headers: headers }).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; }),
-                                                    fetch('http://localhost:8080/api/files?scope=shared', { headers: headers }).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; })
+                                                    fetch((window.OP_SERVER || 'http://localhost:8080') + '/api/files/all?scope=shared', { headers: headers }).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; }),
+                                                    fetch((window.OP_SERVER || 'http://localhost:8080') + '/api/files/all?scope=private', { headers: headers }).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; }),
+                                                    fetch((window.OP_SERVER || 'http://localhost:8080') + '/api/files?scope=shared', { headers: headers }).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; })
                                                 ]).then(function (results) {
                                                     var extract = function (res) { return (res && res.data) || (res && res.files) || (Array.isArray(res) ? res : []); };
                                                     var dedupe = function (arr) { var s = {}, o = []; arr.forEach(function (it) { var id = it && (it.id || it.fileId); if (id && !s[id]) { s[id] = 1; o.push(it); } }); return o; };
@@ -6933,8 +6962,8 @@
                                             var estadoM = estadoInput ? estadoInput.value : '1';
                                             var todayYMD = new Date().toISOString().substring(0, 10);
 
-                                            var OO_API_KEY = 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0';
-                                            var OO_SERVER = 'http://localhost:8080';
+                                            var OO_API_KEY = (window.OP_FALLBACK_KEY || 'opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0');
+                                            var OO_SERVER = window.OP_SERVER || 'http://localhost:8080';
 
                                             var s = document.querySelector('script[data-token]');
                                             var token = s ? s.getAttribute('data-token') || '' : '';
