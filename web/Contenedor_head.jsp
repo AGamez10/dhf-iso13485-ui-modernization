@@ -7187,6 +7187,34 @@
 
                                         // --- SPRINT 7: ORQUESTADOR ÚNICO DE INICIALIZACIÓN DE LA CAPA .op-* ---
                                         function opInit() {
+                                            // C3: mitigacion de duplicacion en el Audit Trail MemoriaDLog por F5 / doble clic
+                                            // (backend congelado sin patron PRG en opc=9/10/11/12). Capa PE, sin tocar el submit real.
+                                            try {
+                                                // (a) PRG del lado cliente: reescribe la entrada de historial del POST forwardeado por
+                                                //     un GET limpio; un F5/recarga NO re-postea el formulario -> no duplica el registro.
+                                                if (window.history && window.history.replaceState) {
+                                                    window.history.replaceState(null, document.title, window.location.href);
+                                                }
+                                                // (b) Candado anti-doble-clic: al 1er submit marca el form y bloquea el 2do
+                                                //     (preventDefault + pointer-events). NO usa 'disabled' para NO quitar el name/value
+                                                //     del submit del POST legacy (evita el patron del incidente 8.3). Auto-reset a 4s
+                                                //     por si la validacion cliente cancelo el envio (form recuperable, no queda trabado).
+                                                if (!window._opPostGuardsInstalled) {
+                                                    window._opPostGuardsInstalled = true;
+                                                    document.addEventListener('submit', function (e) {
+                                                        var form = e.target;
+                                                        if (!form || form.nodeName !== 'FORM') return;
+                                                        if (form.getAttribute('data-op-submitting') === '1') { e.preventDefault(); return; }
+                                                        form.setAttribute('data-op-submitting', '1');
+                                                        var subs = form.querySelectorAll('button[type="submit"], input[type="submit"], button:not([type])');
+                                                        for (var i = 0; i < subs.length; i++) { subs[i].style.pointerEvents = 'none'; subs[i].style.opacity = '0.65'; }
+                                                        setTimeout(function () {
+                                                            form.removeAttribute('data-op-submitting');
+                                                            for (var j = 0; j < subs.length; j++) { subs[j].style.pointerEvents = ''; subs[j].style.opacity = ''; }
+                                                        }, 4000);
+                                                    }, true);
+                                                }
+                                            } catch (e) { }
                                             restoreContext();
                                             opForceExpandAll();
                                             opInitStickyHeader();
