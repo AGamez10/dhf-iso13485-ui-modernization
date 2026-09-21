@@ -8,10 +8,39 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 public class OfficePlatformResolver {
-    
-    private static final String API_KEY = "opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0";
-    private static final String AUTH_URL = "http://localhost:8080/api/auth/resolve";
-    
+
+    private static final String DEFAULT_SERVER = "http://localhost:8080";
+    private static final String DEFAULT_API_KEY = "opk_GYJwuySqt4GxHjriA5EsFmU7LF2agmBjp5AMc30BGB0";
+
+    // Base del microservicio Office Platform resuelta en runtime: -D system property -> env var ->
+    // fallback localhost. Se le anexa /api/auth/resolve donde se consume.
+    private static String resolveServerBase() {
+        String v = System.getProperty("OFFICE_PLATFORM_URL");
+        if (v == null || v.trim().isEmpty()) {
+            v = System.getenv("OFFICE_PLATFORM_URL");
+        }
+        if (v == null || v.trim().isEmpty()) {
+            v = DEFAULT_SERVER;
+        }
+        v = v.trim();
+        while (v.endsWith("/")) {
+            v = v.substring(0, v.length() - 1);
+        }
+        return v;
+    }
+
+    // API-key resuelta en runtime: -D system property -> env var -> fallback embebido.
+    private static String resolveApiKey() {
+        String v = System.getProperty("OFFICE_PLATFORM_API_KEY");
+        if (v == null || v.trim().isEmpty()) {
+            v = System.getenv("OFFICE_PLATFORM_API_KEY");
+        }
+        if (v == null || v.trim().isEmpty()) {
+            v = DEFAULT_API_KEY;
+        }
+        return v.trim();
+    }
+
     public static String resolveToken(String cedula, String nombre) {
         try {
             if (cedula == null || cedula.trim().isEmpty()) {
@@ -30,7 +59,7 @@ public class OfficePlatformResolver {
                 nombre = "Usuario";
             }
             
-            URL url = new URL(AUTH_URL);
+            URL url = new URL(resolveServerBase() + "/api/auth/resolve");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; utf-8");
@@ -44,7 +73,7 @@ public class OfficePlatformResolver {
             String jsonInputString = "{"
                     + "\"cedula\":\"" + escapedCedula + "\","
                     + "\"nombre\":\"" + escapedNombre + "\","
-                    + "\"apiKey\":\"" + API_KEY + "\""
+                    + "\"apiKey\":\"" + resolveApiKey() + "\""
                     + "}";
             
             try (OutputStream os = conn.getOutputStream()) {

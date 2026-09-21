@@ -28,11 +28,27 @@
     <class>Entidades.Parametros</class>
     <exclude-unlisted-classes>false</exclude-unlisted-classes>
     <properties>
+      <!-- Conexion LOCAL de desarrollo. -->
       <property name="javax.persistence.jdbc.url" value="jdbc:mysql://localhost:3307/diseno_desarrollo_dos?zeroDateTimeBehavior=convertToNull&amp;autoReconnect=true"/>
       <property name="javax.persistence.jdbc.user" value="root"/>
       <property name="javax.persistence.jdbc.driver" value="com.mysql.jdbc.Driver"/>
       <property name="javax.persistence.jdbc.password" value=""/>
-      <property name="javax.persistence.schema-generation.database.action" value="create"/>
+      <!-- ===================================================================
+           PRODUCCION: reemplazar la url local por el host productivo, p.ej.:
+           value="jdbc:mysql://172.16.2.117:3306/diseno_desarrollo_dos?zeroDateTimeBehavior=convertToNull&amp;autoReconnect=true"
+           con su usuario/clave reales. O, preferentemente, delegar la conexion
+           a un DataSource JNDI gestionado por el contenedor (pool, credenciales
+           fuera del artefacto). Para eso: en <persistence-unit ...> cambiar a
+           transaction-type="JTA", quitar las 4 properties jdbc.* de arriba y usar:
+               <jta-data-source>jdbc/DisenoDesarrollo</jta-data-source>
+           (o <non-jta-data-source>jdbc/DisenoDesarrollo</non-jta-data-source> si
+           se mantiene RESOURCE_LOCAL), declarando el Resource en el context.xml de
+           la instancia Tomcat de produccion.
+           =================================================================== -->
+      <!-- BLINDAJE PRODUCCION: 'none' desactiva la generacion/alteracion de esquema.
+           'create' (valor previo) intentaria (re)crear tablas al arrancar -> podria
+           DESTRUIR datos productivos. En produccion DEBE quedar en 'none'. -->
+      <property name="javax.persistence.schema-generation.database.action" value="none"/>
     </properties>
   </persistence-unit>
 </persistence>

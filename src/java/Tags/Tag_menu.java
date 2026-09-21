@@ -24,6 +24,12 @@ public class Tag_menu extends TagSupport {
     @Override
     public int doStartTag() throws JspException {
         HttpSession sesion = pageContext.getSession();
+        // Guarda de seguridad: si no hay sesion valida, no evaluar el menu. Evita el NPE/500 que
+        // producirian los .toString() sobre atributos nulos si el tag se evalua antes de que el
+        // SessionFilter redirija al login. Retorna SKIP_BODY silenciosamente.
+        if (sesion == null || sesion.getAttribute("Usuario") == null) {
+            return SKIP_BODY;
+        }
         String Usuario = sesion.getAttribute("Usuario").toString();
         String userrol = sesion.getAttribute("Cargo").toString();
         int id_user = Integer.parseInt(sesion.getAttribute("Id_usuario").toString());

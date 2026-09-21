@@ -189,7 +189,9 @@
                 let filesToUpload = []; // Aquí puedes agregar lógica para llenar este array con los archivos que desees subir
 
                 var xhr = new XMLHttpRequest();
-                xhr.open("POST", "http://localhost/Archivo_DYD/flmngr/envio.php", true);
+                var flmngrBase = window.location.protocol + '//' + window.location.hostname;
+                xhr.open("POST", flmngrBase + "/Archivo_DYD/flmngr/envio.php", true);
+                xhr.onerror = function () { try { console.error('flmngr no disponible en ' + flmngrBase); } catch (e) { } };
                 xhr.setRequestHeader("Content-Type", "application/json");
                 xhr.onreadystatechange = function () {
                     if (xhr.readyState === 4 && xhr.status === 200) {

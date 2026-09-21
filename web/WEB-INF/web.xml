@@ -1,5 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <web-app version="3.1" xmlns="http://xmlns.jcp.org/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd">
+    <!-- Control de acceso: exige sesion valida en vistas protegidas. Excluye login, /Sesion,
+         /Descargar y recursos estaticos (ver SessionFilter.isExcluded). Solo dispatcher REQUEST. -->
+    <filter>
+        <filter-name>SessionFilter</filter-name>
+        <filter-class>Filtros.SessionFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>SessionFilter</filter-name>
+        <url-pattern>*.jsp</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>SessionFilter</filter-name>
+        <url-pattern>/Proyecto</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>SessionFilter</filter-name>
+        <url-pattern>/Complemento</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>SessionFilter</filter-name>
+        <url-pattern>/Usuario</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>SessionFilter</filter-name>
+        <url-pattern>/Permisos</url-pattern>
+    </filter-mapping>
     <servlet>
         <servlet-name>Complemento</servlet-name>
         <servlet-class>Servlets.Complemento</servlet-class>
@@ -53,4 +79,7 @@
             120
         </session-timeout>
     </session-config>
+    <welcome-file-list>
+        <welcome-file>index.jsp</welcome-file>
+    </welcome-file-list>
 </web-app>
