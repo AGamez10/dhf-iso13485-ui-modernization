@@ -2574,11 +2574,17 @@ public class Tag_memoria extends TagSupport {
                     out.print("<tbody>");
                     lst_memoria_C = memoriacjpa.Traer_proyecto(id_proyecto);
                     Object[] Obj_pry_c = (Object[]) lst_memoria_C.get(0);
+                    String numPry = Obj_pry_c[3] != null ? Obj_pry_c[3].toString().replaceAll("[*?\"<>|/\\\\]", "").trim() : "";
+                    if (numPry.isEmpty()) {
+                        numPry = String.format("%04d", id_proyecto);
+                    }
+                    String fchPry = Obj_pry_c[1] != null ? Obj_pry_c[1].toString().replace("-", "") : "";
+                    String rutaPry = numPry + "_" + fchPry;
                     for (int m = 0; m < lst_adjuntos.size(); m++) {
                         Object[] obj_adjuntos = (Object[]) lst_adjuntos.get(m);
                         out.print("<tr>");
                         out.print("<td>");
-                        out.print("<a class='text-info' href='Descargar?file_name=" + obj_adjuntos[5] + "&ruta_proyecto=" + Obj_pry_c[3] + "_" + Obj_pry_c[1].toString().replace("-", "") + "'>" + obj_adjuntos[5] + "</a>"
+                        out.print("<a class='text-info' target='_blank' href='Descargar?file_name=" + obj_adjuntos[5] + "&ruta_proyecto=" + rutaPry + "'>" + obj_adjuntos[5] + "</a>"
                                 + "</td>");
                         out.print("<td>" + obj_adjuntos[6] + "</td>");
                         out.print("<td><b>" + obj_adjuntos[7] + "</b><br />" + obj_adjuntos[8] + "</td>");

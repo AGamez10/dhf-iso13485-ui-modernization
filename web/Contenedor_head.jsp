@@ -2225,6 +2225,64 @@
                 background: #0369a1 !important;
                 box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4) !important;
             }
+
+            /* ═══════════════════════════════════════════════════════════════
+               BOTÓN "← VOLVER" — Navegación de retroceso lógica
+               ═══════════════════════════════════════════════════════════════
+               Botón inline que se inserta en .section-header o como primer hijo
+               del contenedor principal de la vista. No aparece en Login ni en Inicio.
+               Progressive Enhancement: si el JS falla, no se renderiza y la app
+               sigue 100% funcional. */
+            .op-back-button {
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 8px !important;
+                padding: 6px 14px !important;
+                background: var(--op-surface-bg, #ffffff) !important;
+                border: 1px solid var(--op-border-strong, #cbd5e1) !important;
+                border-radius: 8px !important;
+                color: var(--op-text-primary, #1e293b) !important;
+                font-size: 13px !important;
+                font-weight: 600 !important;
+                text-decoration: none !important;
+                cursor: pointer !important;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+                transition: all 0.2s ease !important;
+                white-space: nowrap !important;
+                line-height: 1.5 !important;
+                vertical-align: middle !important;
+            }
+            .op-back-button:hover {
+                color: #ffffff !important;
+                background: var(--op-primary, #0052a4) !important;
+                border-color: var(--op-primary, #0052a4) !important;
+                box-shadow: 0 4px 12px rgba(0, 82, 164, 0.25) !important;
+                text-decoration: none !important;
+                transform: translateX(-2px) !important;
+            }
+            .op-back-button:active {
+                transform: translateX(0) !important;
+            }
+            .op-back-button i {
+                font-size: 13px !important;
+                transition: transform 0.2s ease !important;
+            }
+            .op-back-button:hover i {
+                transform: translateX(-3px) !important;
+            }
+            .op-back-btn-toolbar {
+                margin-right: 12px !important;
+                height: 34px !important;
+            }
+            .section-header-back .op-back-button {
+                margin: 0 !important;
+            }
+            .op-back-button-wrapper {
+                display: block !important;
+                margin-bottom: 16px !important;
+                position: relative !important;
+                z-index: 100 !important;
+            }
         </style>
     </head>
 
@@ -2900,6 +2958,29 @@
                                             var t = e.target.closest('a');
                                             if (!t) return;
                                             var href = t.getAttribute('href') || '';
+
+                                            // Normalizar clics en hipervínculos legados con IP fija (172.16.2.117 / DISENO_DESARROLLO)
+                                            if (/172\.16\.2\.117/i.test(href) && /(?:diseno_desarrollo|DisenoDesarrollo)/i.test(href)) {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                try {
+                                                    var parsed = new URL(href);
+                                                    var pathParts = window.location.pathname.split('/');
+                                                    var ctx = (pathParts.length > 1 && pathParts[1]) ? ('/' + pathParts[1]) : '';
+                                                    var subPath = parsed.pathname.replace(/^\/(?:diseno_desarrollo|DisenoDesarrollo)\//i, '');
+                                                    subPath = subPath.replace(/^proyecto\.jsp/i, 'Proyecto.jsp')
+                                                                     .replace(/^inicio\.jsp/i, 'Inicio.jsp')
+                                                                     .replace(/^memorias\.jsp/i, 'Memorias.jsp')
+                                                                     .replace(/^entradas\.jsp/i, 'Entradas.jsp')
+                                                                     .replace(/^pruebas\.jsp/i, 'Pruebas.jsp');
+                                                    var targetUrl = window.location.origin + ctx + '/' + subPath + (parsed.search || '') + (parsed.hash || '');
+                                                    window.open(targetUrl, t.getAttribute('target') || '_blank');
+                                                } catch (err) {
+                                                    console.error('Error redirecting legacy url', err);
+                                                }
+                                                return;
+                                            }
+
                                             var fid = t.getAttribute('data-file-id');
                                             if (!fid) {
                                                 var m = href.match(/\/api\/files\/(\d+)\/download/);
@@ -2957,20 +3038,194 @@
                                             // 2. URLs / Hipervínculos Web con Tarjeta de Previsualización Ejecutiva
                                             var withLinks = withOO.replace(/(https?:\/\/[^\s<"']+)/gi, function (match, url) {
                                                 var domain = 'Sitio Web Externo';
-                                                try { domain = (new URL(url)).hostname; } catch (e) { }
+                                                var cleanUrl = url;
+                                                try {
+                                                    var parsedUrl = new URL(url);
+                                                    domain = parsedUrl.hostname;
+                                                    // Normalizar URLs que apunten al servidor o aplicativo legacy
+                                                    if (/172\.16\.2\.117/i.test(parsedUrl.hostname) && /(?:diseno_desarrollo|DisenoDesarrollo)/i.test(parsedUrl.pathname)) {
+                                                        var pathParts = window.location.pathname.split('/');
+                                                        var ctx = (pathParts.length > 1 && pathParts[1]) ? ('/' + pathParts[1]) : '';
+                                                        var subPath = parsedUrl.pathname.replace(/^\/(?:diseno_desarrollo|DisenoDesarrollo)\//i, '');
+                                                        subPath = subPath.replace(/^proyecto\.jsp/i, 'Proyecto.jsp')
+                                                                         .replace(/^inicio\.jsp/i, 'Inicio.jsp')
+                                                                         .replace(/^memorias\.jsp/i, 'Memorias.jsp')
+                                                                         .replace(/^entradas\.jsp/i, 'Entradas.jsp')
+                                                                         .replace(/^pruebas\.jsp/i, 'Pruebas.jsp');
+                                                        cleanUrl = window.location.origin + ctx + '/' + subPath + (parsedUrl.search || '') + (parsedUrl.hash || '');
+                                                        domain = 'D&D Sistema Local';
+                                                    }
+                                                } catch (e) { }
+
                                                 return '<div class="op-rich-link-card my-2 p-2 border rounded d-flex align-items-center justify-content-between flex-wrap gap-2" style="background:#f0f9ff; border:1px solid #0284c7 !important; border-radius:8px; width:100%; box-shadow:0 1px 3px rgba(0,0,0,0.03);">'
                                                     + '  <div class="d-flex align-items-center gap-2 text-truncate" style="max-width:80%;">'
                                                     + '    <i class="fas fa-globe text-primary fa-lg mr-1"></i>'
                                                     + '    <div class="text-truncate">'
                                                     + '      <span class="font-weight-bold text-dark d-block text-truncate" style="font-size:11.5px;"><i class="fas fa-external-link-alt text-muted mr-1" style="font-size:9px;"></i>' + domain + '</span>'
-                                                    + '      <a href="' + url + '" target="_blank" rel="noopener noreferrer" class="op-link-formatted text-primary text-truncate d-block" style="text-decoration:underline; font-size:11px;" title="' + url + '">' + url + '</a>'
+                                                    + '      <a href="' + cleanUrl + '" target="_blank" rel="noopener noreferrer" class="op-link-formatted text-primary text-truncate d-block" style="text-decoration:underline; font-size:11px;" title="' + cleanUrl + '">' + cleanUrl + '</a>'
                                                     + '    </div>'
                                                     + '  </div>'
-                                                    + '  <a href="' + url + '" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary font-weight-bold px-2 py-1" style="font-size:10.5px; text-decoration:none; white-space:nowrap;"><i class="fas fa-arrow-up-right-from-square mr-1"></i> Abrir</a>'
+                                                    + '  <a href="' + cleanUrl + '" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary font-weight-bold px-2 py-1" style="font-size:10.5px; text-decoration:none; white-space:nowrap;"><i class="fas fa-arrow-up-right-from-square mr-1"></i> Abrir</a>'
                                                     + '</div>';
                                             });
 
                                             return withLinks.replace(/\n/g, '<br>');
+                                        };
+
+                                        // ═══════════════════════════════════════════════════════════════
+                                        // GESTIÓN DE ADJUNTOS HISTÓRICOS (ISO 13485 / Tag_memoria)
+                                        // Carga asíncrona no invasiva de evidencias y planos PDF
+                                        // tanto en Modo Gestión como en Previsualización.
+                                        // ═══════════════════════════════════════════════════════════════
+                                        window._opLegacyAdjCache = window._opLegacyAdjCache || {};
+
+                                        window.opRenderLegacyAttachmentsList = function (target, files) {
+                                            if (!target) return;
+                                            if (!files || files.length === 0) {
+                                                target.innerHTML = '';
+                                                target.style.display = 'none';
+                                                return;
+                                            }
+                                            target.style.display = 'block';
+                                            var html = '<div class="op-legacy-attachments-card p-3 my-2 border rounded" style="background:#f8fafc; border:1px solid #cbd5e1 !important; border-radius:10px;">'
+                                                + '  <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">'
+                                                + '    <span class="font-weight-bold text-dark" style="font-size:12px; display:inline-flex; align-items:center; gap:6px;">'
+                                                + '      <i class="fas fa-paperclip text-primary fa-lg"></i> Archivos y Planos Adjuntos Históricos (' + files.length + ')'
+                                                + '    </span>'
+                                                + '    <span class="badge badge-primary" style="font-size:9.5px; padding:3px 8px;">DHF ISO 13485</span>'
+                                                + '  </div>'
+                                                + '  <div class="d-flex flex-column" style="gap:6px;">';
+
+                                            files.forEach(function (f) {
+                                                var isPdf = /\.pdf$/i.test(f.name);
+                                                var icon = isPdf ? 'fas fa-file-pdf text-danger' : (/\.(xlsx|xls)$/i.test(f.name) ? 'fas fa-file-excel text-success' : (/\.(docx|doc)$/i.test(f.name) ? 'fas fa-file-word text-primary' : 'fas fa-file-alt text-primary'));
+
+                                                html += '    <div class="p-2 bg-white border rounded d-flex align-items-center justify-content-between flex-wrap gap-2" style="border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">'
+                                                    + '      <div class="d-flex align-items-center gap-2 text-truncate" style="max-width:75%;">'
+                                                    + '        <i class="' + icon + ' fa-lg mr-1"></i>'
+                                                    + '        <div class="text-truncate">'
+                                                    + '          <a href="' + f.href + '" target="_blank" class="font-weight-bold text-dark d-block text-truncate" style="font-size:12px; text-decoration:none;" title="' + f.name + '">' + f.name + '</a>'
+                                                    + '          <div class="text-muted" style="font-size:10.5px;"><i class="far fa-calendar-alt mr-1"></i>' + (f.fecha || 's/f') + (f.obs ? (' &middot; ' + f.obs.replace(/<br\s*\/?>/gi, ' ')) : '') + '</div>'
+                                                    + '        </div>'
+                                                    + '      </div>'
+                                                    + '      <div class="d-flex align-items-center gap-1">'
+                                                    + '        <a href="' + f.href + '" class="btn btn-xs btn-outline-primary font-weight-bold px-3 py-1" style="font-size:11px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;" download="' + f.name + '" title="Descargar archivo">'
+                                                    + '          <i class="fas fa-download"></i> Descargar'
+                                                    + '        </a>'
+                                                    + '      </div>'
+                                                    + '    </div>';
+                                            });
+
+                                            html += '  </div></div>';
+                                            target.innerHTML = html;
+                                        };
+
+                                        window.opLoadLegacyAttachments = function (idMemoria, targetElementId) {
+                                            idMemoria = ('' + idMemoria).trim();
+                                            if (!idMemoria) return;
+                                            var target = document.getElementById(targetElementId);
+                                            if (!target) return;
+
+                                            if (window._opLegacyAdjCache[idMemoria] !== undefined) {
+                                                window.opRenderLegacyAttachmentsList(target, window._opLegacyAdjCache[idMemoria]);
+                                                return;
+                                            }
+
+                                            var up = new URLSearchParams(window.location.search);
+                                            var ipy = up.get('ipy') || '';
+                                            if (!ipy) {
+                                                var inpIpy = document.querySelector('input[name="ipy"]');
+                                                if (inpIpy && inpIpy.value) ipy = inpIpy.value;
+                                            }
+                                            var estadoM = up.get('estadoM') || '';
+                                            var directAnchor = document.querySelector('a[href*="cba_num=' + idMemoria + '"][href*="opc=7"]');
+                                            if (directAnchor) {
+                                                var dHref = directAnchor.getAttribute('href') || '';
+                                                var mI = dHref.match(/[?&]ipy=(\d+)/i);
+                                                if (mI && !ipy) ipy = mI[1];
+                                                var mE = dHref.match(/[?&]estadoM=(\d+)/i);
+                                                if (mE && !estadoM) estadoM = mE[1];
+                                            }
+                                            if (!ipy) {
+                                                var anyIpy = document.querySelector('a[href*="ipy="], form[action*="ipy="]');
+                                                if (anyIpy) {
+                                                    var raw = anyIpy.getAttribute('href') || anyIpy.getAttribute('action') || '';
+                                                    var mI2 = raw.match(/[?&]ipy=(\d+)/i);
+                                                    if (mI2) ipy = mI2[1];
+                                                }
+                                            }
+                                            if (!ipy && window.id_proyecto) ipy = window.id_proyecto;
+                                            if (!estadoM) {
+                                                var anyEstado = document.querySelector('a[href*="estadoM="], input[name="estado"]');
+                                                if (anyEstado) {
+                                                    var rawE = anyEstado.getAttribute('href') || anyEstado.value || '';
+                                                    var mE2 = rawE.match(/[?&]estadoM=([0-9]+)/i);
+                                                    if (mE2) estadoM = mE2[1];
+                                                    else if (/^\d+$/.test(rawE)) estadoM = rawE;
+                                                }
+                                            }
+                                            if (!estadoM) estadoM = '1';
+
+                                            var pathParts = window.location.pathname.split('/');
+                                            var appCtx = (pathParts.length > 1 && pathParts[1]) ? ('/' + pathParts[1]) : '';
+
+                                            var urlC = appCtx + '/Proyecto?opc=7&ipy=' + ipy + '&estadoM=' + estadoM + '&TempM=7&cba_num=' + idMemoria + '&ver_adj=C';
+                                            var urlR = appCtx + '/Proyecto?opc=7&ipy=' + ipy + '&estadoM=' + estadoM + '&TempM=7&cba_num=' + idMemoria + '&ver_adj=R';
+
+                                            Promise.all([
+                                                fetch(urlC, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' }).then(function (r) { return r.text(); }).catch(function () { return ''; }),
+                                                fetch(urlR, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' }).then(function (r) { return r.text(); }).catch(function () { return ''; })
+                                            ]).then(function (results) {
+                                                var files = [];
+                                                var seenNames = {};
+
+                                                results.forEach(function (htmlStr) {
+                                                    if (!htmlStr) return;
+                                                    var doc = new DOMParser().parseFromString(htmlStr, 'text/html');
+                                                    
+                                                    // Localizar links de Descargar dentro de Ventana8 o en el cuerpo retornado
+                                                    var v8 = doc.getElementById('Ventana8') || doc.querySelector('#Ventana8');
+                                                    var scope = v8 || doc;
+                                                    var dlLinks = scope.querySelectorAll('a[href*="Descargar"]');
+
+                                                    dlLinks.forEach(function (link) {
+                                                        var fileName = (link.textContent || '').trim();
+                                                        var rawHref = link.getAttribute('href') || '';
+                                                        if (!fileName || seenNames[fileName]) return;
+                                                        seenNames[fileName] = true;
+
+                                                        var fileHref = rawHref;
+                                                        if (fileHref.indexOf('http') !== 0) {
+                                                            if (fileHref.indexOf('/') === 0) {
+                                                                fileHref = window.location.origin + fileHref;
+                                                            } else {
+                                                                fileHref = window.location.origin + appCtx + '/' + fileHref;
+                                                            }
+                                                        }
+                                                        if (typeof window.opNormalizeLegacyUrl === 'function') {
+                                                            fileHref = window.opNormalizeLegacyUrl(fileHref);
+                                                        }
+
+                                                        var row = link.closest('tr');
+                                                        var cells = row ? row.querySelectorAll('td') : [];
+                                                        var fecha = cells.length > 1 ? (cells[1].textContent || '').trim() : '';
+                                                        var obs = cells.length > 2 ? (cells[2].innerHTML || '').trim() : '';
+
+                                                        files.push({
+                                                            name: fileName,
+                                                            href: fileHref,
+                                                            fecha: fecha,
+                                                            obs: obs
+                                                        });
+                                                    });
+                                                });
+
+                                                window._opLegacyAdjCache[idMemoria] = files;
+                                                window.opRenderLegacyAttachmentsList(target, files);
+                                            }).catch(function (err) {
+                                                console.warn('opLoadLegacyAttachments error:', err);
+                                                if (target) { target.innerHTML = ''; target.style.display = 'none'; }
+                                            });
                                         };
 
                                         // ═══════════════════════════════════════════════════════════════
@@ -3550,7 +3805,10 @@
                                             }
 
                                             toolbar.innerHTML = ''
-                                                + segControlHtml
+                                                + '<div class="d-flex align-items-center">'
+                                                + '  <a href="Proyecto.jsp" class="op-back-button op-back-btn-toolbar" id="op-back-btn-toolbar" title="Volver a Proyectos"><i class="fas fa-arrow-left"></i> <span>Proyectos</span></a>'
+                                                + '  ' + segControlHtml
+                                                + '</div>'
                                                 + '<div class="op-toolbar-actions d-flex align-items-center gap-2">'
                                                 + '  ' + toolbarActionsHtml
                                                 + '</div>';
@@ -3761,116 +4019,172 @@
                                                     if (!sec.activities || sec.activities.length === 0) return;
                                                     var stageTitle = sec.title || ('Etapa ' + (sIdx + 1));
                                                     var actHtml = '';
+                                                    var stageActCount = 0;
 
                                                     sec.activities.forEach(function (act, aIdx) {
-                                                        totalActivities++;
                                                         var tbl = act.element;
                                                         if (!tbl) return;
 
+                                                        // Descomponer la tabla en sus bloques reales de actividad (criterio AUTOR:)
+                                                        // exactamente igual a opShowActivityDetail y opSplitTableBlocks en la Vista de Gestion.
                                                         var trs = tbl.querySelectorAll('tr');
-                                                        var author = 'No especificado';
-                                                        var date = 'No especificada';
-                                                        // Estado a NIVEL DE TABLA (robusto): el marcador real de Tag_memoria es
-                                                        // <b class="text-success">FINALIZADO</b>, que segun la vista/branch cae en una fila
-                                                        // distinta de la de AUTOR. Buscarlo solo en la fila de AUTOR fallaba -> badge EN PROCESO
-                                                        // para actividades que en BD estan en estado 3. Se busca en todo el tbl.
-                                                        var _fbTbl = tbl.querySelector('b.text-success');
-                                                        var _fwTbl = tbl.querySelector('b.text-warning');
-                                                        // Estado real GESTIONADO en vivo: si en esta sesion se marco la actividad como estado 3
-                                                        // (opSetActivityState/opMarkActivityFinalized -> _opStateCache), gana sobre el DOM stale.
-                                                        var _cacheFin = (typeof window.opNodeFinalizedFromCache === 'function') && window.opNodeFinalizedFromCache(act.globalIndex);
-                                                        // Prioridad: 1) cache live estado 3  2) marcador explicito FINALIZADO  3) EN REVISION
-                                                        //            4) memoria global TERMINADA (Tag_memoria omite el marcador sin respuesta)  5) EN PROCESO.
-                                                        var estado = (_cacheFin || (_fbTbl && /FINALIZAD/i.test(_fbTbl.textContent || ''))) ? 'FINALIZADO'
-                                                            : ((_fwTbl && /REVISION/i.test(_fwTbl.textContent || '')) ? 'EN REVISION'
-                                                                : (_opPreviewMemFin ? 'FINALIZADO' : 'EN PROCESO'));
-                                                        // ANULADA (Opcion 2) gana sobre cualquier estado: la actividad esta descartada de la memoria.
-                                                        if (typeof window.opIsAnnulled === 'function' && window.opIsAnnulled(tbl.textContent || '')) {
-                                                            estado = 'ANULADA';
-                                                        }
-                                                        var desc = act.title || ('Actividad ' + (aIdx + 1));
-                                                        var response = '';
+                                                        var blocks = [];
+                                                        var currentRows = [];
+                                                        var _started = false;
 
-                                                        for (var rw = 0; rw < trs.length; rw++) {
-                                                            var row = trs[rw];
-                                                            var rHtml = row.innerHTML;
-                                                            var rText = (row.textContent || '').trim();
-
-                                                            if (/AUTOR/i.test(rText)) {
-                                                                var mAuth = rHtml.match(/AUTOR:\s*<\/b>\s*([^<]+)/i) || rHtml.match(/AUTOR:[^<]*<\/td>\s*<td[^>]*>([^<]+)/i);
-                                                                if (mAuth) author = mAuth[1].trim();
-                                                                else {
-                                                                    var cAuth = Array.from(row.cells).find(function (c) { return /AUTOR/i.test(c.textContent); });
-                                                                    if (cAuth) author = cAuth.textContent.replace(/AUTOR\s*:?/i, '').trim();
-                                                                }
-
-                                                                var mD = rHtml.match(/FECHA:\s*<\/b>\s*(?:<br\s*\/?>)?\s*([0-9\-\/]+)/i);
-                                                                if (mD) date = mD[1].trim();
-                                                                else {
-                                                                    var cD = Array.from(row.cells).find(function (c) { return /FECHA/i.test(c.textContent); });
-                                                                    if (cD) date = cD.textContent.replace(/FECHA\s*:?/i, '').trim();
-                                                                }
-
-                                                                // (estado ya se calculo a nivel de tabla arriba; no se toca aqui)
-                                                            } else if (/Actividad\s*\d*\s*:/i.test(rText)) {
-                                                                var mDesc = rHtml.match(/Actividad\s*\d*\s*:\s*<\/b>\s*([\s\S]+)/i);
-                                                                if (mDesc) desc = mDesc[1].replace(/<\/td>[\s\S]*/i, '').trim();
-                                                                else desc = rText.replace(/Actividad\s*\d*\s*:?/gi, '').trim();
-                                                            } else if (/Responsable\s*:/i.test(rText) || /Respuesta\s*:/i.test(rText) || /RESPUESTAS/i.test(rText)) {
-                                                                if (rText.indexOf('SIN ATENDER') === -1) {
-                                                                    var cleanR = rHtml.replace(/<b>\s*RESPUESTAS\s*<\/b>/gi, '')
-                                                                        .replace(/<b>\s*Responsable\s*:\s*<\/b>[^<]*/gi, '')
-                                                                        .replace(/<b>\s*Respuesta\s*:\s*<\/b>/gi, '')
-                                                                        .replace(/<br\s*\/?>/gi, '\n')
-                                                                        .replace(/<[^>]+>/g, '')
-                                                                        .trim();
-                                                                    if (cleanR) response = cleanR;
-                                                                }
+                                                        for (var r = 0; r < trs.length; r++) {
+                                                            var row = trs[r];
+                                                            if (row.querySelector('th') && (row.textContent.indexOf('AUTOR:') === -1)) continue;
+                                                            var _isAutor = row.innerHTML.indexOf('AUTOR:') !== -1;
+                                                            if (_isAutor) {
+                                                                if (_started && currentRows.length > 0) blocks.push(currentRows);
+                                                                currentRows = [];
+                                                                _started = true;
                                                             }
+                                                            if (!_started) continue;
+                                                            currentRows.push(row);
                                                         }
+                                                        if (_started && currentRows.length > 0) blocks.push(currentRows);
+                                                        if (!blocks.length) blocks = [Array.from(trs)];
 
-                                                        // Sincronizar con el caché local en memoria
-                                                        var key = act.globalIndex + '-0';
-                                                        if (window._opResponsesCache && window._opResponsesCache[key] !== undefined && window._opResponsesCache[key].trim() !== '') {
-                                                            response = window._opResponsesCache[key];
-                                                        }
+                                                        blocks.forEach(function (blockRows, subIndex) {
+                                                            totalActivities++;
+                                                            stageActCount++;
 
-                                                        var hasResponse = response && response.trim() !== '' && response.indexOf('SIN ATENDER') === -1;
+                                                            var author = 'No especificado';
+                                                            var date = 'No especificada';
+                                                            var desc = '';
+                                                            var response = '';
+                                                            var actIdMemoria = '';
 
-                                                        // C (retrocompatibilidad): saneo elegante de registros historicos incompletos.
-                                                        // NO se altera el dato original en BD; es solo presentacion en preview/PDF.
-                                                        var _authMissing = (!author || author === 'No especificado');
-                                                        var _dateMissing = (!date || date === 'No especificada');
-                                                        var _isLegacy = _authMissing || _dateMissing;
-                                                        var _authorDisp = _authMissing ? '<span class="text-muted font-italic">Registro Histórico Legacy</span>' : ('<b>' + author + '</b>');
-                                                        var _dateDisp = _dateMissing ? '<span class="text-muted">s/f</span>' : ('<b>' + date + '</b>');
-                                                        var _legacyBadge = _isLegacy ? ' <span class="badge badge-light border text-muted" style="font-size:9px; font-weight:600;" title="Registro anterior a la captura obligatoria de autoria/fecha; se preserva intacto en BD"><i class="fas fa-archive mr-1"></i>Legacy</span>' : '';
+                                                            blockRows.forEach(function (row) {
+                                                                var rHtml = row.innerHTML || '';
+                                                                var rText = (row.textContent || '').trim();
 
-                                                        // B1: sanear desc/response (HTML legacy roto) antes de inyectar. desc -> texto plano
-                                                        // escapado; response -> saneado y luego formateado (oo:/URLs) para preservar los tags de anexos.
-                                                        var _descSafe = opSanitizeLegacy(desc).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                                                        var _respSafe = opFormatHyperlinksAndTags(opSanitizeLegacy(response));
-                                                        var _wrapCss = 'width:100%; max-width:100%; box-sizing:border-box; overflow-wrap:break-word; word-break:break-word; white-space:pre-wrap;';
-                                                        actHtml += '<div class="op-preview-activity-card" style="width:100% !important; max-width:100% !important; box-sizing:border-box !important; display:block !important; float:none !important; clear:both !important; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:18px 24px; margin-bottom:16px !important; page-break-inside:avoid !important; break-inside:avoid !important; overflow:hidden;">'
-                                                            + '  <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="display:flex !important; justify-content:space-between !important; align-items:center !important; flex-wrap:wrap !important; gap:8px !important; width:100% !important; font-size:12px; color:#475569; font-weight:600;">'
-                                                            + '    <span style="min-width:0; overflow-wrap:break-word; word-break:break-word;"><span class="badge badge-primary mr-2" style="font-size:10px;">ACTIVIDAD ' + (aIdx + 1) + '</span> Autor: ' + _authorDisp + _legacyBadge + '</span>'
-                                                            + '    <span style="white-space:nowrap; flex-shrink:0;">Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'ANULADA' ? 'badge-danger' : (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning')) + '" style="' + (estado === 'ANULADA' ? 'background:#dc2626; color:#fff; font-weight:700;' : (estado === 'FINALIZADO' ? 'background:#16a34a; color:#fff; font-weight:700;' : '')) + '">' + (estado === 'FINALIZADO' ? 'TERMINADA' : estado) + '</span></span>'
-                                                            + '  </div>'
-                                                            + '  <div class="font-weight-bold text-dark mb-2" style="' + _wrapCss + ' font-size:13.5px; line-height:1.55; color:#0f172a;">' + _descSafe + '</div>'
-                                                            // Tarea 1: solo mostrar el recuadro de avance si HAY respuesta real; nunca la caja vacía.
-                                                            + (hasResponse
-                                                                ? ('  <div style="' + _wrapCss + ' background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #0284c7; border-radius:6px; padding:14px 18px;">'
-                                                                    + '    <div class="font-weight-bold mb-1" style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.3px;"><i class="fas fa-reply text-primary mr-1"></i> Registro de Avance / Observaciones</div>'
-                                                                    + '    <div style="' + _wrapCss + ' font-size:13.5px; color:#1e293b; line-height:1.6;">' + _respSafe + '</div>'
-                                                                    + '  </div>')
-                                                                : '')
-                                                            + '</div>';
+                                                                // 1. Identificar metadatos (AUTOR, FECHA)
+                                                                if (/AUTOR/i.test(rText)) {
+                                                                    var mAuth = rHtml.match(/AUTOR:\s*<\/b>\s*([^<]+)/i) || rHtml.match(/AUTOR:[^<]*<\/td>\s*<td[^>]*>([^<]+)/i);
+                                                                    if (mAuth) author = mAuth[1].trim();
+                                                                    else {
+                                                                        var cAuth = Array.from(row.cells).find(function (c) { return /AUTOR/i.test(c.textContent); });
+                                                                        if (cAuth) author = cAuth.textContent.replace(/AUTOR\s*:?/i, '').trim();
+                                                                    }
+
+                                                                    var mD = rHtml.match(/FECHA:\s*<\/b>\s*(?:<br\s*\/?>)?\s*([0-9\-\/]+)/i);
+                                                                    if (mD) date = mD[1].trim();
+                                                                    else {
+                                                                        var cD = Array.from(row.cells).find(function (c) { return /FECHA/i.test(c.textContent); });
+                                                                        if (cD) date = cD.textContent.replace(/FECHA\s*:?/i, '').trim();
+                                                                    }
+                                                                }
+
+                                                                // 2. Descripción de la actividad
+                                                                if (/Actividad\s*\d*\s*:/i.test(rText)) {
+                                                                    var mDesc = rHtml.match(/Actividad\s*\d*\s*:\s*<\/b>\s*([\s\S]+)/i);
+                                                                    if (mDesc) desc = mDesc[1].replace(/<\/td>[\s\S]*/i, '').trim();
+                                                                    else desc = rText.replace(/Actividad\s*\d*\s*:?/gi, '').trim();
+                                                                }
+
+                                                                // 3. Respuesta / observaciones registradas
+                                                                if (/Responsable\s*:/i.test(rText) || /Respuesta\s*:/i.test(rText) || /RESPUESTAS/i.test(rText)) {
+                                                                    if (rText.indexOf('SIN ATENDER') === -1) {
+                                                                        var cleanR = rHtml.replace(/<b>\s*RESPUESTAS\s*<\/b>/gi, '')
+                                                                            .replace(/<b>\s*Responsable\s*:\s*<\/b>[^<]*/gi, '')
+                                                                            .replace(/<b>\s*Respuesta\s*:\s*<\/b>/gi, '')
+                                                                            .replace(/<br\s*\/?>/gi, '\n')
+                                                                            .replace(/<[^>]+>/g, '')
+                                                                            .trim();
+                                                                        if (cleanR) response = cleanR;
+                                                                    }
+                                                                }
+
+                                                                // 4. Buscar id_memoria en enlaces o botones del bloque
+                                                                var link = row.querySelector('a[href*="cba_num="]');
+                                                                if (link && !actIdMemoria) {
+                                                                    var _mM = link.getAttribute('href').match(/cba_num=(\d+)/);
+                                                                    if (_mM) actIdMemoria = _mM[1];
+                                                                }
+                                                                var btn = row.querySelector('button[onclick*="ProyectoEstado2"]');
+                                                                if (btn && !actIdMemoria) {
+                                                                    var _mM2 = btn.getAttribute('onclick').match(/ProyectoEstado2\([^,]+,[^,]+,(\d+)/);
+                                                                    if (_mM2) actIdMemoria = _mM2[1];
+                                                                }
+                                                            });
+
+                                                            // Fallback de id_memoria si no estaba en enlaces de fila
+                                                            if (!actIdMemoria) {
+                                                                var _blkHtml = blockRows.map(function (r) { return r.innerHTML || ''; }).join(' ');
+                                                                var _mM3 = _blkHtml.match(/cba_num=(\d+)/i)
+                                                                    || _blkHtml.match(/ProyectoEstado\d\(\s*\d+\s*,\s*\d+\s*,\s*(\d+)/)
+                                                                    || _blkHtml.match(/(?:id_memoria|id_memoria_d|idm)\s*[:=]\s*['"]?(\d+)/i);
+                                                                if (_mM3) actIdMemoria = _mM3[1];
+                                                            }
+
+                                                            // Fallback para descripción si no tiene etiqueta Actividad:
+                                                            if (!desc) {
+                                                                blockRows.forEach(function (r) {
+                                                                    var c = (r.textContent || '').trim();
+                                                                    if (!desc && c && c.indexOf('AUTOR:') === -1 && c.indexOf('FECHA:') === -1 && c.indexOf('RESPUESTAS') === -1) {
+                                                                        desc = c;
+                                                                    }
+                                                                });
+                                                            }
+                                                            if (!desc) desc = 'Actividad DHF ' + stageActCount;
+
+                                                            // Sincronizar respuesta con el caché local
+                                                            var key = act.globalIndex + '-' + subIndex;
+                                                            if (window._opResponsesCache && window._opResponsesCache[key] !== undefined && window._opResponsesCache[key].trim() !== '') {
+                                                                response = window._opResponsesCache[key];
+                                                            }
+
+                                                            // Cálculo de estado por bloque
+                                                            var _blkText = blockRows.map(function (r) { return r.textContent || ''; }).join(' ');
+                                                            var _blkHtmlAll = blockRows.map(function (r) { return r.innerHTML || ''; }).join(' ');
+                                                            var _cacheFin = (typeof window.opBlockFinalizedFromCache === 'function') && window.opBlockFinalizedFromCache(act.globalIndex, subIndex, actIdMemoria);
+                                                            var estado = (_cacheFin || /FINALIZAD/i.test(_blkHtmlAll)) ? 'FINALIZADO'
+                                                                : (/REVISION/i.test(_blkHtmlAll) ? 'EN REVISION'
+                                                                    : (_opPreviewMemFin ? 'FINALIZADO' : 'EN PROCESO'));
+
+                                                            if (typeof window.opIsAnnulled === 'function' && window.opIsAnnulled(_blkText)) {
+                                                                estado = 'ANULADA';
+                                                            }
+
+                                                            var hasResponse = response && response.trim() !== '' && response.indexOf('SIN ATENDER') === -1;
+
+                                                            var _authMissing = (!author || author === 'No especificado');
+                                                            var _dateMissing = (!date || date === 'No especificada');
+                                                            var _isLegacy = _authMissing || _dateMissing;
+                                                            var _authorDisp = _authMissing ? '<span class="text-muted font-italic">Registro Histórico Legacy</span>' : ('<b>' + author + '</b>');
+                                                            var _dateDisp = _dateMissing ? '<span class="text-muted">s/f</span>' : ('<b>' + date + '</b>');
+                                                            var _legacyBadge = _isLegacy ? ' <span class="badge badge-light border text-muted" style="font-size:9px; font-weight:600;" title="Registro anterior a la captura obligatoria de autoria/fecha; se preserva intacto en BD"><i class="fas fa-archive mr-1"></i>Legacy</span>' : '';
+
+                                                            var _descSafe = opSanitizeLegacy(desc).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                                            var _respSafe = opFormatHyperlinksAndTags(opSanitizeLegacy(response));
+                                                            var _wrapCss = 'width:100%; max-width:100%; box-sizing:border-box; overflow-wrap:break-word; word-break:break-word; white-space:pre-wrap;';
+
+                                                            var boxId = 'op-prev-adj-box-' + act.globalIndex + '-' + subIndex;
+
+                                                            actHtml += '<div class="op-preview-activity-card" style="width:100% !important; max-width:100% !important; box-sizing:border-box !important; display:block !important; float:none !important; clear:both !important; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:18px 24px; margin-bottom:16px !important; page-break-inside:avoid !important; break-inside:avoid !important; overflow:hidden;">'
+                                                                + '  <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="display:flex !important; justify-content:space-between !important; align-items:center !important; flex-wrap:wrap !important; gap:8px !important; width:100% !important; font-size:12px; color:#475569; font-weight:600;">'
+                                                                + '    <span style="min-width:0; overflow-wrap:break-word; word-break:break-word;"><span class="badge badge-primary mr-2" style="font-size:10px;">ACTIVIDAD ' + stageActCount + '</span> Autor: ' + _authorDisp + _legacyBadge + '</span>'
+                                                                + '    <span style="white-space:nowrap; flex-shrink:0;">Fecha: ' + _dateDisp + ' &nbsp;|&nbsp; Estado: <span class="badge ' + (estado === 'ANULADA' ? 'badge-danger' : (estado === 'FINALIZADO' ? 'badge-success' : 'badge-warning')) + '" style="' + (estado === 'ANULADA' ? 'background:#dc2626; color:#fff; font-weight:700;' : (estado === 'FINALIZADO' ? 'background:#16a34a; color:#fff; font-weight:700;' : '')) + '">' + (estado === 'FINALIZADO' ? 'TERMINADA' : estado) + '</span></span>'
+                                                                + '  </div>'
+                                                                + '  <div class="font-weight-bold text-dark mb-2" style="' + _wrapCss + ' font-size:13.5px; line-height:1.55; color:#0f172a;">' + _descSafe + '</div>'
+                                                                + (hasResponse
+                                                                    ? ('  <div style="' + _wrapCss + ' background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #0284c7; border-radius:6px; padding:14px 18px;">'
+                                                                        + '    <div class="font-weight-bold mb-1" style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.3px;"><i class="fas fa-reply text-primary mr-1"></i> Registro de Avance / Observaciones</div>'
+                                                                        + '    <div style="' + _wrapCss + ' font-size:13.5px; color:#1e293b; line-height:1.6;">' + _respSafe + '</div>'
+                                                                        + '  </div>')
+                                                                    : '')
+                                                                + (actIdMemoria ? ('  <div class="op-preview-legacy-adjuntos-box my-2" id="' + boxId + '" data-id-memoria="' + actIdMemoria + '"></div>') : '')
+                                                                + '</div>';
+                                                        });
                                                     });
 
                                                     stagesHtml += '<div class="op-preview-stage-block" style="page-break-inside:auto;">'
                                                         + '  <div class="text-white font-weight-bold d-flex align-items-center justify-content-between" style="background:#0f172a; padding:12px 20px; border-radius:6px; font-size:14px; font-weight:700; letter-spacing:0.3px; margin-top:32px; margin-bottom:16px;">'
                                                         + '    <span><i class="fas fa-folder-open text-warning mr-2"></i> ' + stageTitle + '</span>'
-                                                        + '    <span class="badge badge-secondary">' + sec.activities.length + ' Actividades</span>'
+                                                        + '    <span class="badge badge-secondary">' + stageActCount + ' Actividades</span>'
                                                         + '  </div>'
                                                         + actHtml
                                                         + '</div>';
@@ -3878,6 +4192,17 @@
 
                                                 previewContainer.innerHTML = headerHtml + stagesHtml;
                                                 cardBody.appendChild(previewContainer);
+
+                                                // Cargar adjuntos históricos en el Previsualizador de Documento Continuo
+                                                try {
+                                                    var _prevBoxes = previewContainer.querySelectorAll('.op-preview-legacy-adjuntos-box');
+                                                    _prevBoxes.forEach(function (pBox) {
+                                                        var idm = pBox.getAttribute('data-id-memoria');
+                                                        if (idm && typeof window.opLoadLegacyAttachments === 'function') {
+                                                            window.opLoadLegacyAttachments(idm, pBox.id);
+                                                        }
+                                                    });
+                                                } catch (e) { }
                                             };
 
                                             function applyViewMode(mode) {
@@ -4886,6 +5211,11 @@
                                                             + '  </div>';
                                                     }
 
+                                                    // Contenedor dinámico de adjuntos históricos (ISO 13485 / Tag_memoria)
+                                                    if (idMemoria) {
+                                                        cardsHtml += '  <div class="op-activity-legacy-adjuntos-box mb-3" id="op-legacy-adj-box-' + index + '-' + subIndex + '" data-id-memoria="' + idMemoria + '"></div>';
+                                                    }
+
                                                     // Caja de respuestas inline para esta tarjeta con barra de herramientas de adjuntos
                                                     if (isEditable) {
                                                         // Observaciones/Avances: acordeon opcional (progressive disclosure).
@@ -4965,6 +5295,17 @@
                                             contentWrapper.innerHTML = cardsHtml;
                                             detailPanel.scrollTop = 0;
                                             sessionStorage.setItem('op_split_selected', index);
+
+                                            // Cargar adjuntos históricos en la Vista de Gestión
+                                            try {
+                                                var _adjBoxes = contentWrapper.querySelectorAll('.op-activity-legacy-adjuntos-box');
+                                                _adjBoxes.forEach(function (box) {
+                                                    var idm = box.getAttribute('data-id-memoria');
+                                                    if (idm && typeof window.opLoadLegacyAttachments === 'function') {
+                                                        window.opLoadLegacyAttachments(idm, box.id);
+                                                    }
+                                                });
+                                            } catch (e) { }
 
                                             // SPRINT 10 (detail #1): scroll suave + resalte (glow) hacia la tarjeta del BLOQUE enfocado,
                                             // para que el usuario identifique al instante cual actividad quedo seleccionada.
@@ -6414,7 +6755,7 @@
                                                 + '</div>';
                                             document.body.appendChild(ov);
                                         }
-                                        window.opAutocompleteAndFinalize = function () {
+                                        window.opAutocompleteAndFinalize = async function () {
                                             var ctx = window._opCloseCtx;
                                             if (!ctx) return;
                                             var ids = (ctx.pendingIds || []);
@@ -6425,10 +6766,32 @@
                                             var pend = (typeof ctx.pendientes === 'number') ? ctx.pendientes : ids.length;
                                             if (ids.length < pend) {
                                                 var faltan = pend - ids.length;
-                                                var msg = 'De ' + pend + ' actividad(es) pendiente(s), puedo autocompletar y finalizar ' + ids.length + '.\n\n'
-                                                    + faltan + ' actividad(es) son gestionadas por otros responsables y su identificador no está disponible en esta vista, por lo que NO puedo finalizarlas automáticamente (deben finalizarse por su responsable o desde el backend).\n\n'
-                                                    + '¿Deseás finalizar las ' + ids.length + ' que sí puedo y CERRAR el proyecto de todos modos (las otras ' + faltan + ' quedarán En Proceso)?';
-                                                if (!confirm(msg)) { try { if (window.swal) swal.close(); } catch (e) { } return; }
+                                                var msgHtml = '<div style="text-align:left; font-size:13px; color:#334155; line-height:1.5;">'
+                                                    + '<p style="margin-bottom:10px;">De <b>' + pend + '</b> actividad(es) pendiente(s), el sistema puede autocompletar y finalizar <b>' + ids.length + '</b>.</p>'
+                                                    + '<div style="background:#fef2f2; border-left:4px solid #ef4444; padding:10px 12px; border-radius:6px; font-size:12px; color:#991b1b; margin-bottom:12px;">'
+                                                    + '<i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i> <b>' + faltan + ' actividad(es)</b> son gestionadas por otros responsables y no están disponibles en esta vista (deben finalizarse por su responsable asignado).'
+                                                    + '</div>'
+                                                    + '<p style="margin-bottom:0;">¿Deseas finalizar las <b>' + ids.length + '</b> disponibles y <b>CERRAR el proyecto</b> de todos modos (las otras ' + faltan + ' quedarán <i>En Proceso</i>)?</p>'
+                                                    + '</div>';
+                                                
+                                                var ok = false;
+                                                if (typeof window.opConfirm === 'function') {
+                                                    ok = await window.opConfirm({
+                                                        title: 'Cierre con Actividades de Otros Responsables',
+                                                        message: msgHtml,
+                                                        okText: 'Sí, finalizar y cerrar',
+                                                        cancelText: 'Cancelar'
+                                                    });
+                                                } else {
+                                                    var msg = 'De ' + pend + ' actividad(es) pendiente(s), puedo autocompletar y finalizar ' + ids.length + '.\n\n'
+                                                        + faltan + ' actividad(es) son gestionadas por otros responsables y su identificador no está disponible en esta vista, por lo que NO puedo finalizarlas automáticamente (deben finalizarse por su responsable o desde el backend).\n\n'
+                                                        + '¿Deseás finalizar las ' + ids.length + ' que sí puedo y CERRAR el proyecto de todos modos (las otras ' + faltan + ' quedarán En Proceso)?';
+                                                    ok = confirm(msg);
+                                                }
+                                                if (!ok) {
+                                                    try { if (window.swal) swal.close(); } catch (e) { }
+                                                    return;
+                                                }
                                             }
                                             opShowInlineProgress(ids.length > 0 ? ('Autocompletando ' + ids.length + ' actividad(es) y finalizando…') : 'Finalizando proyecto…');
                                             if (ids.length === 0) {
@@ -7185,8 +7548,273 @@
                                             }
                                         }
 
+                                        // ═══════════════════════════════════════════════════════════════
+                                        // NORMALIZACIÓN DE HIPERVÍNCULOS LEGACY (PRODUCCIÓN → ACTUAL)
+                                        // ═══════════════════════════════════════════════════════════════
+                                        // Las memorias de diseño almacenadas en BD contienen URLs hardcoded
+                                        // al servidor legacy: http://172.16.2.117:8084/Diseno_desarrollo/...
+                                        // y http://172.16.2.117:8084/Reunion/... . Esta función intercepta
+                                        // TODOS los <a> del DOM con ese patrón y los reescribe al host actual
+                                        // (localhost en dev, IP/dominio real en producción) sin modificar la BD.
+                                        // Progressive Enhancement: si falla, los links quedan como estaban.
+                                        function opNormalizeLegacyLinks() {
+                                            try {
+                                                // Patrón: http(s)://172.16.2.117(:puerto)/ruta...
+                                                var legacyPattern = /https?:\/\/172\.16\.2\.117(:\d+)?/gi;
+                                                // Contexto de esta aplicación (case-insensitive match)
+                                                var appContextPattern = /\/(?:diseno_desarrollo|DISENO_DESARROLLO|DisenoDesarrollo)\//i;
+                                                var currentOrigin = window.location.origin; // e.g. http://localhost:8084
+                                                var currentContextPath = '';
+                                                // Detectar el context path actual desde la URL del navegador
+                                                var pathParts = window.location.pathname.split('/');
+                                                if (pathParts.length > 1 && pathParts[1]) {
+                                                    currentContextPath = '/' + pathParts[1]; // e.g. /DisenoDesarrollo
+                                                }
+
+                                                // Buscar TODOS los <a> en el documento
+                                                var allLinks = document.querySelectorAll('a[href]:not([data-op-legacy-normalized])');
+                                                for (var i = 0; i < allLinks.length; i++) {
+                                                    var link = allLinks[i];
+                                                    var href = link.getAttribute('href') || '';
+
+                                                    // Solo procesar links que apunten al servidor legacy
+                                                    if (!legacyPattern.test(href)) continue;
+                                                    legacyPattern.lastIndex = 0; // Reset regex
+
+                                                    // Parsear la URL legacy para extraer su path
+                                                    var newHref = href;
+                                                    try {
+                                                        var parsed = new URL(href);
+                                                        var legacyPath = parsed.pathname; // e.g. /Diseno_desarrollo/Proyecto.jsp
+
+                                                        if (appContextPattern.test(legacyPath)) {
+                                                            // Es un link INTERNO de esta app → reescribir al context path actual
+                                                            // Extraer la parte después del context path legacy
+                                                            var innerPath = legacyPath.replace(appContextPattern, '/');
+                                                            newHref = currentContextPath + '/' + innerPath.replace(/^\/+/, '');
+                                                            if (parsed.search) newHref += parsed.search;
+                                                            if (parsed.hash) newHref += parsed.hash;
+                                                        } else {
+                                                            // Es un link EXTERNO (e.g. /Reunion/Inicio.jsp) → usar mismo host, diferente contexto
+                                                            newHref = currentOrigin + legacyPath;
+                                                            if (parsed.search) newHref += parsed.search;
+                                                            if (parsed.hash) newHref += parsed.hash;
+                                                        }
+                                                    } catch (urlErr) {
+                                                        // Fallback: reemplazo simple de la parte del host
+                                                        newHref = href.replace(legacyPattern, currentOrigin);
+                                                    }
+
+                                                    // Actualizar el href
+                                                    link.setAttribute('href', newHref);
+
+                                                    // Si el texto visible del link era la URL legacy, actualizarlo también
+                                                    var linkText = (link.textContent || '').trim();
+                                                    if (legacyPattern.test(linkText)) {
+                                                        legacyPattern.lastIndex = 0;
+                                                        link.textContent = linkText.replace(legacyPattern, currentOrigin);
+                                                    }
+                                                    legacyPattern.lastIndex = 0;
+
+                                                    // Marcar como procesado para evitar doble procesamiento
+                                                    link.setAttribute('data-op-legacy-normalized', 'true');
+                                                }
+                                            } catch (e) {
+                                                /* Progressive Enhancement: falla silenciosamente */
+                                            }
+                                        }
+
+                                        // ═══════════════════════════════════════════════════════════════
+                                        // BOTÓN "← VOLVER" — Navegación de retroceso lógica
+                                        // ═══════════════════════════════════════════════════════════════
+                                        function opResolveBackNavigation() {
+                                            try {
+                                                var path = (window.location.pathname || '').toLowerCase();
+                                                var search = window.location.search || '';
+                                                var searchLow = search.toLowerCase();
+                                                var title = (document.title || '').toLowerCase();
+
+                                                // 1. Root / Login / Logout views: NO back button
+                                                if (path.endsWith('/index.jsp') || (path.endsWith('/') && !search) || path.indexOf('salir') !== -1 || (path.indexOf('sesion') !== -1 && searchLow.indexOf('opc=4') !== -1)) {
+                                                    return null;
+                                                }
+                                                // Inicio.jsp is the root dashboard
+                                                if ((path.indexOf('inicio.jsp') !== -1 || path.indexOf('inicio') !== -1) && searchLow.indexOf('opc=') === -1) {
+                                                    return null;
+                                                }
+
+                                                // Helper: get URL param
+                                                function getParam(name) {
+                                                    var regex = new RegExp('[?&]' + name + '=([^&#]*)', 'i');
+                                                    var match = regex.exec(search) || regex.exec(window.location.href);
+                                                    return match ? decodeURIComponent(match[1]) : null;
+                                                }
+
+                                                var ipy = getParam('ipy');
+                                                var estadoM = getParam('estadoM') || getParam('estadom') || '1';
+
+                                                // Save / recover ipy
+                                                if (ipy && ipy !== '0') {
+                                                    try {
+                                                        sessionStorage.setItem('op_last_ipy', ipy);
+                                                        sessionStorage.setItem('op_last_estadoM', estadoM);
+                                                    } catch (e) {}
+                                                } else {
+                                                    try {
+                                                        ipy = ipy || sessionStorage.getItem('op_last_ipy');
+                                                        estadoM = estadoM || sessionStorage.getItem('op_last_estadoM') || '1';
+                                                    } catch (e) {}
+                                                }
+
+                                                // Also attempt recovery from DOM links if missing
+                                                if (!ipy) {
+                                                    var ipyLink = document.querySelector('a[href*="ipy="], form[action*="ipy="]');
+                                                    if (ipyLink) {
+                                                        var href = ipyLink.getAttribute('href') || ipyLink.getAttribute('action') || '';
+                                                        var m = href.match(/[?&]ipy=([^&#]+)/i);
+                                                        if (m) ipy = m[1];
+                                                    }
+                                                }
+
+                                                // 2. Entradas (Entradas.jsp, Entradas_Memoria.jsp, or Proyecto?opc=14)
+                                                if (path.indexOf('entradas') !== -1 || searchLow.indexOf('opc=14') !== -1 || title.indexOf('entradas') !== -1) {
+                                                    var memUrl = ipy ? ('Proyecto?opc=7&ipy=' + ipy + '&estadoM=' + estadoM) : 'Proyecto.jsp';
+                                                    return { url: memUrl, label: 'Memorias' };
+                                                }
+
+                                                // 3. Pruebas de Proyecto (Pruebas.jsp, Pruebas_Memoria.jsp, or Proyecto?opc=18)
+                                                if (searchLow.indexOf('opc=18') !== -1 || ((path.indexOf('pruebas') !== -1 || title.indexOf('pruebas') !== -1) && searchLow.indexOf('complemento=pruebas_b') === -1 && path.indexOf('complemento') === -1)) {
+                                                    var memUrl = ipy ? ('Proyecto?opc=7&ipy=' + ipy + '&estadoM=' + estadoM) : 'Proyecto.jsp';
+                                                    return { url: memUrl, label: 'Memorias' };
+                                                }
+
+                                                // 4. Memorias / DHF (Memorias.jsp or Proyecto?opc=7)
+                                                if (path.indexOf('memorias') !== -1 || searchLow.indexOf('opc=7') !== -1 || title.indexOf('memorias') !== -1 || (document.documentElement && document.documentElement.classList.contains('op-dhf-init'))) {
+                                                    return { url: 'Proyecto.jsp', label: 'Proyectos' };
+                                                }
+
+                                                // 5. Proyecto.jsp (Listado de proyectos)
+                                                if (path.indexOf('proyecto') !== -1 && searchLow.indexOf('opc=7') === -1 && searchLow.indexOf('opc=14') === -1 && searchLow.indexOf('opc=18') === -1) {
+                                                    return { url: 'Inicio.jsp', label: 'Inicio' };
+                                                }
+
+                                                // 6. Complementos & Parametrización (Categorías, Etapas, Fases, Áreas, Cargos, Pruebas_B, etc.)
+                                                if (path.indexOf('complemento') !== -1 || searchLow.indexOf('complemento=') !== -1 ||
+                                                    path.indexOf('categor') !== -1 || path.indexOf('etapa') !== -1 || path.indexOf('fase') !== -1 ||
+                                                    path.indexOf('area') !== -1 || path.indexOf('cargo') !== -1) {
+                                                    return { url: 'Inicio.jsp', label: 'Inicio' };
+                                                }
+
+                                                // 7. Permisos
+                                                if (path.indexOf('permisos') !== -1 || searchLow.indexOf('permisos') !== -1 || title.indexOf('permisos') !== -1) {
+                                                    return { url: 'Inicio.jsp', label: 'Inicio' };
+                                                }
+
+                                                // 8. Soporte / Support
+                                                if (path.indexOf('support') !== -1 || path.indexOf('soporte') !== -1 || title.indexOf('soporte') !== -1) {
+                                                    return { url: 'Inicio.jsp', label: 'Inicio' };
+                                                }
+
+                                                // 9. Gestor de Archivos / OfficePlatform
+                                                if (path.indexOf('officeplatform') !== -1 || title.indexOf('gestor de archivos') !== -1) {
+                                                    return { url: 'Inicio.jsp', label: 'Inicio' };
+                                                }
+
+                                                // 10. Usuarios
+                                                if (path.indexOf('usuario') !== -1 || searchLow.indexOf('usuario') !== -1) {
+                                                    return { url: 'Inicio.jsp', label: 'Inicio' };
+                                                }
+
+                                                // Default fallback for any other internal page except Inicio/Index:
+                                                if (document.querySelector('.main-content') && path.indexOf('inicio') === -1 && path.indexOf('index') === -1) {
+                                                    return { url: 'Inicio.jsp', label: 'Inicio' };
+                                                }
+
+                                                return null;
+                                            } catch (e) {
+                                                return null;
+                                            }
+                                        }
+
+                                        function opRenderBackButton() {
+                                            try {
+                                                var nav = opResolveBackNavigation();
+                                                if (!nav || !nav.url) return;
+
+                                                // 1. If inside Memorias DHF and #op-view-toolbar exists:
+                                                var toolbar = document.getElementById('op-view-toolbar');
+                                                if (toolbar) {
+                                                    if (!document.getElementById('op-back-btn-toolbar')) {
+                                                        var tbBtn = document.createElement('a');
+                                                        tbBtn.href = nav.url;
+                                                        tbBtn.id = 'op-back-btn-toolbar';
+                                                        tbBtn.className = 'op-back-button op-back-btn-toolbar mr-2';
+                                                        tbBtn.title = 'Volver a ' + nav.label;
+                                                        tbBtn.innerHTML = '<i class="fas fa-arrow-left"></i> <span>' + nav.label + '</span>';
+                                                        toolbar.insertBefore(tbBtn, toolbar.firstChild);
+                                                    }
+                                                    return;
+                                                }
+
+                                                // 2. If .section-header exists (Proyecto.jsp, Complemento.jsp, Permisos.jsp, Support.jsp, OfficePlatform.jsp):
+                                                var sectionHeader = document.querySelector('.section .section-header') || document.querySelector('.section-header');
+                                                if (sectionHeader) {
+                                                    if (!document.getElementById('op-section-header-back')) {
+                                                        var headerBack = document.createElement('div');
+                                                        headerBack.id = 'op-section-header-back';
+                                                        headerBack.className = 'section-header-back mr-3';
+                                                        headerBack.style.cssText = 'display: inline-flex; align-items: center; margin-right: 15px;';
+
+                                                        var btn = document.createElement('a');
+                                                        btn.href = nav.url;
+                                                        btn.id = 'op-back-btn';
+                                                        btn.className = 'op-back-button';
+                                                        btn.title = 'Volver a ' + nav.label;
+                                                        btn.innerHTML = '<i class="fas fa-arrow-left"></i> <span>' + nav.label + '</span>';
+
+                                                        headerBack.appendChild(btn);
+                                                        sectionHeader.insertBefore(headerBack, sectionHeader.firstChild);
+                                                    }
+                                                    return;
+                                                }
+
+                                                // 3. Fallback for views without .section-header (e.g. Entradas.jsp, Pruebas.jsp, or custom pages):
+                                                if (!document.getElementById('op-back-btn')) {
+                                                    var container = document.querySelector('.main-content .container') ||
+                                                        document.querySelector('.main-content .section-body') ||
+                                                        document.querySelector('.main-content .card') ||
+                                                        document.querySelector('.main-content') ||
+                                                        document.getElementById('Formulario');
+                                                    if (container) {
+                                                        var wrapper = document.createElement('div');
+                                                        wrapper.id = 'op-back-btn-wrapper';
+                                                        wrapper.className = 'op-back-button-wrapper mb-3';
+                                                        wrapper.style.cssText = 'display: block; margin-bottom: 16px; position: relative; z-index: 100;';
+
+                                                        var fallbackBtn = document.createElement('a');
+                                                        fallbackBtn.href = nav.url;
+                                                        fallbackBtn.id = 'op-back-btn';
+                                                        fallbackBtn.className = 'op-back-button';
+                                                        fallbackBtn.title = 'Volver a ' + nav.label;
+                                                        fallbackBtn.innerHTML = '<i class="fas fa-arrow-left"></i> <span>' + nav.label + '</span>';
+
+                                                        wrapper.appendChild(fallbackBtn);
+                                                        container.parentNode.insertBefore(wrapper, container);
+                                                    }
+                                                }
+                                            } catch (e) {
+                                                /* Fail silently - Progressive Enhancement */
+                                            }
+                                        }
+
                                         // --- SPRINT 7: ORQUESTADOR ÚNICO DE INICIALIZACIÓN DE LA CAPA .op-* ---
                                         function opInit() {
+                                            // Renderizar botón de retroceso lógico
+                                            opRenderBackButton();
+
+                                            // Normalizar hipervínculos legacy (172.16.2.117 → host actual)
+                                            opNormalizeLegacyLinks();
+
                                             // C3: mitigacion de duplicacion en el Audit Trail MemoriaDLog por F5 / doble clic
                                             // (backend congelado sin patron PRG en opc=9/10/11/12). Capa PE, sin tocar el submit real.
                                             try {
@@ -7223,11 +7851,29 @@
                                             // Sprint 10: adapt activity tables to card layout
                                             opAdaptActivityCard();
 
+                                            // Re-verificar botón de retroceso tras construir vistas
+                                            opRenderBackButton();
+
                                             // Fallback de seguridad: asegura que nunca quede nada oculto
                                             setTimeout(function () {
                                                 document.documentElement.classList.add('op-dhf-ready');
                                                 document.documentElement.classList.remove('op-dhf-init');
+                                                opRenderBackButton();
                                             }, 1000);
+
+                                            // Observador de mutaciones del DOM para garantizar que el botón persista
+                                            if (window.MutationObserver && !window._opBackObserverInstalled) {
+                                                window._opBackObserverInstalled = true;
+                                                var _opBackObs = new MutationObserver(function () {
+                                                    if (!document.getElementById('op-section-header-back') && !document.getElementById('op-back-btn') && !document.getElementById('op-back-btn-toolbar')) {
+                                                        opRenderBackButton();
+                                                    }
+                                                    // Re-normalizar links legacy en contenido dinámico (debounced)
+                                                    clearTimeout(window._opLegacyLinkTimer);
+                                                    window._opLegacyLinkTimer = setTimeout(opNormalizeLegacyLinks, 500);
+                                                });
+                                                _opBackObs.observe(document.body || document.documentElement, { childList: true, subtree: true });
+                                            }
 
                                             // Re-inicializar al cambiar de tab
                                             document.addEventListener('click', function (e) {
@@ -7248,6 +7894,8 @@
                                                         opForceExpandAll();
                                                         opInitSplitScreen();
                                                         opAdaptActivityCard();
+                                                        opRenderBackButton();
+                                                        opNormalizeLegacyLinks();
                                                     }, 300);
                                                 }
                                             });
@@ -7311,6 +7959,7 @@
                                         } else {
                                             opInit();
                                         }
+                                        window.addEventListener('load', opRenderBackButton);
                                     })();
                         </script>
     </body>
